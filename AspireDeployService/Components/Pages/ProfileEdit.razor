@@ -104,7 +104,7 @@
                 @foreach (var name in p.Parameters.Keys.OrderBy(k => k, StringComparer.Ordinal).ToList())
                 {
                     var isSecret = s.IsSecret(name);
-                    <tr>
+                    <tr @key="name">
                         <td><code>@name</code></td>
                         <td style="min-width: 18rem">
                             @if (s.IsMasked(name))

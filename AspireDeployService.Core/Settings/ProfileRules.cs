@@ -49,6 +49,11 @@ public static partial class ProfileRules
             errors.Add("Destination:Location: enter an Azure region, for example eastus2.");
         if (!IsValidResourceGroup(p.Destination.ResourceGroup))
             errors.Add("Destination:ResourceGroup: 1 to 90 letters, digits, '-', '_', '.', '(' or ')', not ending with '.'.");
+        foreach (var (name, key) in p.ParameterConfigKeys)
+        {
+            if (Deploy.DeployEnvironment.IsReserved(Deploy.DeployEnvironment.ToEnvironmentVariable(key)))
+                errors.Add($"ParameterConfigKeys:{name}: '{key}' is reserved for the deployment itself (Azure:*, ASPIRE_*, DOTNET_*, PATH, ...).");
+        }
         if (p.ContainerRuntime is { Length: > 0 } rt && rt is not ("docker" or "podman"))
             errors.Add("ContainerRuntime: must be docker, podman or empty.");
         return errors;

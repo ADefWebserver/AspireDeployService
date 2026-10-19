@@ -50,11 +50,11 @@ public sealed partial class GitHubSource(IHttpClientFactory httpFactory) : ISour
 
         await run.Log.InfoAsync($"Downloading {display}.", ct);
         var zip = Path.Combine(workKeyDir, "download", sha + ".zip");
-        await DownloadAsync(http, repo, sha, zip, ct);
-
         var extract = Path.Combine(workKeyDir, "extract");
         try
         {
+            // Inside the try, so a canceled, oversized or broken download does not leave a partial ZIP behind.
+            await DownloadAsync(http, repo, sha, zip, ct);
             await DeleteWithRetriesAsync(extract, ct);
             string inner;
             try

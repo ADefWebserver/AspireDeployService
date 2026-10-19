@@ -1,6 +1,8 @@
 ﻿@inherits LayoutComponentBase
+@implements IDisposable
+@inject DialogService Dialogs
 
-<div class="page">
+<div class="page" inert="@(Dialogs.Current is not null)">
     <div class="sidebar">
         <NavMenu />
     </div>
@@ -32,6 +34,12 @@
 
 @code {
     private ErrorBoundary? _boundary;
+
+    protected override void OnInitialized() => Dialogs.Changed += OnDialogsChanged;
+
+    private void OnDialogsChanged() => _ = InvokeAsync(StateHasChanged);
+
+    public void Dispose() => Dialogs.Changed -= OnDialogsChanged;
 
     private void Recover() => _boundary?.Recover();
 }

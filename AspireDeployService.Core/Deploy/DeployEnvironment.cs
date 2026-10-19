@@ -1,4 +1,5 @@
 using AspireDeployService.Core.Discovery;
+using AspireDeployService.Core.Outcomes;
 using AspireDeployService.Core.Processes;
 using AspireDeployService.Core.Settings;
 
@@ -24,6 +25,27 @@ public static class DeployEnvironment
         profile.ParameterConfigKeys.TryGetValue(name, out var custom) && custom.Length > 0 ? custom
         : discovered.FirstOrDefault(p => p.Name == name)?.ConfigKey ?? $"Parameters:{name}";
 
+    private static readonly string[] ReservedPrefixes = ["Azure__", "ASPIRE_", "DCP_", "DOTNET_", "OTEL_", "MSBuild", "NUGET_"];
+    private static readonly string[] ReservedNames = ["PATH", "PATHEXT", "ComSpec", "SystemRoot", "TEMP", "TMP", "HOME", "USERPROFILE"];
+
+    /// <summary>
+    /// Environment variables that control the deployment target or the processes themselves. A parameter may not
+    /// map onto one: an override such as <c>Azure:SubscriptionId</c> would deploy somewhere other than the
+    /// destination the user confirmed.
+    /// </summary>
+    public static bool IsReserved(string environmentVariable) =>
+        ReservedNames.Contains(environmentVariable, StringComparer.OrdinalIgnoreCase)
+        || ReservedPrefixes.Any(p => environmentVariable.StartsWith(p, StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>The parameters whose configuration key maps onto a reserved variable (empty when all are allowed).</summary>
+    public static IReadOnlyList<string> ReservedParameterMappings(DeployProfile profile, IReadOnlyList<DiscoveredParameter> discovered) =>
+        profile.Parameters.Keys
+            .Concat(profile.ParameterConfigKeys.Keys)
+            .Distinct(StringComparer.Ordinal)
+            .Where(name => IsReserved(ToEnvironmentVariable(ConfigKeyFor(name, profile, discovered))))
+            .Select(name => $"{name} → {ConfigKeyFor(name, profile, discovered)}")
+            .ToList();
+
     public static Dictionary<string, string?> Build(DeployProfile profile, IReadOnlyList<DiscoveredParameter> discovered,
         string? aspireCliFolder, Func<string, string?> parentEnvironment)
     {
@@ -46,6 +68,12 @@ public static class DeployEnvironment
         var runtime = !string.IsNullOrWhiteSpace(profile.ContainerRuntime) ? profile.ContainerRuntime : parentEnvironment("ASPIRE_CONTAINER_RUNTIME");
         if (!string.IsNullOrWhiteSpace(runtime))
             env["ASPIRE_CONTAINER_RUNTIME"] = runtime;
+
+        var reserved = ReservedParameterMappings(profile, discovered);
+        if (reserved.Count > 0)
+            throw new DeployerException(OutcomeCode.InvalidInput,
+                "These parameters map onto settings that control the deployment itself, so they were refused: "
+                + string.Join(", ", reserved) + ". Change their configuration key on the profile page.");
 
         foreach (var (name, value) in profile.Parameters)
         {

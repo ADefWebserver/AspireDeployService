@@ -16,6 +16,17 @@ public sealed class DeploySecretRedactor : ISecretRedactor
     {
         if (string.IsNullOrEmpty(value))
             return;
+        AddOne(value);
+        // ProcessRunner redacts output line by line, so a multi-line secret is also registered per line.
+        if (value.Contains('\n') || value.Contains('\r'))
+        {
+            foreach (var line in value.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+                AddOne(line);
+        }
+    }
+
+    private void AddOne(string value)
+    {
         _inner.AddSecret(value);
         if (value.Length < 8)
             _short.TryAdd(value, 0);
