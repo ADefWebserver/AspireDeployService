@@ -39,7 +39,7 @@
                 <button class="btn btn-sm btn-outline-secondary" @onclick="() => _replacing = true">Replace</button>
                 @if (!string.IsNullOrEmpty(s.Options.GitHubToken))
                 {
-                    <button class="btn btn-sm btn-outline-danger" @onclick="() => SaveTokenAsync(null)">Clear</button>
+                    <button class="btn btn-sm btn-outline-danger" @onclick="ClearTokenAsync">Clear</button>
                 }
             }
         </div>
@@ -69,7 +69,22 @@
 
     protected override async Task OnInitializedAsync() => _snapshot = await Profiles.LoadAsync(CancellationToken.None);
 
+    private Task ClearTokenAsync() => WriteTokenAsync(null);
+
+    /// <summary>An empty value after "Replace" keeps the current token; only the Clear button removes it.</summary>
     private async Task SaveTokenAsync(string? token)
+    {
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            (_message, _failed) = ("Nothing was entered, so the token is unchanged.", false);
+            _replacing = false;
+            _newToken = null;
+            return;
+        }
+        await WriteTokenAsync(token.Trim());
+    }
+
+    private async Task WriteTokenAsync(string? token)
     {
         try
         {

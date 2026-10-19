@@ -1,9 +1,21 @@
+using System.Text.RegularExpressions;
+
 namespace AspireDeployService.Core.Discovery;
 
 /// <summary>The few things that change between Aspire 13.x versions (source plan §6.4).</summary>
-public static class AspireVersionRules
+public static partial class AspireVersionRules
 {
     public const string UpgradeLink = "https://aspire.dev/"; // the upgrade guides live here
+
+    [GeneratedRegex(@"^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.]+)?$")]
+    private static partial Regex StrictVersionPattern();
+
+    /// <summary>
+    /// The version comes from files in the source being deployed and later becomes a folder name under
+    /// ToolsRoot, so only a plain semantic version is accepted: no path separators, no "..".
+    /// </summary>
+    public static bool IsStrictVersion(string? text) =>
+        text is not null && StrictVersionPattern().IsMatch(text) && !text.Contains("..", StringComparison.Ordinal);
 
     /// <summary>Parses "13.6.1", "13.6.1-preview.1.2" or "13.6" into a <see cref="Version"/>.</summary>
     public static bool TryParse(string? text, out Version version)

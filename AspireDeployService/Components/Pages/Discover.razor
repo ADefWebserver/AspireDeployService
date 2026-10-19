@@ -122,8 +122,11 @@
             (observer, ct) => Discovery.DiscoverAsync(request, observer, ct),
             r => OperationResult.Ok(r.ManifestRan
                 ? $"Found {r.Parameters.Count} parameters and {r.Resources.Count} resources."
-                : "Static scan finished; nothing was built or run."));
-        _run.Tag = request;
+                : "Static scan finished; nothing was built or run."),
+            tag: request);
+        // The same source may already be running with other options; show the options that are really in use.
+        if (_run.Tag is DiscoverRequest running)
+            _staticOnly = running.StaticOnly;
     }
 
     private SourceSpec Spec() => new(_kind, _location ?? "", _kind == SourceKind.GitHub ? _ref : null, _appHost);

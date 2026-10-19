@@ -49,14 +49,19 @@ public sealed class RunCoordinator
     }
 
     /// <summary>Starts work that returns a value (for example a DiscoveryResult); <paramref name="toResult"/> turns it into the banner result.</summary>
-    public ActiveRun Start<T>(string key, string title, Func<IRunObserver, CancellationToken, Task<T>> work, Func<T, OperationResult> toResult)
+    /// <remarks>
+    /// If a run with <paramref name="key"/> is already running, that run is returned unchanged and <paramref name="work"/>
+    /// is not started; <paramref name="tag"/> is set only on a new run, so a page can tell which input is really running.
+    /// </remarks>
+    public ActiveRun Start<T>(string key, string title, Func<IRunObserver, CancellationToken, Task<T>> work, Func<T, OperationResult> toResult,
+        object? tag = null)
     {
         ActiveRun run;
         lock (_gate)
         {
             if (_runs.TryGetValue(key, out var existing) && existing.IsRunning)
                 return existing;
-            run = new ActiveRun(key, title);
+            run = new ActiveRun(key, title) { Tag = tag };
             _runs[key] = run;
         }
         RunsChanged?.Invoke();
@@ -88,8 +93,8 @@ public sealed class RunCoordinator
         return run;
     }
 
-    public ActiveRun Start(string key, string title, Func<IRunObserver, CancellationToken, Task<OperationResult>> work) =>
-        Start(key, title, work, r => r);
+    public ActiveRun Start(string key, string title, Func<IRunObserver, CancellationToken, Task<OperationResult>> work, object? tag = null) =>
+        Start(key, title, work, r => r, tag);
 
     /// <summary>Plan D15 (2): cancels every running run and waits up to <paramref name="timeout"/> for them to stop.</summary>
     public async Task CancelAllAsync(TimeSpan timeout)

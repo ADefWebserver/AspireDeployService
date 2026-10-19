@@ -1,4 +1,5 @@
 @page "/profiles/{Name}"
+@implements IDisposable
 @inject IProfileService Profiles
 @inject RunCoordinator Runs
 
@@ -13,8 +14,10 @@
     <div class="alert alert-success">Saved.</div>
 }
 
-@if (_edit is { } p && _original is { } o)
+@if (_session is { } s)
 {
+    var p = s.Edited;
+    var o = s.Original;
     var busy = Runs.TryGet("deploy:" + Name)?.IsRunning == true;
     <fieldset disabled="@(busy || _readOnly)" style="max-width: 56rem">
         @if (busy)
@@ -44,7 +47,8 @@
                 <div class="col-12">
                     <label class="form-label">GitHub token for this profile</label>
                     <SecretField Label="token" HasValue="@(!string.IsNullOrEmpty(o.Source.GitHubToken))" Original="@o.Source.GitHubToken"
-                                 @bind-Replacement="_tokenReplacement" @bind-Cleared="_tokenCleared" />
+                                 Replacement="@s.TokenReplacement" ReplacementChanged="v => s.TokenReplacement = v"
+                                 Cleared="@s.TokenCleared" ClearedChanged="c => s.TokenCleared = c" />
                 </div>
             }
         </div>
@@ -99,17 +103,15 @@
             <tbody>
                 @foreach (var name in p.Parameters.Keys.OrderBy(k => k, StringComparer.Ordinal).ToList())
                 {
-                    var isSecret = _secret.Contains(name);
+                    var isSecret = s.IsSecret(name);
                     <tr>
                         <td><code>@name</code></td>
                         <td style="min-width: 18rem">
-                            @if (isSecret && o.Parameters.ContainsKey(name))
+                            @if (s.IsMasked(name))
                             {
                                 <SecretField Label="@name" HasValue="@(o.Parameters[name].Length > 0)" Original="@o.Parameters[name]"
-                                             Replacement="@_replacements.GetValueOrDefault(name)"
-                                             ReplacementChanged="v => SetReplacement(name, v)"
-                                             Cleared="@_clearedSecrets.Contains(name)"
-                                             ClearedChanged="c => Toggle(_clearedSecrets, name, c)" />
+                                             Replacement="@s.ReplacementFor(name)" ReplacementChanged="v => s.Replace(name, v)"
+                                             Cleared="@s.IsCleared(name)" ClearedChanged="c => s.Clear(name, c)" />
                             }
                             else if (isSecret)
                             {
@@ -120,19 +122,19 @@
                                 <input class="form-control form-control-sm" value="@p.Parameters[name]" @onchange="ev => p.Parameters[name] = ev.Value?.ToString() ?? string.Empty" />
                             }
                         </td>
-                        <td><input type="checkbox" class="form-check-input" checked="@isSecret" @onchange="ev => Toggle(_secret, name, (bool)ev.Value!)" /></td>
+                        <td><input type="checkbox" class="form-check-input" checked="@isSecret" @onchange="ev => s.SetSecret(name, (bool)ev.Value!)" /></td>
                         <td>
                             <input class="form-control form-control-sm" placeholder="@($"Parameters:{name}")" value="@p.ParameterConfigKeys.GetValueOrDefault(name)"
                                    @onchange="ev => SetConfigKey(p, name, ev.Value?.ToString())" />
                         </td>
-                        <td><button class="btn btn-sm btn-outline-danger" @onclick="() => RemoveParameter(p, name)">Remove</button></td>
+                        <td><button class="btn btn-sm btn-outline-danger" @onclick="() => s.Remove(name)">Remove</button></td>
                     </tr>
                 }
             </tbody>
         </table>
         <div class="input-group mb-3" style="max-width: 28rem">
             <input class="form-control" placeholder="parameter name" @bind="_newParameter" />
-            <button class="btn btn-outline-secondary" @onclick="() => AddParameter(p)">Add parameter</button>
+            <button class="btn btn-outline-secondary" @onclick="AddParameter">Add parameter</button>
         </div>
 
         <p class="small text-muted">Last deployed with Aspire: @(o.LastDeployedAspireVersion ?? "never")</p>
@@ -150,19 +152,20 @@ else if (_error is null)
 @code {
     [Parameter] public string Name { get; set; } = "";
 
-    private DeployProfile? _original;
-    private DeployProfile? _edit;
-    private HashSet<string> _secret = new(StringComparer.Ordinal);
-    private readonly Dictionary<string, string?> _replacements = new(StringComparer.Ordinal);
-    private readonly HashSet<string> _clearedSecrets = new(StringComparer.Ordinal);
-    private string? _tokenReplacement;
-    private bool _tokenCleared;
+    private ProfileEditSession? _session;
     private string? _newParameter;
     private string? _error;
     private bool _saved;
     private bool _readOnly;
 
-    protected override async Task OnParametersSetAsync() => await LoadAsync();
+    protected override void OnInitialized() => Runs.RunsChanged += OnRunsChanged;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _error = null;
+        _saved = false;
+        await LoadAsync();
+    }
 
     private async Task LoadAsync()
     {
@@ -170,30 +173,15 @@ else if (_error is null)
         _readOnly = location.ParseError is not null;
         if (_readOnly)
             _error = $"The settings file cannot be read, so editing is disabled: {location.ParseError}";
-        _original = await Profiles.GetAsync(Name, CancellationToken.None);
-        if (_original is null)
+        var original = await Profiles.GetAsync(Name, CancellationToken.None);
+        if (original is null)
         {
             _error ??= $"Profile '{Name}' does not exist.";
-            _edit = null;
+            _session = null;
             return;
         }
-        _edit = _original.Clone();
-        // Saved secret values never go into inputs; the edit copy holds "" until replaced (plan §6.1).
-        foreach (var s in _original.SecretParameters.Where(_edit.Parameters.ContainsKey))
-            _edit.Parameters[s] = "";
-        _edit.Source.GitHubToken = null;
-        _secret = new HashSet<string>(_original.SecretParameters, StringComparer.Ordinal);
-        _replacements.Clear();
-        _clearedSecrets.Clear();
-        _tokenReplacement = null;
-        _tokenCleared = false;
-    }
-
-    private void SetReplacement(string name, string? value) => _replacements[name] = value;
-
-    private static void Toggle(HashSet<string> set, string name, bool on)
-    {
-        if (on) set.Add(name); else set.Remove(name);
+        // Saved secret values never go into inputs (plan §6.1); the session tracks what the user changed.
+        _session = new ProfileEditSession(original);
     }
 
     private static void SetConfigKey(DeployProfile p, string name, string? key)
@@ -201,75 +189,20 @@ else if (_error is null)
         if (string.IsNullOrWhiteSpace(key)) p.ParameterConfigKeys.Remove(name); else p.ParameterConfigKeys[name] = key.Trim();
     }
 
-    private void RemoveParameter(DeployProfile p, string name)
+    private void AddParameter()
     {
-        p.Parameters.Remove(name);
-        p.ParameterConfigKeys.Remove(name);
-        _secret.Remove(name);
-    }
-
-    private void AddParameter(DeployProfile p)
-    {
-        var name = _newParameter?.Trim();
-        if (string.IsNullOrEmpty(name) || p.Parameters.ContainsKey(name))
-            return;
-        p.Parameters[name] = "";
-        _newParameter = null;
+        if (_newParameter is { } name && _session!.Add(name))
+            _newParameter = null;
     }
 
     /// <summary>Writes only what changed, onto a fresh copy of the profile (D16), and never rewrites an untouched secret.</summary>
     private async Task SaveAsync()
     {
         _saved = false;
-        var o = _original!;
-        var e = _edit!;
-        var secret = _secret.ToHashSet(StringComparer.Ordinal);
-        var replacements = _replacements.Where(r => r.Value is { Length: > 0 }).ToDictionary(r => r.Key, r => r.Value!);
-        var cleared = _clearedSecrets.ToHashSet(StringComparer.Ordinal);
-        var token = _tokenCleared ? "" : _tokenReplacement;
-
+        var session = _session!;
         try
         {
-            await Profiles.UpdateAsync(Name, p =>
-            {
-                if (e.Source.Ref != o.Source.Ref) p.Source.Ref = Empty(e.Source.Ref);
-                if (e.Source.AppHostPath != o.Source.AppHostPath) p.Source.AppHostPath = Empty(e.Source.AppHostPath);
-                if (token is not null) p.Source.GitHubToken = Empty(token);
-                Copy(o.Destination.SubscriptionId, e.Destination.SubscriptionId, v => p.Destination.SubscriptionId = v);
-                Copy(o.Destination.TenantId, e.Destination.TenantId, v => p.Destination.TenantId = v);
-                Copy(o.Destination.Location, e.Destination.Location, v => p.Destination.Location = v);
-                Copy(o.Destination.ResourceGroup, e.Destination.ResourceGroup, v => p.Destination.ResourceGroup = v);
-                Copy(o.Destination.CredentialSource, e.Destination.CredentialSource, v => p.Destination.CredentialSource = v);
-                if (e.Destination.AllowResourceGroupCreation != o.Destination.AllowResourceGroupCreation)
-                    p.Destination.AllowResourceGroupCreation = e.Destination.AllowResourceGroupCreation;
-                Copy(o.Environment, e.Environment, v => p.Environment = v);
-                Copy(o.ContainerRuntime, e.ContainerRuntime, v => p.ContainerRuntime = v);
-
-                foreach (var removed in o.Parameters.Keys.Where(k => !e.Parameters.ContainsKey(k)))
-                {
-                    p.Parameters.Remove(removed);
-                    p.ParameterConfigKeys.Remove(removed);
-                }
-                foreach (var (name, value) in e.Parameters)
-                {
-                    var wasSecretAndSaved = o.SecretParameters.Contains(name) && o.Parameters.ContainsKey(name);
-                    if (wasSecretAndSaved)
-                    {
-                        if (replacements.TryGetValue(name, out var r)) p.Parameters[name] = r;
-                        else if (cleared.Contains(name)) p.Parameters[name] = "";
-                    }
-                    else if (!o.Parameters.TryGetValue(name, out var old) || old != value)
-                    {
-                        p.Parameters[name] = value;
-                    }
-
-                    if (e.ParameterConfigKeys.TryGetValue(name, out var key)) p.ParameterConfigKeys[name] = key;
-                    else p.ParameterConfigKeys.Remove(name);
-                }
-                p.SecretParameters = p.Parameters.Keys.Where(secret.Contains)
-                    .Concat(p.SecretParameters.Where(s => !p.Parameters.ContainsKey(s) && secret.Contains(s)))
-                    .Distinct().ToList();
-            }, CancellationToken.None);
+            await Profiles.UpdateAsync(Name, session.ApplyTo, CancellationToken.None);
             _error = null;
             await LoadAsync();
             _saved = true;
@@ -280,11 +213,8 @@ else if (_error is null)
         }
     }
 
-    private static void Copy(string? original, string? edited, Action<string?> set)
-    {
-        if (Empty(original) != Empty(edited))
-            set(Empty(edited));
-    }
+    // The deploy-running state decides whether the form is disabled, so re-render when runs start or end.
+    private void OnRunsChanged() => _ = InvokeAsync(StateHasChanged);
 
-    private static string? Empty(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
+    public void Dispose() => Runs.RunsChanged -= OnRunsChanged;
 }

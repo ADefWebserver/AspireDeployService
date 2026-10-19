@@ -33,7 +33,7 @@ public sealed class AspireCliProvisioner : IAspireCliProvisioner
             return new AspireCli("aspire", null, onPath);
         }
 
-        var dir = Path.Combine(toolsRoot, "aspire", sdkVersion);
+        var dir = ToolFolder(toolsRoot, sdkVersion);
         if (Installed(dir) is { } existing)
             return new AspireCli(existing, dir, sdkVersion);
 
@@ -85,6 +85,21 @@ public sealed class AspireCliProvisioner : IAspireCliProvisioner
             await File.WriteAllTextAsync(Path.Combine(dir, CompleteMarker), sdkVersion, ct);
             return new AspireCli(launcher, dir, sdkVersion);
         }
+    }
+
+    /// <summary>
+    /// <c>&lt;ToolsRoot&gt;/aspire/&lt;version&gt;</c>. The version comes from the deployed source and this folder is deleted
+    /// recursively before an install, so it must be a plain version that stays inside ToolsRoot (code 2 otherwise).
+    /// </summary>
+    internal static string ToolFolder(string toolsRoot, string sdkVersion)
+    {
+        if (!AspireVersionRules.IsStrictVersion(sdkVersion))
+            throw new DeployerException(OutcomeCode.InvalidInput, $"'{sdkVersion}' is not a valid Aspire version.");
+        var root = Path.GetFullPath(Path.Combine(toolsRoot, "aspire"));
+        var dir = Path.GetFullPath(Path.Combine(root, sdkVersion));
+        if (!dir.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+            throw new DeployerException(OutcomeCode.InvalidInput, $"'{sdkVersion}' would install outside the tools folder.");
+        return dir;
     }
 
     private static string? Installed(string dir) =>

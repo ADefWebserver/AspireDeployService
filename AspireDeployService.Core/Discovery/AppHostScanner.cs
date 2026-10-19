@@ -73,7 +73,7 @@ public static partial class AppHostScanner
             ?? throw new DeployerException(OutcomeCode.InvalidInput,
                 $"Could not find the Aspire SDK version of {Relative(root, fullPath)}. Set the AppHost path, or check the project file.");
 
-        if (!AspireVersionRules.TryParse(version, out var parsed))
+        if (!AspireVersionRules.IsStrictVersion(version) || !AspireVersionRules.TryParse(version, out var parsed))
             throw new DeployerException(OutcomeCode.InvalidInput, $"'{version}' is not a recognizable Aspire version.");
         if (!AspireVersionRules.IsSupported(parsed, options.MinimumAspireVersion))
             throw new DeployerException(OutcomeCode.UnsupportedVersion, AspireVersionRules.UnsupportedMessage(version));

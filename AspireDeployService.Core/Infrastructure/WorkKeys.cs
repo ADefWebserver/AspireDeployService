@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using AspireDeployService.Core.Outcomes;
+using AspireDeployService.Core.Settings;
 using AspireDeployService.Core.Sources;
 
 namespace AspireDeployService.Core.Infrastructure;
@@ -15,7 +16,14 @@ public static class WorkKeys
     public static string For(string workRoot, string? profileName, SourceSpec? source)
     {
         if (profileName is not null)
+        {
+            // Profile names come from a hand-editable file and the folder may be deleted recursively,
+            // so "", "..", rooted paths or separators must never become a path (code 2).
+            if (!ProfileRules.IsValidName(profileName))
+                throw new DeployerException(OutcomeCode.InvalidInput,
+                    $"'{profileName}' is not a valid profile name. Rename it in the settings file (2 to 40 lower-case letters, digits or dashes).");
             return Path.Combine(workRoot, profileName);
+        }
         if (source is null)
             return Path.Combine(workRoot, "doctor");
         return Path.Combine(workRoot, "adhoc-" + Hash(AdHocIdentity(source)));

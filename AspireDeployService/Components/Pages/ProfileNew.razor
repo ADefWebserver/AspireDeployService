@@ -155,14 +155,20 @@
     protected override void OnInitialized()
     {
         Runs.RunsChanged += OnRunsChanged;
-        if (Enum.TryParse<SourceKind>(QueryKind, out var kind))
+        // A wizard run that is still going wins over query parameters, so the page shows what is really running.
+        var latest = Runs.Latest("profile:new");
+        if (latest is { IsRunning: true } || (!Enum.TryParse<SourceKind>(QueryKind, out _) && latest is not null))
+            Attach(latest);
+        else if (Enum.TryParse<SourceKind>(QueryKind, out var kind))
             (_kind, _location, _ref, _appHost) = (kind, QueryLocation, QueryRef, QueryAppHost);
-        else if (Runs.Latest("profile:new") is { Tag: WizardInput input } run)
-        {
-            _run = run;
-            (_name, _kind, _location, _ref, _appHost, _overwrite) = input;
-        }
         PrepareForm();
+    }
+
+    private void Attach(ActiveRun run)
+    {
+        _run = run;
+        if (run.Tag is WizardInput input)
+            (_name, _kind, _location, _ref, _appHost, _overwrite) = input;
     }
 
     private sealed record WizardInput(string? Name, SourceKind Kind, string? Location, string? Ref, string? AppHost, bool Overwrite);
@@ -174,7 +180,8 @@
         var overwrite = _overwrite;
         _savedName = null;
         _saveError = null;
-        _run = Runs.Start("profile:new", "New profile", async (observer, ct) =>
+        var input = new WizardInput(_name, _kind, _location, _ref, _appHost, _overwrite);
+        var run = Runs.Start("profile:new", "New profile", async (observer, ct) =>
         {
             if (!overwrite && await Profiles.GetAsync(name, ct) is not null)
                 throw new DeployerException(OutcomeCode.InvalidInput, $"Profile '{name}' already exists. Tick Overwrite to replace it.");
@@ -188,8 +195,9 @@
             var subscriptions = await Azure.ListSubscriptionsAsync(observer, ct);
             var draft = await Profiles.DraftFromDiscoveryAsync(name, spec, discovery, ct);
             return new WizardData(name, spec, discovery, draft, subscriptions);
-        }, d => OperationResult.Ok($"Discovered {d.Discovery.AppHost.AppHostPath} (Aspire {d.Discovery.AppHost.AspireSdkVersion}). Fill in the form below."));
-        _run.Tag = new WizardInput(_name, _kind, _location, _ref, _appHost, _overwrite);
+        }, d => OperationResult.Ok($"Discovered {d.Discovery.AppHost.AppHostPath} (Aspire {d.Discovery.AppHost.AspireSdkVersion}). Fill in the form below."),
+        tag: input);
+        Attach(run); // if another wizard run was still going, this shows that run's input instead of ours
     }
 
     /// <summary>Builds the editable form once the discovery run has produced a draft.</summary>

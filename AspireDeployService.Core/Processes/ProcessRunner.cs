@@ -58,6 +58,9 @@ public sealed class ProcessRunner(ISecretRedactor redactor, ILogger<ProcessRunne
 {
     private const int TailLines = 200;
 
+    /// <summary>How long to wait for the output pipes to close after the process exited.</summary>
+    internal static TimeSpan OutputDrainTimeout { get; set; } = TimeSpan.FromSeconds(30);
+
     // Plan D9. This app's own settings and inherited Azure/parameter values must not reach the target
     // AppHost (an inherited Parameters__x would override a profile value of "" = "AppHost supplies it").
     // Stray service-principal variables must not win over the developer's az login.
@@ -173,7 +176,21 @@ public sealed class ProcessRunner(ISecretRedactor redactor, ILogger<ProcessRunne
             throw new TimeoutException($"{spec.DisplayName} did not finish within {spec.Timeout?.TotalMinutes:0.#} minutes.");
         }
 
-        await Task.WhenAll(outTask, errTask);
+        // A grandchild (MSBuild node, build server, DCP) can inherit the output pipes and keep them open after the
+        // tool itself exited; wait a bounded time, and stay cancelable, instead of hanging the run forever.
+        using (var drain = CancellationTokenSource.CreateLinkedTokenSource(ct))
+        {
+            drain.CancelAfter(OutputDrainTimeout);
+            try
+            {
+                await Task.WhenAll(outTask, errTask).WaitAsync(drain.Token);
+            }
+            catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+            {
+                await log.WriteAsync(LogStreams.System,
+                    $"{spec.DisplayName} exited, but a child process still holds its output open; continuing without it.", CancellationToken.None);
+            }
+        }
 
         string tailText;
         lock (tailLock)

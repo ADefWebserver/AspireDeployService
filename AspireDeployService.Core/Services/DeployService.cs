@@ -219,8 +219,9 @@ public sealed class DeployService(
             {
                 await profiles.RecordDeployedVersionAsync(request.ProfileName, version, CancellationToken.None);
             }
-            catch (DeployerException ex)
+            catch (Exception ex) when (ex is not OperationCanceledException)
             {
+                // D18: the deploy already succeeded; a settings write failure (read-only or locked file) is only a warning.
                 await run.Log.InfoAsync("Warning: the deployed Aspire version could not be saved to the profile: " + ex.Message, CancellationToken.None);
             }
         }
