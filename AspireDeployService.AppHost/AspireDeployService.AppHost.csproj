@@ -10,9 +10,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\AspireDeployService\AspireDeployService.csproj">
-      <SetTargetFramework>TargetFramework=net10.0</SetTargetFramework>
-    </ProjectReference>
+    <!-- The MAUI app is Windows-only; Aspire's MAUI integration builds and launches it as a Windows device. -->
+    <PackageReference Include="Aspire.Hosting.Maui" Version="13.6.1-preview.1.26506.6" />
   </ItemGroup>
 
 </Project>

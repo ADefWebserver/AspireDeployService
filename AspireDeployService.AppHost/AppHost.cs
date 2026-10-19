@@ -1,5 +1,6 @@
 var builder = DistributedApplication.CreateBuilder(args);
 
-builder.AddProject<Projects.AspireDeployService>("aspiredeployservice");
+var app = builder.AddMauiProject("aspiredeployservice", "../AspireDeployService/AspireDeployService.csproj");
+app.AddWindowsDevice();
 
 builder.Build().Run();
