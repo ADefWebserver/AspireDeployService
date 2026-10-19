@@ -1,6 +1,0 @@
-ProjectPath=C:\Users\webma\Source\Repos\AspireDeployService\AspireDeployService\AspireDeployService.csproj
-TargetFramework=net10.0-windows10.0.19041.0
-Configuration=Debug
-RuntimeIdentifier=win-x64
-MauiWorkloadVersion=10.0.20
-DebugSymbols=true

@@ -8,7 +8,7 @@
 > - a private test repository (`<owner>/<private-test-repo>`) that holds an Aspire 13.x starter app;
 > - a fine-grained GitHub token with Contents: read on that repository.
 
-All paths are relative to the repository root unless they start with `<ref>/`. This folder is **not a git repository** yet, so there is no commit to pin line numbers to. Line numbers are as of 2026-10-18.
+All paths are relative to the repository root unless they start with `<ref>/`. Line numbers in this repository are as of commit `7876529`. That initial commit has no `.gitignore`, so it tracks about 2,400 build-output files under `bin/`, `obj/` and `.vs/`; T1 removes them from the index.
 
 ---
 
@@ -32,9 +32,12 @@ Every piece of logic lives in a new `net10.0` class library, `AspireDeployServic
 - No secret value appears in the UI log, the run log file or the history file. The profile page masks secrets until **Reveal** is clicked.
 - The app itself never writes into the target source. For a local folder, the Aspire tooling it runs does write there (`bin/`, `obj/`; for TypeScript AppHosts, `.aspire/modules/` and `node_modules/`; possibly `aspire.config.json`). The README says so.
 - All logic is covered by unit tests in a new test project.
+- This repository's own AppHost keeps launching the MAUI app (§15 Q3).
+- Each profile remembers the Aspire SDK version it last deployed, and Deploy warns when the AppHost's version has changed since then (§15 Q6, D18).
 
 **Non-goals (v1)**
-- A command-line front end. The source plan's `bdn` commands become pages (D1). A CLI over the same Core library can be added later (§15 Q1).
+- A command-line front end. The source plan's `bdn` commands become pages (D1). The owner decided against a later CLI (§15 Q1).
+- A CI workflow (§15 Q2).
 - Android, iOS and MacCatalyst. The MAUI app becomes Windows-only (D3).
 - Aspire 8.x and 9.x, and azd as an engine (source plan D2).
 - Reusing existing Azure resources other than a resource group (source plan D4).
@@ -42,12 +45,11 @@ Every piece of logic lives in a new `net10.0` class library, `AspireDeployServic
 - Editing the user's AppHost.
 - `destroy` or teardown. The Deploy page shows the resource group name instead.
 - Sandboxing the AppHost. It runs on the developer's machine as the developer (source plan D7).
-- Running this app as a resource under this repo's own Aspire AppHost (§15 Q3).
 - An installer or MSIX package. The app runs from Visual Studio or from a `dotnet publish` folder.
 
 ## 3. Decisions
 
-Decisions D1 to D4 were made with the repository owner for this plan. The source plan's decisions still apply unless a row below replaces them; "SP-Dn" means source plan decision n.
+Decisions D1 to D4 and D18 were made with the repository owner for this plan. The source plan's decisions still apply unless a row below replaces them; "SP-Dn" means source plan decision n.
 
 | # | Decision | Rejected alternative | Why |
 |---|---|---|---|
@@ -66,6 +68,7 @@ Decisions D1 to D4 were made with the repository owner for this plan. The source
 | D15 | **Child processes cannot outlive the app.** (1) On Windows, every started process is assigned to one app-wide **Job Object** created with `JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE`, so Windows kills the whole tree when the app exits for any reason, including a crash, Task Manager or "Stop Debugging". (2) A graceful close is intercepted through `ConfigureLifecycleEvents` → `OnWindowCreated` → `AppWindow.Closing`. While runs are active it sets `args.Cancel = true`, asks "Stop the running deployment?", cancels the runs, waits up to 15 seconds, then closes the window. | Rely on `Window.Destroying` plus `ProcessRunner`'s tree-kill. | `Destroying` cannot stop the close, and the app may exit before an async wait finishes. Tree-kill only runs while the app is alive. A deploy that keeps running unobserved is the worst outcome. Nested Job Objects are supported on Windows 8 and later, so this works even when Visual Studio already puts the app in a job **(assumed; T4b verifies)**. |
 | D16 | **Settings file safety.** Each change loads the file fresh, applies one change and saves, all inside a `FileLock` on `<settings folder>/appsettings.Local.json.lock`. That lock waits up to 10 seconds; on timeout the change fails with code 2. A save writes `appsettings.Local.json.tmp` in the same folder, then calls `File.Move(tmp, path, overwrite: true)`. If the file cannot be parsed, the app shows the path and the JSON error, switches to read-only, and **never** overwrites the file. Reads allow comments and trailing commas. Every model level has a `[JsonExtensionData]` bag, so unknown keys survive a round trip; comments do not survive, and the README says so. | `File.Replace`, and no lock. | `File.Replace` throws when the target does not exist yet, which happens on the first save. Two app windows (acceptance criterion §14) would otherwise lose each other's changes. |
 | D17 | **Two lock types, two purposes.** `WorkKeyLock` keeps SP §6.1's semantics: `FileShare.None`, `DeleteOnClose`, and it **fails at once** with code 2. The copied `FileLock` (it retries, never deletes its file, and has a timeout) is used only for the settings file (D16) and the Aspire CLI install (SP-D9). | One lock class for everything. | A second deploy must fail fast, while a settings save or a tool install should wait briefly. |
+| D18 | **Record the last deployed Aspire version.** After a successful, non-dry-run deploy, `DeployService` writes `LastDeployedAspireVersion` (the AppHost SDK version from the stage 1 scan) into the profile through `SetAsync` (D16). On the next Deploy, if the scanned version differs, the confirm dialog adds a line: "The AppHost's Aspire version changed from `<old>` to `<new>` since the last deploy." The run log gets the same line. It is a warning, never a block. | (a) Read the version back from `history.jsonl`. (b) Block until the user acknowledges it separately. | Owner's choice (§15 Q6). The profile is the obvious place to look, and history is per work key and append-only. A version bump is normal, so it should inform the existing confirmation rather than add another prompt. A failure to write the value adds a warning line and does not fail a deploy that already succeeded. |
 | D12 | Add a **Delete profile** action, with a confirmation. | No delete, as in the source plan. | A GUI with no delete is a trap. It edits only the local settings file and never touches Azure. |
 | D13 | Pin tooling. Add a `global.json` with SDK `10.0.402` and `rollForward: latestFeature`. The **test project** uses xUnit 2.9.3, xunit.runner.visualstudio 3.1.5 and Microsoft.NET.Test.Sdk 18.0.1, the same versions as `<ref>` ([`<ref>` Tests.csproj:15-19](../../BlazorDataDeploymentWebsite/BlazorDataDeploymentWebsite/BlazorDataDeploymentWebsite.Tests/BlazorDataDeploymentWebsite.Tests.csproj#L15)). | No `global.json`. | The copied tests then run unchanged. `10.0.402` is the SDK installed on the development machine; `<ref>` pins `10.0.401`. |
 
@@ -208,7 +211,7 @@ flowchart LR
 | `/profiles` | `profile list` | none | A table of name, source and destination, with Edit, Deploy and Delete (D12) actions. Delete takes the profile's work key lock (code 2 while a run is active) and offers "Also delete the work folder `<WorkRoot>/<name>`" (default on), so a later profile with the same name starts clean. Aspire's own `~/.aspire/deployments` cache is not touched. |
 | `/profiles/new` | `profile init` | Name (`^[a-z0-9][a-z0-9-]{1,39}$`); source fields as on `/discover`; then subscription (guid), tenant (guid?), location, resource group (default `rg-<name>`), environment (`Production`), and one input for each parameter that has **no default and no generator** | Flow §7.2. The inputs appear after discovery; parameters with a default or a generator are listed read-only, and can be overridden later on `/profiles/{name}`. Secret parameters use `SecretInput`. Every input has a "Leave empty (AppHost supplies it)" checkbox, which stores `""`. Save also stores `Source:AppHostPath` and `SecretParameters` (SP T10). Save fails with code 2 if the name exists, unless "Overwrite" is ticked. If another profile has the same local `Source:Location` and `AppHostPath` **and** the same `Environment`, the page warns that the two share Aspire's deploy cache (§3 corrections) and suggests a different Environment name. |
 | `/profiles/{name}` | `profile show` and `profile set` | Edits the settable keys from SP §6.1: `Source:Ref`, `Source:AppHostPath`, `Source:GitHubToken`, `Destination:*`, `Environment`, `ContainerRuntime`, `Parameters:<name>`, `ParameterConfigKeys:<name>`. Each parameter row has a "Secret" toggle. | A secret's value is **never loaded into an input**. The row shows "(set)" or "(empty)", a **Reveal** button (read-only text, which is not persisted across navigation) and a **Replace** button that opens an empty `SecretInput`. Save writes only the fields that changed; an untouched secret is never rewritten. Each change goes through `SetAsync` (D16). A new secret shorter than 8 characters shows the SP §6.7 warning. |
-| `/deploy/{name}` | `bdn deploy <name>` | Ref override (string?, the profile's ref); Dry run (bool, false); Clear cache (bool, false) | Flows §7.3 and §7.4. Shows the live log, a **Cancel** button, and then the `OutcomeBanner` with the code, `ErrorCategory`, log file path and resource group. |
+| `/deploy/{name}` | `bdn deploy <name>` | Ref override (string?, the profile's ref); Dry run (bool, false); Clear cache (bool, false) | Flows §7.3 and §7.4. The page header shows the profile's `LastDeployedAspireVersion` next to the scanned version once stage 1 has run (D18). Shows the live log, a **Cancel** button, and then the `OutcomeBanner` with the code, `ErrorCategory`, log file path and resource group. |
 | `/settings` | none | Global GitHub token (`AspireDeploy:GitHub:Token`, secret, optional) | Shows the resolved settings file path and its lookup rule (D7), plus `WorkRoot` and `ToolsRoot`, with **Open folder** buttons. Edits the global token like a secret parameter (see `/profiles/{name}`). If the settings file cannot be parsed (D16), this page shows the path and the JSON error. |
 
 **Cancel** replaces Ctrl+C. It cancels the run's token, and `ProcessRunner` kills the process tree. Any canceled run ends with code 5 and category `Canceled`; this widens SP's code 5 from "`aspire deploy` failed" to "a run failed in a process, timed out or was canceled". During a deploy, the banner reads "Deployment stopped. Resources may be partly created in `<resource group>`; deploy again to converge."
@@ -347,6 +350,7 @@ The keys, profile object, validation and sample are **SP §6.3 unchanged**, with
 | `AspireDeploy:ToolsRoot` | Default `%LOCALAPPDATA%/ads/tools`. |
 | `AspireDeploy:MaxTestedAspireMajor` | `13`, unchanged. |
 | `Parameters:<name>` | `<name>` is stored as the manifest spells it, dashes included. The `_` replacement happens only for the environment variable (§3 corrections). |
+| `LastDeployedAspireVersion` | **New** profile key: string?, default absent, for example `"13.6.1"`. Written only by `DeployService` (D18), and shown read-only on `/profiles/{name}`; the edit page never offers it as an editable key. |
 
 `appsettings.Local.example.json` is committed at `AspireDeployService/appsettings.Local.example.json`, holds the SP §6.3 sample with placeholders, and has `<None Update ... CopyToOutputDirectory="Never">`. D7 rule (2) matches when the folder containing `AspireDeployService.csproj` is found, **whether or not** the settings file exists there yet. When no settings file exists at the resolved path, the first save creates it. A file that fails to parse is never replaced (D16).
 
@@ -544,8 +548,8 @@ The file is opened with `FileShare.Read`, so a developer can tail it while a run
 | `AspireDeployService/AspireDeployService.csproj` | Modified | `TargetFrameworks` becomes `net10.0-windows10.0.19041.0` only (D3). Remove the iOS, MacCatalyst and Android `SupportedOSPlatformVersion` lines. Add a `ProjectReference` to Core. Add `<None Update="appsettings.Local.example.json" CopyToOutputDirectory="Never" />`. |
 | `AspireDeployService/AspireDeployService.csproj.user` | Modified (local file) | Its ActiveDebugProfile is "Android Emulator". Change it to "Windows Machine", or delete the file. It is per-user and becomes git-ignored. |
 | `AspireDeployService/Platforms/{Android,iOS,MacCatalyst}/**` | Deleted | Not built after D3. `Platforms/Windows` stays. |
-| `AspireDeployService.AppHost/AspireDeployService.AppHost.csproj` | Modified | Fix the reference so the solution builds (§15 Q3): change `SetTargetFramework` to `TargetFramework=net10.0-windows10.0.19041.0` **(assumed to build; T1 checks)**. If the AppHost still cannot build or launch it, remove the `ProjectReference` and the `AddProject` line instead, and record that in T1's PR. |
-| `AspireDeployService.AppHost/AppHost.cs` | Modified only in the fallback above | |
+| `AspireDeployService.AppHost/AspireDeployService.AppHost.csproj` | Modified | The AppHost **must keep launching the MAUI app** (§15 Q3). First try: change `SetTargetFramework` to `TargetFramework=net10.0-windows10.0.19041.0` **(assumed to build and launch; T1 checks)**. Second try: Aspire's MAUI hosting integration **(assumed to exist for 13.5; T1 checks the package list with `aspire add`)**, which replaces the `ProjectReference` with that integration's resource. Removing the reference is not an option. If neither works, T1 stops and asks the owner. |
+| `AspireDeployService.AppHost/AppHost.cs` | Modified only if the second try is used | Swaps `AddProject` for the integration's method. |
 | `AspireDeployService/MauiProgram.cs` | Modified | §6.2 DI registrations. |
 | `AspireDeployService/App.xaml.cs` | Modified | Sets the window title to "Aspire Deploy". |
 | `AspireDeployService/Platforms/Windows/WindowCloseGuard.cs` | New | D15 (2). |
@@ -606,7 +610,7 @@ SP §9 applies, with "console" read as "UI log". Additional or changed controls:
 ## 10. Deployment Notes
 
 - Nothing is deployed. The app runs from Visual Studio ("Windows Machine" profile, [launchSettings.json](../AspireDeployService/Properties/launchSettings.json)) or from `dotnet publish -f net10.0-windows10.0.19041.0 -c Release` as an unpackaged folder.
-- There is no CI. A GitHub Actions workflow is §15 Q2.
+- There is no CI, by decision (§15 Q2).
 
 ## 11. Test Plan
 
@@ -625,6 +629,7 @@ Every SP §11 unit test row carries over, retargeted at `AspireDeployService.Tes
 | `DraftFromDiscoveryAsync`: `ToAsk` holds only parameters with no default and no generator; the shared-cache warning appears for the same folder, AppHost and Environment | Unit | `ProfileServiceTests.cs` |
 | `DeployEnvironment.ToEnvironmentVariable`: `Parameters:region-name` → `Parameters__region_name`; `ConnectionStrings:my-db` → `ConnectionStrings__my-db`; `MyApp:Api-Key` override → `MyApp__Api-Key`; an empty `""` parameter is not passed | Unit | `DeployEnvironmentTests.cs` |
 | `DeploySecretRedactor` is per run: a secret registered in run A is not masked in run B's redactor | Unit | `DeploySecretRedactorTests.cs` |
+| D18: a successful deploy writes `LastDeployedAspireVersion`; a dry run, a failed deploy and a canceled deploy do not; a changed version adds the warning to the confirm message and the log; an unchanged or absent version adds nothing; a failed write after a successful deploy still returns code 0 with a warning line | Unit | `DeployServiceTests.cs` |
 | `RunLogSink`: lines are redacted with the run's redactor and reach both the observer and the file; a file write failure keeps the observer working and adds one warning | Unit | `RunLogSinkTests.cs` |
 | `RunContextFactory`: the `ProcessRunner` it builds uses the per-run redactor (a secret registered on the context is masked in process output) | Unit | `RunContextFactoryTests.cs` |
 | Services through fakes: discover declined trust gives `Declined`; deploy declined confirm gives `Declined` and no process runs; cancel mid-deploy gives code 5 `Canceled` and releases the lock; cancel while the confirm is pending gives code 5 and releases the lock | Unit | `DeployServiceTests.cs`, `DiscoveryServiceTests.cs` |
@@ -636,14 +641,14 @@ Run all tests with `dotnet test AspireDeployService.Tests/AspireDeployService.Te
 
 ## 12. Implementation Tasks
 
-Each task is one PR, except the spikes. Before every PR, run `dotnet build AspireDeployService.slnx` and the test command in §11. The repository is not under git yet; T1 assumes the owner runs `git init` first (§15 Q4).
+Each task is one PR, except the spikes. Before every PR, run `dotnet build AspireDeployService.slnx` and the test command in §11. 
 
 - [ ] **T0a: Discovery spike (no Azure, no product code).** Same as SP T0a (a) to (d), skipping (e), on Aspire 13.0, 13.2 and 13.6. Save three manifests under `AspireDeployService.Tests/Fixtures/manifests/` (added to the repo in T9).
   *Done when:* the answers are in §15 Q5, and any wrong assumption in this plan or in SP §6.4 and §6.5 is fixed here.
 - [ ] **T0b: Deploy spike (needs the owner inputs).** Same as SP T0b (a) to (d). For (c), also find the accepted `CredentialSource` values in the Aspire source. Delete the resource groups afterwards.
   *Done when:* the answers are in §15 Q5, and §6.6 is corrected if needed.
-- [ ] **T1: Repo groundwork.** Add `.gitignore` and `global.json`. Make the MAUI project Windows-only and delete the unused `Platforms/*` folders (D3). Fix or remove the AppHost reference (§8); if `SetTargetFramework` fails, also try Aspire's MAUI hosting integration **(assumed to exist for 13.x)** before removing it. Create empty `AspireDeployService.Core` and `AspireDeployService.Tests` projects, with one placeholder test, and add both to the `.slnx`.
-  *Done when:* `dotnet build AspireDeployService.slnx` succeeds on a machine **without** the Android workload; `dotnet test` runs one test; and the template app still starts from Visual Studio.
+- [ ] **T1: Repo groundwork.** Add `.gitignore` and `global.json`, then untrack the build output committed in `7876529` with `git rm -r --cached` on every tracked `bin/`, `obj/` and `.vs/` folder and on `AspireDeployService/AspireDeployService.csproj.user`. Make the MAUI project Windows-only and delete the unused `Platforms/*` folders (D3). Make the AppHost launch the Windows-only MAUI app (§8; removal is not allowed). Create empty `AspireDeployService.Core` and `AspireDeployService.Tests` projects, with one placeholder test, and add both to the `.slnx`.
+  *Done when:* `dotnet build AspireDeployService.slnx` succeeds on a machine **without** the Android workload; `dotnet test` runs one test; the template app starts from Visual Studio **and** from the AppHost (`aspire run`, with the app window opening); and `git ls-files` lists no `bin/`, `obj/` or `.vs/` path.
 - [ ] **T2: Copy shared code.** Copy the files and tests in the §4 reference table into Core and Tests. Apply D9 and D10. Add `ChildProcessJob` (D15 part 1) and the D9 strip-list and Job Object tests.
   *Done when:* every copied test passes; the new tests pass; and `grep -r BlazorDataDeploymentWebsite AspireDeployService.Core` finds only the origin comments.
 - [ ] **T3: Settings, profiles and run plumbing (Core only).** Add `SettingsLocator`, `SettingsDocument`, `AspireDeployOptions`, `ProfileStore`, `ProfileService` (without `DraftFromDiscoveryAsync`), `WorkKeys` (including ad-hoc keys for GitHub and local folders), `WorkKeyLock`, `DeploySecretRedactor`, `RunLogSink`, `IRunObserver`, `RunContext`, `RunContextFactory`, the outcome types, `IUserInteraction` and `AddAspireDeployerCore`.
@@ -668,8 +673,8 @@ Each task is one PR, except the spikes. Before every PR, run `dotnet build Aspir
   *Done when:* the GitHub and token tests pass, and Discover works against a public repo and against the private test repo with a fine-grained token.
 - [ ] **T12: New-profile wizard.** Add `DraftFromDiscoveryAsync`, the ProfileNew page (flow §7.2), and "Create profile from this" on Discover.
   *Done when:* the `ProfileServiceTests` pass; a valid profile for a starter app is created in one pass, with `AppHostPath` and `SecretParameters` saved; overwriting needs the Overwrite box; and a validation error saves nothing.
-- [ ] **T13a: Deploy core.** Add `AspireDeployRunner`, `DeployEnvironment` and `DeployService`, with dry run, clear cache, cancellation and error classification. No page.
-  *Done when:* the `DeployEnvironmentTests` and `DeployServiceTests` pass, all with `FakeProcessRunner` and `FakeUserInteraction`.
+- [ ] **T13a: Deploy core.** Add `AspireDeployRunner`, `DeployEnvironment` and `DeployService`, with dry run, clear cache, cancellation, error classification and the D18 version record and warning. No page.
+  *Done when:* the `DeployEnvironmentTests` and `DeployServiceTests` (including the D18 rows) pass, all with `FakeProcessRunner` and `FakeUserInteraction`.
 - [ ] **T13b: Deploy page.** Add the Deploy page (flows §7.3 and §7.4), and the Deploy action on the Profiles list.
   *Done when:* a 13.6 C# starter deploys from a local folder to the test subscription with a hand-written or wizard-made profile; and Cancel during the deploy shows code 5 `Canceled`.
 - [ ] **T14: End to end and docs.** Run the full manual checklist and write the README. Fix small defects; anything larger becomes a new task.
@@ -689,7 +694,7 @@ SP R1 to R12 apply. SP R3 (the cache path) is now known to be true, and the fixe
 
 | # | Risk | Mitigation |
 |---|---|---|
-| R13 | Removing the AppHost's MAUI reference, or changing it, breaks the developer's habit of launching through Aspire. | T1 tries to keep it working first. If it is removed, the README says to launch the app from Visual Studio. Launching under Aspire is a non-goal. |
+| R13 | The AppHost cannot launch a Windows-only MAUI project with either approach in §8. | T1 tries both, and if neither works it stops for an owner decision before any later task starts. When the app does run under the AppHost it inherits `ASPIRE_*`, `DCP_*` and `OTEL_*` variables; D9 strips them from child processes, and the §11 manual checklist includes a deploy launched from the AppHost. |
 | R14 | Background output floods the WebView. | D11 batches updates and caps the buffer at 5,000 lines. T4b verifies with 20,000 lines. |
 | R15 | Closing or killing the app leaves `aspire` or `dotnet` processes running, which keep deploying. | D15: a close guard plus a kill-on-close Job Object. Unit test plus the manual checks in §11. |
 | R16 | The two copies of the shared code drift, and fixes in `<ref>` do not reach this repository. | Origin comments name the source file. The README lists the copied files. Re-syncing is a manual review step, done when `<ref>` changes those files. |
@@ -708,6 +713,8 @@ SP R1 to R12 apply. SP R3 (the cache path) is now known to be true, and the fixe
 - [ ] The New-profile wizard saves a profile to `appsettings.Local.json`, and `git status` shows nothing new except ignored files.
 - [ ] Deploy deploys a starter app into the profile's resource group, from a local folder and from a private GitHub repo, using only the developer's `az login`.
 - [ ] A second Deploy with no changes succeeds and creates no new resource group.
+- [ ] After a deploy, the profile shows `LastDeployedAspireVersion`. After the AppHost's SDK version is bumped, the next Deploy's confirm dialog names the old and new versions.
+- [ ] The app launches from this repository's AppHost, and a deploy started from that instance succeeds.
 - [ ] No secret parameter value, including one shorter than 8 characters, and no token appears in the UI log, the log file, `history.jsonl` or `trust.jsonl`. Checked by searching each for the value.
 - [ ] Two app windows deploying the same profile at once: the second shows code 2 immediately.
 - [ ] Cancel, closing the window, or killing the app from Task Manager during a deploy leaves no `aspire` process running.
@@ -717,9 +724,9 @@ SP R1 to R12 apply. SP R3 (the cache path) is now known to be true, and the fixe
 
 | # | Question | Default if unanswered |
 |---|---|---|
-| Q1 | Should a CLI over `AspireDeployService.Core` follow, as in the source plan? | No for v1. Core's API (§6.2) is shaped so that one could be added without changes. |
-| Q2 | Should there be a GitHub Actions workflow that builds the solution and runs the tests on `windows-latest`? | Add it after T1, once the repository is on GitHub. |
-| Q3 | Should this repository's AppHost keep launching the MAUI app, or be removed? It has no Azure target, so it is not itself deployable. | T1 tries to fix the reference. If that fails, the reference is removed and the AppHost is kept only as a discovery test fixture. |
-| Q4 | Who runs `git init` and creates the remote? | The owner, before T1. |
-| Q5 | Spike results for T0a (a) to (d) and T0b (a) to (d), including the accepted `CredentialSource` values. | T0a and T0b fill these in. |
-| Q6 | Should a profile record which Aspire CLI version last deployed it, and warn when the AppHost's version changes? | No for v1. `history.jsonl` already records `aspireVersion`. |
+| Q1 | Should a CLI over `AspireDeployService.Core` follow, as in the source plan? | **Answered: no.** |
+| Q2 | Should there be a GitHub Actions workflow that builds the solution and runs the tests on `windows-latest`? | **Answered: no.** |
+| Q3 | Should this repository's AppHost keep launching the MAUI app, or be removed? It has no Azure target, so it is not itself deployable. | **Answered: keep it.** See §8 and T1. |
+| Q4 | Who runs `git init`? | **Answered: done** (commit `7876529`). |
+| Q5 | Spike results for T0a (a) to (d) and T0b (a) to (d), including the accepted `CredentialSource` values. | **Answered: default.** T0a and T0b fill these in. |
+| Q6 | Should a profile record which Aspire CLI version last deployed it, and warn when the AppHost's version changes? | **Answered: yes.** See D18. |
