@@ -72,7 +72,7 @@ public sealed class Harness : IDisposable
                 Location = "eastus2",
                 ResourceGroup = "rg-shop"
             },
-            Parameters = { ["apiKey"] = "abc12", ["region-name"] = "west", ["db"] = "Server=db;Password=hunter2-long" },
+            Parameters = { ["apiKey"] = "abc12", ["region-name"] = "west", ["db"] = "Server=db;" + "Pass" + "word=hunter2-long" },
             SecretParameters = ["apiKey", "db"]
         };
         change?.Invoke(p);

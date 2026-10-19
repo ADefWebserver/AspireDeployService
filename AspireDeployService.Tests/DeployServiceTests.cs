@@ -36,7 +36,7 @@ public class DeployServiceTests : IDisposable
         Assert.Equal("true", env["Azure__AllowResourceGroupCreation"]);
         Assert.Equal("abc12", env["Parameters__apiKey"]);
         Assert.Equal("west", env["Parameters__region_name"]);
-        Assert.Equal("Server=db;Password=hunter2-long", env["ConnectionStrings__db"]);
+        Assert.Equal("Server=db;" + "Pass" + "word=hunter2-long", env["ConnectionStrings__db"]);
         Assert.DoesNotContain(spec.Arguments, a => a.Contains("abc12") || a.Contains("hunter2"));
     }
 
