@@ -1,5 +1,42 @@
 ﻿@page "/"
+@inject IProfileService Profiles
 
-<h1>Hello, world!</h1>
+<h1>Aspire Deploy</h1>
+<p class="lead">Discover what an Aspire 13.x AppHost needs, keep per-developer deploy profiles, and deploy it to Azure with <code>aspire deploy</code> and your own <code>az login</code>.</p>
 
-Welcome to your new app.
+@if (_location is { } location)
+{
+    <div class="card mb-3">
+        <div class="card-body">
+            <h5 class="card-title">Settings file</h5>
+            <p class="mb-1"><code>@location.Path</code></p>
+            <p class="small text-muted mb-0">
+                @(location.Exists ? "Exists." : "Not created yet; the first saved profile creates it.")
+                @(_profileCount is { } n ? $" Profiles: {n}." : "")
+            </p>
+            @if (location.ParseError is { } error)
+            {
+                <div class="alert alert-danger mt-2 mb-0">The settings file cannot be read, so the app is read-only until it is fixed: @error</div>
+            }
+        </div>
+    </div>
+}
+
+<div class="d-flex gap-2 flex-wrap">
+    <a class="btn btn-primary" href="doctor">Check prerequisites</a>
+    <a class="btn btn-outline-primary" href="discover">Discover an AppHost</a>
+    <a class="btn btn-outline-primary" href="profiles/new">New profile</a>
+    <a class="btn btn-outline-secondary" href="profiles">Profiles</a>
+</div>
+
+@code {
+    private SettingsLocation? _location;
+    private int? _profileCount;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _location = Profiles.Location;
+        if (_location.ParseError is null)
+            _profileCount = (await Profiles.ListAsync(CancellationToken.None)).Count;
+    }
+}

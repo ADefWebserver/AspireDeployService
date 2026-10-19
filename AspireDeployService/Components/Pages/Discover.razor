@@ -1,0 +1,154 @@
+@page "/discover"
+@implements IDisposable
+@inject IDiscoveryService Discovery
+@inject RunCoordinator Runs
+@inject NavigationManager Nav
+
+<h1>Discover</h1>
+<p class="text-muted">
+    Stage 1 reads files only. Stage 2 runs <code>aspire do publish-manifest</code>, which builds and runs the AppHost on this machine
+    (code from GitHub is run only after you trust the commit). Nothing is created in Azure.
+</p>
+
+<div style="max-width: 48rem">
+    <SourcePicker Id="discover" @bind-Kind="_kind" @bind-Location="_location" @bind-Ref="_ref" @bind-AppHostPath="_appHost" Disabled="@Busy" />
+    <div class="form-check mt-3">
+        <input id="discover-static" class="form-check-input" type="checkbox" @bind="_staticOnly" disabled="@Busy" />
+        <label class="form-check-label" for="discover-static">Static scan only (runs nothing)</label>
+    </div>
+    <button class="btn btn-primary mt-3" disabled="@(Busy || string.IsNullOrWhiteSpace(_location))" @onclick="Run">Discover</button>
+</div>
+
+<div class="mt-3"><OutcomeBanner Run="_run" /></div>
+
+@if (_run?.ValueAs<DiscoveryResult>() is { } result)
+{
+    var app = result.AppHost;
+    <div class="card mb-3">
+        <div class="card-body">
+            <h5 class="card-title">AppHost</h5>
+            <dl class="row mb-0">
+                <dt class="col-sm-3">Path</dt><dd class="col-sm-9"><code>@app.AppHostPath</code></dd>
+                <dt class="col-sm-3">Kind</dt><dd class="col-sm-9">@app.Kind</dd>
+                <dt class="col-sm-3">Aspire SDK</dt><dd class="col-sm-9">@app.AspireSdkVersion</dd>
+                <dt class="col-sm-3">Source</dt><dd class="col-sm-9">@result.Source.Display</dd>
+                <dt class="col-sm-3">Declared targets</dt>
+                <dd class="col-sm-9">@(app.DeclaredTargets.Count == 0 ? "none" : string.Join(", ", app.DeclaredTargets))</dd>
+                @if (app.DotnetSdkFromGlobalJson is { } sdk)
+                {
+                    <dt class="col-sm-3">global.json SDK</dt><dd class="col-sm-9">@sdk</dd>
+                }
+            </dl>
+        </div>
+    </div>
+
+    @foreach (var w in result.Warnings)
+    {
+        <div class="alert alert-warning py-2">@w</div>
+    }
+
+    @if (result.ManifestRan)
+    {
+        <h4>Parameters</h4>
+        @if (result.Parameters.Count == 0)
+        {
+            <p class="text-muted">None.</p>
+        }
+        else
+        {
+            <table class="table table-sm">
+                <thead><tr><th>Name</th><th>Secret</th><th>Default</th><th>Generated</th><th>Configuration key</th></tr></thead>
+                <tbody>
+                    @foreach (var p in result.Parameters)
+                    {
+                        <tr>
+                            <td>@p.Name</td><td>@YesNo(p.Secret)</td><td>@YesNo(p.HasDefault)</td><td>@YesNo(p.Generated)</td><td><code>@p.ConfigKey</code></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+
+        <h4>Resources</h4>
+        <table class="table table-sm">
+            <thead><tr><th>Name</th><th>Type</th><th>Image or project</th><th>Azure</th><th>Needs container runtime</th></tr></thead>
+            <tbody>
+                @foreach (var r in result.Resources)
+                {
+                    <tr>
+                        <td>@r.Name</td><td>@r.Type</td><td><code>@(r.Image ?? r.ProjectPath)</code></td><td>@YesNo(r.IsAzure)</td><td>@YesNo(r.NeedsContainerRuntime)</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+
+    <div class="d-flex gap-2 mb-3">
+        <button class="btn btn-outline-secondary" @onclick="() => CopyJsonAsync(result)">Copy JSON</button>
+        <button class="btn btn-outline-primary" @onclick="CreateProfile">Create profile from this</button>
+        @if (_copied)
+        {
+            <span class="align-self-center small text-success">Copied.</span>
+        }
+    </div>
+}
+
+<LogViewer Run="_run" />
+
+@code {
+    private SourceKind _kind = SourceKind.LocalFolder;
+    private string? _location;
+    private string? _ref;
+    private string? _appHost;
+    private bool _staticOnly;
+    private bool _copied;
+    private ActiveRun? _run;
+
+    private bool Busy => _run?.IsRunning == true;
+
+    protected override void OnInitialized()
+    {
+        Runs.RunsChanged += OnRunsChanged;
+        _run = Runs.Latest("discover:");
+        if (_run?.Tag is DiscoverRequest r)
+            (_kind, _location, _ref, _appHost, _staticOnly) = (r.Source.Kind, r.Source.Location, r.Source.Ref, r.Source.AppHostPath, r.StaticOnly);
+    }
+
+    private void Run()
+    {
+        _copied = false;
+        var request = new DiscoverRequest(Spec(), null, _staticOnly);
+        _run = Runs.Start("discover:" + request.Source.Kind + ":" + request.Source.Location.ToLowerInvariant(), "Discovery",
+            (observer, ct) => Discovery.DiscoverAsync(request, observer, ct),
+            r => OperationResult.Ok(r.ManifestRan
+                ? $"Found {r.Parameters.Count} parameters and {r.Resources.Count} resources."
+                : "Static scan finished; nothing was built or run."),
+            tag: request);
+        // The same source may already be running with other options; show the options that are really in use.
+        if (_run.Tag is DiscoverRequest running)
+            _staticOnly = running.StaticOnly;
+    }
+
+    private SourceSpec Spec() => new(_kind, _location ?? "", _kind == SourceKind.GitHub ? _ref : null, _appHost);
+
+    private async Task CopyJsonAsync(DiscoveryResult result)
+    {
+        await Clipboard.Default.SetTextAsync(result.ToJson());
+        _copied = true;
+    }
+
+    private void CreateProfile()
+    {
+        var spec = (_run?.Tag as DiscoverRequest)?.Source ?? Spec();
+        var query = $"?kind={spec.Kind}&location={Uri.EscapeDataString(spec.Location)}"
+            + (spec.Ref is { } r ? $"&ref={Uri.EscapeDataString(r)}" : "")
+            + (spec.AppHostPath is { } a ? $"&apphost={Uri.EscapeDataString(a)}" : "");
+        Nav.NavigateTo("profiles/new" + query);
+    }
+
+    private static string YesNo(bool b) => b ? "yes" : "";
+
+    private void OnRunsChanged() => _ = InvokeAsync(StateHasChanged);
+
+    public void Dispose() => Runs.RunsChanged -= OnRunsChanged;
+}

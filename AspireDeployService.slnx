@@ -1,5 +1,11 @@
 <Solution>
+  <Folder Name="/docs/">
+    <File Path="docs/Aspire-Project-Deployer-Plan.md" />
+    <File Path="docs/AspireDeployService-Implementation-Plan.md" />
+  </Folder>
   <Project Path="AspireDeployService.AppHost/AspireDeployService.AppHost.csproj" />
+  <Project Path="AspireDeployService.Core/AspireDeployService.Core.csproj" />
   <Project Path="AspireDeployService.ServiceDefaults/AspireDeployService.ServiceDefaults.csproj" />
+  <Project Path="AspireDeployService.Tests/AspireDeployService.Tests.csproj" />
   <Project Path="AspireDeployService/AspireDeployService.csproj" />
 </Solution>

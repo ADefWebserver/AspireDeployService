@@ -1,0 +1,267 @@
+@page "/profiles/new"
+@implements IDisposable
+@inject IProfileService Profiles
+@inject IDiscoveryService Discovery
+@inject IAzureAccountService Azure
+@inject RunCoordinator Runs
+@inject NavigationManager Nav
+
+<h1>New profile</h1>
+<p class="text-muted">Flow §7.2: discover the AppHost, then fill in the destination and the parameters it needs.</p>
+
+<div style="max-width: 48rem">
+    <div class="mb-3">
+        <label class="form-label" for="pn-name">Profile name</label>
+        <input id="pn-name" class="form-control" placeholder="orders-dev" @bind="_name" @bind:event="oninput" disabled="@Busy" />
+        @if (_name is { Length: > 0 } && !ProfileRules.IsValidName(_name))
+        {
+            <div class="form-text text-danger">2 to 40 lower-case letters, digits or dashes, starting with a letter or digit.</div>
+        }
+    </div>
+    <SourcePicker Id="pn" @bind-Kind="_kind" @bind-Location="_location" @bind-Ref="_ref" @bind-AppHostPath="_appHost" Disabled="@Busy" />
+    <div class="form-check mt-3">
+        <input id="pn-overwrite" class="form-check-input" type="checkbox" @bind="_overwrite" disabled="@Busy" />
+        <label class="form-check-label" for="pn-overwrite">Overwrite an existing profile with this name</label>
+    </div>
+    <button class="btn btn-primary mt-3" disabled="@(Busy || !ProfileRules.IsValidName(_name) || string.IsNullOrWhiteSpace(_location))" @onclick="Discover">
+        Discover
+    </button>
+</div>
+
+<div class="mt-3"><OutcomeBanner Run="_run" /></div>
+
+@if (_run?.ValueAs<WizardData>() is { } data && _form is { } p)
+{
+    <div style="max-width: 56rem">
+        @foreach (var w in data.Draft.Warnings.Concat(data.Discovery.Warnings))
+        {
+            <div class="alert alert-warning py-2">@w</div>
+        }
+
+        <h4>Destination</h4>
+        <div class="row g-2 mb-3">
+            <div class="col-md-8">
+                <label class="form-label" for="pn-sub">Subscription</label>
+                @if (data.Subscriptions.Count > 0 && !_typeSubscription)
+                {
+                    <select id="pn-sub" class="form-select" value="@p.Destination.SubscriptionId" @onchange="e => PickSubscription(data, e.Value?.ToString())">
+                        <option value="">Choose…</option>
+                        @foreach (var s in data.Subscriptions)
+                        {
+                            <option value="@s.Id">@s.Name (@s.Id)@(s.IsDefault ? " — default" : "")</option>
+                        }
+                    </select>
+                    <button class="btn btn-sm btn-link px-0" @onclick="() => _typeSubscription = true">Type an ID instead</button>
+                }
+                else
+                {
+                    <input id="pn-sub" class="form-control" placeholder="subscription GUID" @bind="p.Destination.SubscriptionId" />
+                }
+            </div>
+            <div class="col-md-4">
+                <label class="form-label" for="pn-tenant">Tenant ID</label>
+                <input id="pn-tenant" class="form-control" placeholder="(az login tenant)" @bind="p.Destination.TenantId" />
+            </div>
+            <div class="col-md-4">
+                <label class="form-label" for="pn-loc">Region</label>
+                <input id="pn-loc" class="form-control" placeholder="eastus2" @bind="p.Destination.Location" />
+            </div>
+            <div class="col-md-4">
+                <label class="form-label" for="pn-rg">Resource group</label>
+                <input id="pn-rg" class="form-control" @bind="p.Destination.ResourceGroup" />
+            </div>
+            <div class="col-md-4">
+                <label class="form-label" for="pn-env">Environment</label>
+                <input id="pn-env" class="form-control" @bind="p.Environment" />
+            </div>
+        </div>
+
+        <h4>Parameters</h4>
+        @if (data.Draft.ToAsk.Count == 0)
+        {
+            <p class="text-muted">This AppHost needs no parameter values.</p>
+        }
+        @foreach (var param in data.Draft.ToAsk)
+        {
+            var supplied = _appHostSupplies.Contains(param.Name);
+            <div class="mb-3">
+                <label class="form-label" for="pn-p-@param.Name"><code>@param.Name</code> <span class="small text-muted">@param.ConfigKey@(param.Secret ? ", secret" : "")</span></label>
+                @if (param.Secret)
+                {
+                    <SecretInput Id="@($"pn-p-{param.Name}")" Value="@_values.GetValueOrDefault(param.Name)" ValueChanged="v => _values[param.Name] = v" Disabled="@supplied" />
+                }
+                else
+                {
+                    <input id="pn-p-@param.Name" class="form-control" value="@_values.GetValueOrDefault(param.Name)" disabled="@supplied"
+                           @onchange="e => _values[param.Name] = e.Value?.ToString()" />
+                }
+                <div class="form-check">
+                    <input id="pn-s-@param.Name" class="form-check-input" type="checkbox" checked="@supplied"
+                           @onchange="e => Toggle(param.Name, (bool)e.Value!)" />
+                    <label class="form-check-label small" for="pn-s-@param.Name">Leave empty (the AppHost's own configuration supplies it)</label>
+                </div>
+            </div>
+        }
+        @if (data.Draft.Optional.Count > 0)
+        {
+            <p class="small text-muted">
+                Not asked, because they have a default or are generated: @string.Join(", ", data.Draft.Optional.Select(o => o.Name)).
+                You can override them later on the profile page.
+            </p>
+        }
+
+        @if (_saveError is { } se)
+        {
+            <div class="alert alert-danger ads-pre-line">@se</div>
+        }
+        @if (_savedName is { } saved)
+        {
+            <div class="alert alert-success">Profile <strong>@saved</strong> saved. <a href="deploy/@saved">Deploy it</a> or <a href="profiles/@saved">review it</a>.</div>
+        }
+        else
+        {
+            <button class="btn btn-primary" @onclick="() => SaveAsync(data)">Save profile</button>
+        }
+    </div>
+}
+
+<LogViewer Run="_run" />
+
+@code {
+    [SupplyParameterFromQuery(Name = "kind")] public string? QueryKind { get; set; }
+    [SupplyParameterFromQuery(Name = "location")] public string? QueryLocation { get; set; }
+    [SupplyParameterFromQuery(Name = "ref")] public string? QueryRef { get; set; }
+    [SupplyParameterFromQuery(Name = "apphost")] public string? QueryAppHost { get; set; }
+
+    private sealed record WizardData(string Name, SourceSpec Source, DiscoveryResult Discovery, ProfileDraft Draft, IReadOnlyList<AzureSubscription> Subscriptions);
+
+    private string? _name;
+    private SourceKind _kind = SourceKind.LocalFolder;
+    private string? _location;
+    private string? _ref;
+    private string? _appHost;
+    private bool _overwrite;
+    private bool _typeSubscription;
+    private ActiveRun? _run;
+    private DeployProfile? _form;
+    private WizardData? _formFor;
+    private readonly Dictionary<string, string?> _values = new(StringComparer.Ordinal);
+    private readonly HashSet<string> _appHostSupplies = new(StringComparer.Ordinal);
+    private string? _saveError;
+    private string? _savedName;
+
+    private bool Busy => _run?.IsRunning == true;
+
+    protected override void OnInitialized()
+    {
+        Runs.RunsChanged += OnRunsChanged;
+        // A wizard run that is still going wins over query parameters, so the page shows what is really running.
+        var latest = Runs.Latest("profile:new");
+        if (latest is { IsRunning: true } || (!Enum.TryParse<SourceKind>(QueryKind, out _) && latest is not null))
+            Attach(latest);
+        else if (Enum.TryParse<SourceKind>(QueryKind, out var kind))
+            (_kind, _location, _ref, _appHost) = (kind, QueryLocation, QueryRef, QueryAppHost);
+        PrepareForm();
+    }
+
+    private void Attach(ActiveRun run)
+    {
+        _run = run;
+        if (run.Tag is WizardInput input)
+            (_name, _kind, _location, _ref, _appHost, _overwrite) = input;
+    }
+
+    private sealed record WizardInput(string? Name, SourceKind Kind, string? Location, string? Ref, string? AppHost, bool Overwrite);
+
+    private void Discover()
+    {
+        var name = _name!;
+        var spec = new SourceSpec(_kind, _location!, _kind == SourceKind.GitHub ? _ref : null, _appHost);
+        var overwrite = _overwrite;
+        _savedName = null;
+        _saveError = null;
+        var input = new WizardInput(_name, _kind, _location, _ref, _appHost, _overwrite);
+        var run = Runs.Start("profile:new", "New profile", async (observer, ct) =>
+        {
+            if (!overwrite && await Profiles.GetAsync(name, ct) is not null)
+                throw new DeployerException(OutcomeCode.InvalidInput, $"Profile '{name}' already exists. Tick Overwrite to replace it.");
+            var discovery = await Discovery.DiscoverAsync(new DiscoverRequest(spec, null, StaticOnly: false), observer, ct);
+            if (!discovery.AppHost.HasAzureTarget)
+                throw new DeployerException(OutcomeCode.DiscoveryFailed,
+                    "The AppHost declares no Azure compute environment. Add, for example, builder.AddAzureContainerAppEnvironment(\"env\"); "
+                    + "with the Aspire.Hosting.Azure.AppContainers package, then discover again.");
+            if (discovery.UsesSubmodulesOrLfs && spec.Kind == SourceKind.GitHub)
+                throw new DeployerException(OutcomeCode.DiscoveryFailed, "This repository uses submodules or Git LFS; clone it and use a local folder source.");
+            var subscriptions = await Azure.ListSubscriptionsAsync(observer, ct);
+            var draft = await Profiles.DraftFromDiscoveryAsync(name, spec, discovery, ct);
+            return new WizardData(name, spec, discovery, draft, subscriptions);
+        }, d => OperationResult.Ok($"Discovered {d.Discovery.AppHost.AppHostPath} (Aspire {d.Discovery.AppHost.AspireSdkVersion}). Fill in the form below."),
+        tag: input);
+        Attach(run); // if another wizard run was still going, this shows that run's input instead of ours
+    }
+
+    /// <summary>Builds the editable form once the discovery run has produced a draft.</summary>
+    private void PrepareForm()
+    {
+        if (_run?.ValueAs<WizardData>() is not { } data || ReferenceEquals(data, _formFor))
+            return;
+        _formFor = data;
+        _form = data.Draft.Profile.Clone();
+        _values.Clear();
+        _appHostSupplies.Clear();
+        _typeSubscription = data.Subscriptions.Count == 0;
+        if (data.Subscriptions.FirstOrDefault(s => s.IsDefault) is { } def)
+            (_form.Destination.SubscriptionId, _form.Destination.TenantId) = (def.Id, def.TenantId);
+    }
+
+    private void PickSubscription(WizardData data, string? id)
+    {
+        _form!.Destination.SubscriptionId = id;
+        if (data.Subscriptions.FirstOrDefault(s => s.Id == id) is { } s)
+            _form.Destination.TenantId = s.TenantId;
+    }
+
+    private void Toggle(string name, bool supplied)
+    {
+        if (supplied) _appHostSupplies.Add(name); else _appHostSupplies.Remove(name);
+    }
+
+    private async Task SaveAsync(WizardData data)
+    {
+        _saveError = null;
+        var profile = _form!.Clone();
+        var missing = new List<string>();
+        foreach (var param in data.Draft.ToAsk)
+        {
+            if (_appHostSupplies.Contains(param.Name))
+                profile.Parameters[param.Name] = "";
+            else if (_values.GetValueOrDefault(param.Name) is { Length: > 0 } value)
+                profile.Parameters[param.Name] = value;
+            else
+                missing.Add(param.Name);
+        }
+        if (missing.Count > 0)
+        {
+            _saveError = $"Enter a value, or tick \"Leave empty\", for: {string.Join(", ", missing)}.";
+            return;
+        }
+
+        try
+        {
+            await Profiles.SaveAsync(data.Name, profile, _overwrite, CancellationToken.None);
+            _savedName = data.Name;
+        }
+        catch (DeployerException ex)
+        {
+            _saveError = ex.Message;
+        }
+    }
+
+    private void OnRunsChanged() => _ = InvokeAsync(() =>
+    {
+        PrepareForm();
+        StateHasChanged();
+    });
+
+    public void Dispose() => Runs.RunsChanged -= OnRunsChanged;
+}
