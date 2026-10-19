@@ -1,0 +1,12 @@
+ProjectPath=C:\Users\webma\Source\Repos\AspireDeployService\AspireDeployService\AspireDeployService.csproj
+TargetFramework=net10.0-android
+Configuration=Debug
+AndroidSdkDirectory=C:\Program Files (x86)\Android\android-sdk
+_AndroidSdkDirectory=C:\Program Files (x86)\Android\android-sdk\
+JavaSdkDirectory=C:\Program Files\Android\openjdk\jdk-21.0.8
+_JavaSdkDirectory=C:\Program Files\Android\openjdk\jdk-21.0.8\
+RuntimeIdentifiers=android-arm64
+android-x64
+MauiWorkloadVersion=10.0.20
+AndroidIncludeDebugSymbols=True
+DebugSymbols=true

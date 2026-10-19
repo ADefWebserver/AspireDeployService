@@ -1,0 +1,6 @@
+ProjectPath=C:\Users\webma\Source\Repos\AspireDeployService\AspireDeployService\AspireDeployService.csproj
+TargetFramework=net10.0-maccatalyst
+Configuration=Debug
+RuntimeIdentifier=maccatalyst-x64
+MauiWorkloadVersion=10.0.20
+DebugSymbols=true
