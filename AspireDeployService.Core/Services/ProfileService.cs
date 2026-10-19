@@ -1,3 +1,4 @@
+using AspireDeployService.Core.Discovery;
 using AspireDeployService.Core.Infrastructure;
 using AspireDeployService.Core.Outcomes;
 using AspireDeployService.Core.Settings;
@@ -30,7 +31,15 @@ public interface IProfileService
 
     /// <summary>D18: records the AppHost SDK version of a successful deploy.</summary>
     Task RecordDeployedVersionAsync(string name, string aspireVersion, CancellationToken ct);
+
+    /// <summary>Plan T12: a new profile prefilled from discovery, with the parameters to ask for and any warnings.</summary>
+    Task<ProfileDraft> DraftFromDiscoveryAsync(string name, SourceSpec source, DiscoveryResult discovery, CancellationToken ct);
 }
+
+/// <param name="ToAsk">Parameters with no default and no generator: the wizard asks for each.</param>
+/// <param name="Optional">Parameters with a default or a generator: shown read-only.</param>
+public sealed record ProfileDraft(string Name, DeployProfile Profile,
+    IReadOnlyList<DiscoveredParameter> ToAsk, IReadOnlyList<DiscoveredParameter> Optional, IReadOnlyList<string> Warnings);
 
 public sealed class ProfileService(ProfileStore store) : IProfileService
 {
@@ -112,6 +121,48 @@ public sealed class ProfileService(ProfileStore store) : IProfileService
 
     public Task RecordDeployedVersionAsync(string name, string aspireVersion, CancellationToken ct) =>
         store.UpdateAsync(doc => Require(doc, name).LastDeployedAspireVersion = aspireVersion, ct);
+
+    public async Task<ProfileDraft> DraftFromDiscoveryAsync(string name, SourceSpec source, DiscoveryResult discovery, CancellationToken ct)
+    {
+        ProfileRules.EnsureValidName(name);
+        var profile = new DeployProfile
+        {
+            Source = new ProfileSource
+            {
+                Kind = source.Kind,
+                Location = source.Location,
+                Ref = source.Ref,
+                AppHostPath = discovery.AppHost.AppHostPath
+            },
+            Destination = new ProfileDestination { ResourceGroup = $"rg-{name}" },
+            Environment = "Production",
+            SecretParameters = discovery.Parameters.Where(p => p.Secret).Select(p => p.Name).ToList()
+        };
+
+        var warnings = new List<string>();
+        if (source.Kind == SourceKind.LocalFolder)
+        {
+            var snapshot = await store.LoadAsync(ct);
+            foreach (var (otherName, other) in snapshot.Document.AspireDeploy.Profiles)
+            {
+                if (otherName != name && SharesDeployCache(profile, other))
+                    warnings.Add($"Profile '{otherName}' deploys the same AppHost with environment {other.EnvironmentName}; "
+                        + "the two share Aspire's deploy cache. Use a different Environment name.");
+            }
+        }
+
+        return new ProfileDraft(name, profile,
+            discovery.Parameters.Where(p => p.NeedsValue).ToList(),
+            discovery.Parameters.Where(p => !p.NeedsValue).ToList(),
+            warnings);
+    }
+
+    /// <summary>The shared-cache warning for a profile being edited (its Environment may have changed).</summary>
+    public static bool SharesDeployCache(DeployProfile a, DeployProfile b) =>
+        a.Source.Kind == SourceKind.LocalFolder && b.Source.Kind == SourceKind.LocalFolder
+        && string.Equals(Path.GetFullPath(a.Source.Location).TrimEnd('\\', '/'), Path.GetFullPath(b.Source.Location).TrimEnd('\\', '/'), StringComparison.OrdinalIgnoreCase)
+        && string.Equals(a.Source.AppHostPath, b.Source.AppHostPath, StringComparison.OrdinalIgnoreCase)
+        && string.Equals(a.EnvironmentName, b.EnvironmentName, StringComparison.OrdinalIgnoreCase);
 
     private static DeployProfile Require(SettingsDocument doc, string name) =>
         doc.AspireDeploy.Profiles.TryGetValue(name, out var p)

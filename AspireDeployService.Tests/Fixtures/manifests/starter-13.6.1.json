@@ -1,0 +1,154 @@
+{
+  "resources": {
+    "env-acr": {
+      "type": "azure.bicep.v0",
+      "path": "env-acr.module.bicep"
+    },
+    "env": {
+      "type": "azure.bicep.v0",
+      "path": "env.module.bicep",
+      "params": {
+        "env_acr_outputs_name": "{env-acr.outputs.name}",
+        "userPrincipalId": ""
+      }
+    },
+    "apiKey": {
+      "type": "parameter.v0",
+      "value": "{apiKey.inputs.value}",
+      "inputs": {
+        "value": {
+          "type": "string",
+          "secret": true
+        }
+      }
+    },
+    "region-name": {
+      "type": "parameter.v0",
+      "value": "{region-name.inputs.value}",
+      "inputs": {
+        "value": {
+          "type": "string"
+        }
+      }
+    },
+    "gen-pass": {
+      "type": "parameter.v0",
+      "value": "{gen-pass.inputs.value}",
+      "inputs": {
+        "value": {
+          "type": "string",
+          "secret": true,
+          "default": {
+            "generate": {
+              "minLength": 20,
+              "special": false
+            }
+          }
+        }
+      }
+    },
+    "db": {
+      "type": "parameter.v0",
+      "connectionString": "{db.value}",
+      "value": "{db.inputs.value}",
+      "inputs": {
+        "value": {
+          "type": "string",
+          "secret": true
+        }
+      }
+    },
+    "apiservice": {
+      "type": "project.v1",
+      "path": "../Shop/Shop.ApiService/Shop.ApiService.csproj",
+      "deployment": {
+        "type": "azure.bicep.v0",
+        "path": "apiservice-containerapp.module.bicep",
+        "params": {
+          "env_outputs_azure_container_apps_environment_default_domain": "{env.outputs.AZURE_CONTAINER_APPS_ENVIRONMENT_DEFAULT_DOMAIN}",
+          "env_outputs_azure_container_apps_environment_id": "{env.outputs.AZURE_CONTAINER_APPS_ENVIRONMENT_ID}",
+          "env_outputs_azure_container_registry_endpoint": "{env.outputs.AZURE_CONTAINER_REGISTRY_ENDPOINT}",
+          "env_outputs_azure_container_registry_managed_identity_id": "{env.outputs.AZURE_CONTAINER_REGISTRY_MANAGED_IDENTITY_ID}",
+          "apiservice_containerimage": "{apiservice.containerImage}",
+          "apiservice_containerport": "{apiservice.containerPort}",
+          "apikey_value": "{apiKey.value}",
+          "region_name_value": "{region-name.value}",
+          "gen_pass_value": "{gen-pass.value}",
+          "db_connectionstring": "{db.connectionString}"
+        }
+      },
+      "env": {
+        "OTEL_DOTNET_EXPERIMENTAL_OTLP_RETRY": "in_memory",
+        "ASPNETCORE_FORWARDEDHEADERS_ENABLED": "true",
+        "HTTP_PORTS": "{apiservice.bindings.http.targetPort}",
+        "API_KEY": "{apiKey.value}",
+        "REGION": "{region-name.value}",
+        "GEN": "{gen-pass.value}",
+        "ConnectionStrings__db": "{db.connectionString}"
+      },
+      "bindings": {
+        "http": {
+          "scheme": "http",
+          "protocol": "tcp",
+          "transport": "http"
+        },
+        "https": {
+          "scheme": "https",
+          "protocol": "tcp",
+          "transport": "http"
+        }
+      }
+    },
+    "cache": {
+      "type": "container.v1",
+      "image": "redis:7.4",
+      "deployment": {
+        "type": "azure.bicep.v0",
+        "path": "cache-containerapp.module.bicep",
+        "params": {
+          "env_outputs_azure_container_apps_environment_default_domain": "{env.outputs.AZURE_CONTAINER_APPS_ENVIRONMENT_DEFAULT_DOMAIN}",
+          "env_outputs_azure_container_apps_environment_id": "{env.outputs.AZURE_CONTAINER_APPS_ENVIRONMENT_ID}"
+        }
+      }
+    },
+    "webfrontend": {
+      "type": "project.v1",
+      "path": "../Shop/Shop.Web/Shop.Web.csproj",
+      "deployment": {
+        "type": "azure.bicep.v0",
+        "path": "webfrontend-containerapp.module.bicep",
+        "params": {
+          "env_outputs_azure_container_apps_environment_default_domain": "{env.outputs.AZURE_CONTAINER_APPS_ENVIRONMENT_DEFAULT_DOMAIN}",
+          "env_outputs_azure_container_apps_environment_id": "{env.outputs.AZURE_CONTAINER_APPS_ENVIRONMENT_ID}",
+          "env_outputs_azure_container_registry_endpoint": "{env.outputs.AZURE_CONTAINER_REGISTRY_ENDPOINT}",
+          "env_outputs_azure_container_registry_managed_identity_id": "{env.outputs.AZURE_CONTAINER_REGISTRY_MANAGED_IDENTITY_ID}",
+          "webfrontend_containerimage": "{webfrontend.containerImage}",
+          "webfrontend_containerport": "{webfrontend.containerPort}"
+        }
+      },
+      "env": {
+        "OTEL_DOTNET_EXPERIMENTAL_OTLP_RETRY": "in_memory",
+        "ASPNETCORE_FORWARDEDHEADERS_ENABLED": "true",
+        "HTTP_PORTS": "{webfrontend.bindings.http.targetPort}",
+        "APISERVICE_HTTP": "{apiservice.bindings.http.url}",
+        "services__apiservice__http__0": "{apiservice.bindings.http.url}",
+        "APISERVICE_HTTPS": "{apiservice.bindings.https.url}",
+        "services__apiservice__https__0": "{apiservice.bindings.https.url}"
+      },
+      "bindings": {
+        "http": {
+          "scheme": "http",
+          "protocol": "tcp",
+          "transport": "http",
+          "external": true
+        },
+        "https": {
+          "scheme": "https",
+          "protocol": "tcp",
+          "transport": "http",
+          "external": true
+        }
+      }
+    }
+  }
+}
