@@ -39,8 +39,9 @@ public static class WorkKeys
 }
 
 /// <summary>
-/// One run per work key (source plan §6.1, plan D17): an exclusive <c>.lock</c> file that fails at once
-/// instead of waiting, and is deleted when released.
+/// One run per work key (source plan §6.1, plan D17): an exclusive lock file that fails at once instead of
+/// waiting, and is deleted when released. It lives next to the work folder (<c>&lt;WorkRoot&gt;/.locks/&lt;key&gt;.lock</c>),
+/// not inside it, so the folder can be deleted while the lock is held.
 /// </summary>
 public sealed class WorkKeyLock : IAsyncDisposable
 {
@@ -50,10 +51,11 @@ public sealed class WorkKeyLock : IAsyncDisposable
 
     public static WorkKeyLock Acquire(string workKeyDir, string displayName)
     {
-        Directory.CreateDirectory(workKeyDir);
+        var path = PathFor(workKeyDir);
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         try
         {
-            var stream = new FileStream(Path.Combine(workKeyDir, ".lock"), FileMode.OpenOrCreate, FileAccess.ReadWrite,
+            var stream = new FileStream(path, FileMode.OpenOrCreate, FileAccess.ReadWrite,
                 FileShare.None, 1, FileOptions.DeleteOnClose);
             return new WorkKeyLock(stream);
         }
@@ -61,6 +63,12 @@ public sealed class WorkKeyLock : IAsyncDisposable
         {
             throw new DeployerException(OutcomeCode.InvalidInput, $"Another run is using {displayName}. Wait for it to finish.", inner: ex);
         }
+    }
+
+    public static string PathFor(string workKeyDir)
+    {
+        var full = Path.GetFullPath(workKeyDir).TrimEnd('\\', '/');
+        return Path.Combine(Path.GetDirectoryName(full)!, ".locks", Path.GetFileName(full) + ".lock");
     }
 
     public ValueTask DisposeAsync() => _stream.DisposeAsync();

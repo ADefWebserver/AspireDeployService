@@ -70,7 +70,7 @@ public class WorkKeyLockTests : IDisposable
         await using (WorkKeyLock.Acquire(_dir.Path, "shop"))
         {
         }
-        Assert.False(File.Exists(Path.Combine(_dir.Path, ".lock")));
+        Assert.False(File.Exists(WorkKeyLock.PathFor(_dir.Path)));
     }
 }
 

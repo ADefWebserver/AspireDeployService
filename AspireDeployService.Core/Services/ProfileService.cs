@@ -107,6 +107,7 @@ public sealed class ProfileService(ProfileStore store) : IProfileService
             throw new DeployerException(OutcomeCode.InvalidInput, $"Profile '{name}' does not exist.");
 
         var workKey = WorkKeys.For(snapshot.Options.WorkRoot, name, null);
+        // The folder is deleted under the same lock, so a deploy in another window cannot start in between.
         await using (WorkKeyLock.Acquire(workKey, name))
         {
             await store.UpdateAsync(doc =>
@@ -114,18 +115,18 @@ public sealed class ProfileService(ProfileStore store) : IProfileService
                 if (!doc.AspireDeploy.Profiles.Remove(name))
                     throw new DeployerException(OutcomeCode.InvalidInput, $"Profile '{name}' does not exist.");
             }, ct);
-        }
 
-        if (deleteWorkFolder && Directory.Exists(workKey))
-        {
-            try
+            if (deleteWorkFolder && Directory.Exists(workKey))
             {
-                Directory.Delete(workKey, recursive: true);
-            }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-            {
-                throw new DeployerException(OutcomeCode.InvalidInput,
-                    $"The profile was deleted, but its work folder could not be removed: {workKey} ({ex.Message})");
+                try
+                {
+                    Directory.Delete(workKey, recursive: true);
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    throw new DeployerException(OutcomeCode.InvalidInput,
+                        $"The profile was deleted, but its work folder could not be removed: {workKey} ({ex.Message})");
+                }
             }
         }
     }

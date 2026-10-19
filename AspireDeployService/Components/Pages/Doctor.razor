@@ -58,6 +58,9 @@
         Runs.RunsChanged += OnRunsChanged;
         if (Profiles.Location.ParseError is null)
             _profiles = await Profiles.ListAsync(CancellationToken.None);
+        // Come back to the last run, whichever profile it was for, so its banner, log and Cancel return too.
+        if (Runs.Latest("doctor:") is { } latest)
+            _profile = latest.Key == "doctor:general" ? "" : latest.Key["doctor:".Length..];
         _run = Runs.TryGet(Key);
     }
 

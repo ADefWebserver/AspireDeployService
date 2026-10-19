@@ -1,17 +1,21 @@
 @implements IDisposable
 @inject DialogService Dialogs
+@inject IJSRuntime JS
 
-@* Plan §5.2: the single place confirmations from Core are shown. Pure Blazor; there is no Bootstrap JS. *@
+@* Plan §5.2: the single place confirmations from Core are shown. Pure Blazor; there is no Bootstrap JS.
+   While a dialog is open the page behind it is inert (MainLayout), focus moves to the dialog's confirm
+   button, Tab stays inside the dialog, and focus returns to where it was when the dialog closes. *@
 @if (Dialogs.Current is { } request)
 {
     <div class="ads-backdrop">
-        <div class="ads-dialog card shadow" role="dialog" aria-modal="true" aria-labelledby="ads-dialog-title">
+        <div class="ads-dialog card shadow" role="dialog" aria-modal="true" aria-labelledby="ads-dialog-title" aria-describedby="ads-dialog-message"
+             @onkeydown="e => OnKeyDown(e, request)">
             <div class="card-body">
                 <h5 id="ads-dialog-title" class="card-title">@request.Title</h5>
-                <p class="ads-dialog-message">@request.Message</p>
+                <p id="ads-dialog-message" class="ads-dialog-message">@request.Message</p>
                 <div class="d-flex justify-content-end gap-2">
-                    <button class="btn btn-outline-secondary" @onclick="() => Dialogs.Answer(request, false)">Cancel</button>
-                    <button class="btn btn-primary" @onclick="() => Dialogs.Answer(request, true)">@request.ConfirmLabel</button>
+                    <button class="btn btn-outline-secondary" @ref="_cancel" @onclick="() => Dialogs.Answer(request, false)">Cancel</button>
+                    <button class="btn btn-primary" @ref="_confirm" @onclick="() => Dialogs.Answer(request, true)">@request.ConfirmLabel</button>
                 </div>
             </div>
         </div>
@@ -19,10 +23,48 @@
 }
 
 @code {
+    private ElementReference _cancel;
+    private ElementReference _confirm;
+    private DialogRequest? _focused;
+
     protected override void OnInitialized() => Dialogs.Changed += OnChanged;
 
     // Core asks from background threads, so the render is marshalled to the dispatcher.
     private void OnChanged() => _ = InvokeAsync(StateHasChanged);
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        var current = Dialogs.Current;
+        if (ReferenceEquals(current, _focused))
+            return;
+        try
+        {
+            if (current is not null)
+            {
+                if (_focused is null)
+                    await JS.InvokeVoidAsync("adsFocus.save");
+                await _confirm.FocusAsync();
+            }
+            else
+            {
+                await JS.InvokeVoidAsync("adsFocus.restore");
+            }
+        }
+        catch (JSException)
+        {
+            // Focus is a convenience; a missing element must never break the dialog.
+        }
+        _focused = current;
+    }
+
+    /// <summary>Escape cancels; Tab and Shift+Tab move between the two buttons only.</summary>
+    private async Task OnKeyDown(KeyboardEventArgs e, DialogRequest request)
+    {
+        if (e.Key == "Escape")
+            Dialogs.Answer(request, false);
+        else if (e.Key == "Tab")
+            await JS.InvokeVoidAsync("adsFocus.cycle", _cancel, _confirm, e.ShiftKey);
+    }
 
     public void Dispose() => Dialogs.Changed -= OnChanged;
 }

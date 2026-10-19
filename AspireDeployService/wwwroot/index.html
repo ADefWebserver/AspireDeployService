@@ -24,6 +24,27 @@
     </div>
 
     <script src="_framework/blazor.webview.js" autostart="false"></script>
+    <script>
+        // DialogHost focus handling: remember the focused element, keep Tab inside the dialog, restore focus.
+        window.adsFocus = {
+            previous: null,
+            save: function () { window.adsFocus.previous = document.activeElement; },
+            restore: function () {
+                var el = window.adsFocus.previous;
+                window.adsFocus.previous = null;
+                if (el && document.contains(el) && el.focus) el.focus();
+            },
+            cycle: function (first, last, backwards) {
+                var active = document.activeElement;
+                var next = backwards ? (active === first ? last : first) : (active === last ? first : last);
+                setTimeout(function () { next.focus(); }, 0);
+            }
+        };
+        // Tab must not leave an open dialog: the default move is cancelled while one is shown.
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Tab' && document.querySelector('.ads-dialog')) e.preventDefault();
+        }, true);
+    </script>
 
 </body>
 
