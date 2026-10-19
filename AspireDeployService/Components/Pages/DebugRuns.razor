@@ -1,0 +1,66 @@
+@page "/debug/runs"
+@implements IDisposable
+@inject RunCoordinator Runs
+@inject DialogService Dialogs
+@inject IRunContextFactory RunContexts
+
+@* Plan T4b checks: a real long-running child process, a 20,000-line flood, and two dialogs at once. Not in the menu. *@
+<h1>Run infrastructure checks</h1>
+<p class="text-muted">Start a run, leave this page and come back; close the window during a run; or stop the debugger and check that no <code>ping</code> process is left.</p>
+
+<div class="d-flex gap-2 mb-3">
+    <button class="btn btn-outline-primary" @onclick="StartPing">Run ping for 5 minutes</button>
+    <button class="btn btn-outline-primary" @onclick="StartFlood">Stream 20,000 lines</button>
+    <button class="btn btn-outline-primary" @onclick="TwoDialogs">Two dialogs at once</button>
+</div>
+@if (_dialogResults is { } r)
+{
+    <p>Dialog answers: @r</p>
+}
+
+<OutcomeBanner Run="_run" />
+<LogViewer Run="_run" />
+
+@code {
+    private ActiveRun? _run;
+    private string? _dialogResults;
+
+    private static string WorkKey => Path.Combine(Path.GetTempPath(), "ads-debug");
+
+    protected override void OnInitialized()
+    {
+        Runs.RunsChanged += OnRunsChanged;
+        _run = Runs.Latest("debug:");
+    }
+
+    private void OnRunsChanged() => _ = InvokeAsync(StateHasChanged);
+
+    public void Dispose() => Runs.RunsChanged -= OnRunsChanged;
+
+    private void StartPing() => _run = Runs.Start("debug:ping", "ping", async (observer, ct) =>
+    {
+        await using var run = RunContexts.Create(WorkKey, observer);
+        var result = await run.Runner.RunAsync(
+            new AspireDeployService.Core.Processes.ProcessSpec("ping", ["-n", "300", "127.0.0.1"], Path.GetTempPath()), run.Log, ct);
+        return new OperationResult(result.Succeeded ? OutcomeCode.Success : OutcomeCode.DeployFailed, $"ping exited with {result.ExitCode}.");
+    });
+
+    private void StartFlood() => _run = Runs.Start("debug:flood", "flood", async (observer, ct) =>
+    {
+        await using var run = RunContexts.Create(WorkKey, observer);
+        for (var i = 0; i < 20_000; i++)
+        {
+            ct.ThrowIfCancellationRequested();
+            await run.Log.WriteAsync(LogStreams.StdOut, $"line {i:N0} " + new string('x', 60), ct);
+        }
+        return OperationResult.Ok("20,000 lines written.");
+    });
+
+    private async Task TwoDialogs()
+    {
+        var a = Dialogs.ConfirmAsync("First question", "Answer this one first.", "Yes", CancellationToken.None);
+        var b = Dialogs.ConfirmAsync("Second question", "This appears after the first one is answered.", "Yes", CancellationToken.None);
+        var answers = await Task.WhenAll(a, b);
+        _dialogResults = string.Join(", ", answers);
+    }
+}

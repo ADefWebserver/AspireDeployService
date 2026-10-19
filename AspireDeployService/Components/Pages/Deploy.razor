@@ -1,0 +1,88 @@
+@page "/deploy/{Name}"
+@implements IDisposable
+@inject IProfileService Profiles
+@inject IDeployService Deployer
+@inject RunCoordinator Runs
+
+<h1>Deploy @Name</h1>
+
+@if (_error is { } e)
+{
+    <div class="alert alert-danger">@e</div>
+}
+
+@if (_profile is { } p)
+{
+    <dl class="row" style="max-width: 56rem">
+        <dt class="col-sm-3">Source</dt><dd class="col-sm-9">@p.ToSourceSpec().Display</dd>
+        <dt class="col-sm-3">Subscription</dt><dd class="col-sm-9"><code>@p.Destination.SubscriptionId</code></dd>
+        <dt class="col-sm-3">Resource group</dt><dd class="col-sm-9">@p.Destination.ResourceGroup in @p.Destination.Location</dd>
+        <dt class="col-sm-3">Environment</dt><dd class="col-sm-9">@p.EnvironmentName</dd>
+        <dt class="col-sm-3">Last deployed with</dt><dd class="col-sm-9">Aspire @(p.LastDeployedAspireVersion ?? "(never deployed)")</dd>
+    </dl>
+
+    <div class="row g-2 align-items-end mb-3" style="max-width: 56rem">
+        @if (p.Source.Kind == SourceKind.GitHub)
+        {
+            <div class="col-md-4">
+                <label class="form-label" for="dp-ref">Ref for this run</label>
+                <input id="dp-ref" class="form-control" placeholder="@(p.Source.Ref ?? "default branch")" @bind="_ref" disabled="@Busy" />
+            </div>
+        }
+        <div class="col-auto">
+            <div class="form-check">
+                <input id="dp-dry" class="form-check-input" type="checkbox" @bind="_dryRun" disabled="@Busy" />
+                <label class="form-check-label" for="dp-dry">Dry run (list the steps only)</label>
+            </div>
+            <div class="form-check">
+                <input id="dp-clear" class="form-check-input" type="checkbox" @bind="_clearCache" disabled="@Busy" />
+                <label class="form-check-label" for="dp-clear">Clear Aspire's deploy cache</label>
+            </div>
+        </div>
+        <div class="col-auto">
+            <button class="btn btn-primary" disabled="@Busy" @onclick="Start">@(_dryRun ? "List steps" : "Deploy")</button>
+        </div>
+    </div>
+
+    <OutcomeBanner Run="_run" ExtraLine="@($"Resource group: {p.Destination.ResourceGroup}. To remove everything, delete that resource group in Azure.")" />
+}
+
+<LogViewer Run="_run" />
+
+@code {
+    [Parameter] public string Name { get; set; } = "";
+
+    private DeployProfile? _profile;
+    private string? _ref;
+    private bool _dryRun;
+    private bool _clearCache;
+    private string? _error;
+    private ActiveRun? _run;
+
+    private bool Busy => _run?.IsRunning == true;
+    private string Key => "deploy:" + Name;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        Runs.RunsChanged -= OnRunsChanged;
+        Runs.RunsChanged += OnRunsChanged;
+        _run = Runs.TryGet(Key);
+        _profile = await Profiles.GetAsync(Name, CancellationToken.None);
+        _error = _profile is null ? $"Profile '{Name}' does not exist." : null;
+    }
+
+    private void Start()
+    {
+        var request = new DeployRequest(Name, string.IsNullOrWhiteSpace(_ref) ? null : _ref.Trim(), _dryRun, _clearCache);
+        _run = Runs.Start(Key, _dryRun ? "Dry run" : "Deployment", (observer, ct) => Deployer.DeployAsync(request, observer, ct));
+    }
+
+    private void OnRunsChanged() => _ = InvokeAsync(async () =>
+    {
+        if (_run is { IsRunning: false })
+            _profile = await Profiles.GetAsync(Name, CancellationToken.None); // picks up LastDeployedAspireVersion (D18)
+        StateHasChanged();
+    });
+
+    public void Dispose() => Runs.RunsChanged -= OnRunsChanged;
+}

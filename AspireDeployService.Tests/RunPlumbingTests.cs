@@ -127,6 +127,15 @@ public class RunLogSinkTests : IDisposable
     }
 
     [Fact]
+    public async Task Ansi_color_codes_are_removed()
+    {
+        var observer = new ListRunObserver();
+        await using (var sink = new RunLogSink(Guid.NewGuid(), _dir.Combine("a.log"), new DeploySecretRedactor(), observer))
+            await sink.WriteAsync(LogStreams.StdOut, "\u001b[1;38;5;2m6.\u001b[0m \u001b[38;5;14mbuild-web\u001b[0m \u001b]8;;https://x\u0007link\u001b]8;;\u0007");
+        Assert.Equal("6. build-web link", Assert.Single(observer.Lines).Text);
+    }
+
+    [Fact]
     public async Task A_broken_file_keeps_the_observer_working_and_warns_once()
     {
         // A directory where the file should be makes every open fail.

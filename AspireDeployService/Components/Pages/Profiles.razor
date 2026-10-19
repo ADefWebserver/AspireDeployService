@@ -1,0 +1,113 @@
+@page "/profiles"
+@implements IDisposable
+@inject IProfileService ProfileService
+@inject RunCoordinator Runs
+
+<div class="d-flex align-items-center mb-3">
+    <h1 class="flex-grow-1 mb-0">Profiles</h1>
+    <a class="btn btn-primary" href="profiles/new">New profile</a>
+</div>
+
+@if (_error is { } e)
+{
+    <div class="alert alert-danger ads-pre-line">@e</div>
+}
+
+@if (_profiles is null)
+{
+    <p>Loading…</p>
+}
+else if (_profiles.Count == 0)
+{
+    <p class="text-muted">No profiles yet. <a href="profiles/new">Create one</a> from a discovered AppHost.</p>
+}
+else
+{
+    <table class="table align-middle">
+        <thead><tr><th>Name</th><th>Source</th><th>Subscription</th><th>Resource group</th><th></th></tr></thead>
+        <tbody>
+            @foreach (var p in _profiles)
+            {
+                var running = Runs.TryGet("deploy:" + p.Name)?.IsRunning == true;
+                <tr>
+                    <td><a href="profiles/@p.Name">@p.Name</a></td>
+                    <td><span class="badge text-bg-light">@p.SourceKind</span> @p.SourceDisplay</td>
+                    <td><code>@p.SubscriptionId</code></td>
+                    <td>@p.ResourceGroup</td>
+                    <td class="text-end text-nowrap">
+                        <a class="btn btn-sm btn-primary" href="deploy/@p.Name">@(running ? "Deploying…" : "Deploy")</a>
+                        <a class="btn btn-sm btn-outline-secondary" href="profiles/@p.Name">Edit</a>
+                        <button class="btn btn-sm btn-outline-danger" disabled="@running" @onclick="() => AskDelete(p.Name)">Delete</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@if (_pendingDelete is { } name)
+{
+    <div class="card border-danger" style="max-width: 36rem">
+        <div class="card-body">
+            <h5 class="card-title">Delete profile @name?</h5>
+            <p class="small">This edits only the local settings file. Nothing in Azure is touched; the resource group stays.</p>
+            <div class="form-check mb-3">
+                <input id="delete-work" class="form-check-input" type="checkbox" @bind="_deleteWorkFolder" />
+                <label class="form-check-label" for="delete-work">Also delete its work folder (source copy, logs, history)</label>
+            </div>
+            <button class="btn btn-danger" @onclick="ConfirmDeleteAsync">Delete</button>
+            <button class="btn btn-outline-secondary" @onclick="() => _pendingDelete = null">Cancel</button>
+        </div>
+    </div>
+}
+
+@code {
+    private IReadOnlyList<ProfileSummary>? _profiles;
+    private string? _error;
+    private string? _pendingDelete;
+    private bool _deleteWorkFolder = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Runs.RunsChanged += OnRunsChanged;
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        var location = ProfileService.Location;
+        if (location.ParseError is { } parse)
+        {
+            _error = $"The settings file cannot be read ({location.Path}): {parse}";
+            _profiles = [];
+            return;
+        }
+        _profiles = await ProfileService.ListAsync(CancellationToken.None);
+    }
+
+    private void AskDelete(string name)
+    {
+        _pendingDelete = name;
+        _deleteWorkFolder = true;
+    }
+
+    private async Task ConfirmDeleteAsync()
+    {
+        var name = _pendingDelete!;
+        _pendingDelete = null;
+        try
+        {
+            await Task.Run(() => ProfileService.DeleteAsync(name, _deleteWorkFolder, CancellationToken.None));
+            _error = null;
+        }
+        catch (DeployerException ex)
+        {
+            _error = ex.Message;
+        }
+        await LoadAsync();
+    }
+
+    private void OnRunsChanged() => _ = InvokeAsync(StateHasChanged);
+
+    public void Dispose() => Runs.RunsChanged -= OnRunsChanged;
+}

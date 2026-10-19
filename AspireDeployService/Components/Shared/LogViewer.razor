@@ -1,0 +1,73 @@
+@implements IDisposable
+
+@* Plan D11: polls the run's ring buffer every 100 ms and re-renders only when it changed. *@
+<div class="ads-log" aria-live="polite">
+    @if (_lines.Count == 0)
+    {
+        <div class="text-muted">No output yet.</div>
+    }
+    else
+    {
+        <div class="ads-log-lines">
+            @foreach (var line in _lines)
+            {
+                <div class="ads-log-line @StreamClass(line.Stream)">@line.Text</div>
+            }
+        </div>
+    }
+</div>
+@if (Run?.LogFile is { } file)
+{
+    <div class="small text-muted mt-1">Log file: <code>@file</code></div>
+}
+
+@code {
+    [Parameter] public ActiveRun? Run { get; set; }
+
+    private IReadOnlyList<LogLine> _lines = [];
+    private long _seen = -1;
+    private ActiveRun? _current;
+    private Timer? _timer;
+
+    protected override void OnInitialized() =>
+        _timer = new Timer(_ => _ = InvokeAsync(Refresh), null, TimeSpan.Zero, TimeSpan.FromMilliseconds(100));
+
+    protected override void OnParametersSet()
+    {
+        if (!ReferenceEquals(_current, Run))
+        {
+            _current = Run;
+            _seen = -1;
+            Refresh();
+        }
+    }
+
+    private void Refresh()
+    {
+        var run = _current;
+        if (run is null)
+        {
+            if (_lines.Count > 0)
+            {
+                _lines = [];
+                StateHasChanged();
+            }
+            return;
+        }
+        var version = run.Version;
+        if (version == _seen)
+            return;
+        _seen = version;
+        _lines = run.Snapshot();
+        StateHasChanged();
+    }
+
+    private static string StreamClass(string stream) => stream switch
+    {
+        LogStreams.StdErr => "ads-log-err",
+        LogStreams.System => "ads-log-sys",
+        _ => ""
+    };
+
+    public void Dispose() => _timer?.Dispose();
+}

@@ -1,6 +1,9 @@
-﻿<div class="top-row ps-3 navbar navbar-dark">
+﻿@implements IDisposable
+@inject RunCoordinator Runs
+
+<div class="top-row ps-3 navbar navbar-dark">
     <div class="container-fluid">
-        <a class="navbar-brand" href="">AspireDeployService</a>
+        <a class="navbar-brand" href="">Aspire Deploy</a>
     </div>
 </div>
 
@@ -14,14 +17,38 @@
             </NavLink>
         </div>
         <div class="nav-item px-3">
-            <NavLink class="nav-link" href="counter">
-                <span class="bi bi-plus-square-fill-nav-menu" aria-hidden="true"></span> Counter
+            <NavLink class="nav-link" href="doctor">
+                <span class="bi bi-heart-pulse-nav-menu" aria-hidden="true"></span> Doctor @Spinner("doctor")
             </NavLink>
         </div>
         <div class="nav-item px-3">
-            <NavLink class="nav-link" href="weather">
-                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Weather
+            <NavLink class="nav-link" href="discover">
+                <span class="bi bi-search-nav-menu" aria-hidden="true"></span> Discover @Spinner("discover")
+            </NavLink>
+        </div>
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="profiles">
+                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Profiles @Spinner("deploy", "profile")
+            </NavLink>
+        </div>
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="settings">
+                <span class="bi bi-gear-nav-menu" aria-hidden="true"></span> Settings
             </NavLink>
         </div>
     </nav>
 </div>
+
+@code {
+    protected override void OnInitialized() => Runs.RunsChanged += OnRunsChanged;
+
+    private void OnRunsChanged() => _ = InvokeAsync(StateHasChanged);
+
+    /// <summary>Plan §6.1: a spinner next to pages that have an active run.</summary>
+    private RenderFragment? Spinner(params string[] prefixes) =>
+        Runs.Active.Any(r => prefixes.Any(p => r.Key.StartsWith(p + ":", StringComparison.Ordinal)))
+            ? @<span class="spinner-border spinner-border-sm ms-2" role="status" aria-label="running"></span>
+            : null;
+
+    public void Dispose() => Runs.RunsChanged -= OnRunsChanged;
+}

@@ -7,11 +7,31 @@
 
     <main>
         <div class="top-row px-4">
-            <a href="https://learn.microsoft.com/aspnet/core/" target="_blank">About</a>
+            <span class="text-muted small">Deploy Aspire 13.x apps to Azure</span>
         </div>
 
         <article class="content px-4">
-            @Body
+            @* Plan D14: a rendering error shows here instead of the template's "Reload" bar, so runs keep going. *@
+            <ErrorBoundary @ref="_boundary">
+                <ChildContent>
+                    @Body
+                </ChildContent>
+                <ErrorContent Context="ex">
+                    <div class="alert alert-danger">
+                        <p class="mb-2">This page hit an unexpected error (result code 1): @ex.Message</p>
+                        <p class="mb-2 small">Running work is not affected.</p>
+                        <button class="btn btn-sm btn-outline-danger" @onclick="Recover">Try again</button>
+                    </div>
+                </ErrorContent>
+            </ErrorBoundary>
         </article>
     </main>
 </div>
+
+<DialogHost />
+
+@code {
+    private ErrorBoundary? _boundary;
+
+    private void Recover() => _boundary?.Recover();
+}

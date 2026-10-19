@@ -23,6 +23,12 @@ public interface IProfileService
     /// <summary>Sets one key (source plan §6.1 settable keys). Code 2 for an unknown key or a missing profile.</summary>
     Task SetAsync(string name, string key, string? value, bool secret, CancellationToken ct);
 
+    /// <summary>
+    /// Applies <paramref name="change"/> to a fresh copy of the profile under the settings lock (D16), then validates.
+    /// Used by the edit page so only the fields the user changed are written. Code 2 when the result is invalid.
+    /// </summary>
+    Task UpdateAsync(string name, Action<DeployProfile> change, CancellationToken ct);
+
     /// <summary>Removes a profile under its work key lock (code 2 while a run uses it). Optionally deletes its work folder.</summary>
     Task DeleteAsync(string name, bool deleteWorkFolder, CancellationToken ct);
 
@@ -78,6 +84,18 @@ public sealed class ProfileService(ProfileStore store) : IProfileService
             profiles[name] = profile.Clone();
         }, ct);
     }
+
+    public Task UpdateAsync(string name, Action<DeployProfile> change, CancellationToken ct) =>
+        store.UpdateAsync(doc =>
+        {
+            var profile = Require(doc, name);
+            var edited = profile.Clone();
+            change(edited);
+            var errors = ProfileRules.Validate(edited);
+            if (errors.Count > 0)
+                throw new DeployerException(OutcomeCode.InvalidInput, "Nothing was saved:\n" + string.Join('\n', errors));
+            doc.AspireDeploy.Profiles[name] = edited;
+        }, ct);
 
     public Task SetAsync(string name, string key, string? value, bool secret, CancellationToken ct) =>
         store.UpdateAsync(doc => ProfileRules.ApplySet(Require(doc, name), key, value, secret), ct);

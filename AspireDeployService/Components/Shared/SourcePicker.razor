@@ -1,0 +1,77 @@
+@* The source block shared by Discover and New profile (plan §6.1). *@
+<div class="row g-2">
+    <div class="col-12">
+        <div class="btn-group" role="group" aria-label="Source kind">
+            <input type="radio" class="btn-check" id="@($"{Id}-local")" checked="@(Kind == SourceKind.LocalFolder)" disabled="@Disabled"
+                   @onchange="() => SetKind(SourceKind.LocalFolder)" />
+            <label class="btn btn-outline-primary" for="@($"{Id}-local")">Local folder</label>
+            <input type="radio" class="btn-check" id="@($"{Id}-github")" checked="@(Kind == SourceKind.GitHub)" disabled="@Disabled"
+                   @onchange="() => SetKind(SourceKind.GitHub)" />
+            <label class="btn btn-outline-primary" for="@($"{Id}-github")">GitHub repository</label>
+        </div>
+    </div>
+
+    @if (Kind == SourceKind.LocalFolder)
+    {
+        <div class="col-12">
+            <label class="form-label" for="@($"{Id}-folder")">Solution folder</label>
+            <div class="input-group">
+                <input id="@($"{Id}-folder")" class="form-control" placeholder="C:\src\my-aspire-app" value="@Location" disabled="@Disabled"
+                       @onchange="e => SetLocation(e.Value?.ToString())" />
+                <button class="btn btn-outline-secondary" type="button" disabled="@Disabled" @onclick="BrowseAsync">Browse…</button>
+            </div>
+            @if (!string.IsNullOrWhiteSpace(Location) && !Directory.Exists(Location))
+            {
+                <div class="form-text text-danger">This folder does not exist.</div>
+            }
+        </div>
+    }
+    else
+    {
+        <div class="col-md-8">
+            <label class="form-label" for="@($"{Id}-repo")">Repository</label>
+            <input id="@($"{Id}-repo")" class="form-control" placeholder="owner/repo" value="@Location" disabled="@Disabled"
+                   @onchange="e => SetLocation(e.Value?.ToString())" />
+        </div>
+        <div class="col-md-4">
+            <label class="form-label" for="@($"{Id}-ref")">Branch, tag or SHA</label>
+            <input id="@($"{Id}-ref")" class="form-control" placeholder="default branch" value="@Ref" disabled="@Disabled"
+                   @onchange="e => RefChanged.InvokeAsync(Empty(e.Value?.ToString()))" />
+        </div>
+    }
+
+    <div class="col-12">
+        <label class="form-label" for="@($"{Id}-apphost")">AppHost path <span class="text-muted">(optional)</span></label>
+        <input id="@($"{Id}-apphost")" class="form-control" placeholder="found automatically" value="@AppHostPath" disabled="@Disabled"
+               @onchange="e => AppHostPathChanged.InvokeAsync(Empty(e.Value?.ToString()))" />
+    </div>
+</div>
+
+@code {
+    [Parameter] public string Id { get; set; } = "source";
+    [Parameter] public SourceKind Kind { get; set; }
+    [Parameter] public EventCallback<SourceKind> KindChanged { get; set; }
+    [Parameter] public string? Location { get; set; }
+    [Parameter] public EventCallback<string?> LocationChanged { get; set; }
+    [Parameter] public string? Ref { get; set; }
+    [Parameter] public EventCallback<string?> RefChanged { get; set; }
+    [Parameter] public string? AppHostPath { get; set; }
+    [Parameter] public EventCallback<string?> AppHostPathChanged { get; set; }
+    [Parameter] public bool Disabled { get; set; }
+
+    private async Task SetKind(SourceKind kind)
+    {
+        await KindChanged.InvokeAsync(kind);
+        await LocationChanged.InvokeAsync(null);
+    }
+
+    private Task SetLocation(string? value) => LocationChanged.InvokeAsync(Empty(value?.Trim().Trim('"')));
+
+    private async Task BrowseAsync()
+    {
+        if (await WindowsShell.PickFolderAsync() is { } folder)
+            await LocationChanged.InvokeAsync(folder);
+    }
+
+    private static string? Empty(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
+}

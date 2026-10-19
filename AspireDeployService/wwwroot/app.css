@@ -99,3 +99,53 @@ h1:focus {
         padding-left: env(safe-area-inset-left);
     }
 }
+
+/* Aspire Deploy additions (plan §8) */
+.ads-log {
+    background: #1e1e1e;
+    color: #d4d4d4;
+    border-radius: 4px;
+    height: 24rem;
+    overflow: auto;
+    display: flex;
+    flex-direction: column-reverse; /* keeps the newest line in view */
+    padding: 0.5rem 0.75rem;
+    font-size: 0.8rem;
+}
+
+    .ads-log-line {
+        white-space: pre-wrap;
+        word-break: break-word;
+        font-family: Consolas, 'Cascadia Mono', monospace;
+        line-height: 1.35;
+    }
+
+.ads-log-err {
+    color: #f48771;
+}
+
+.ads-log-sys {
+    color: #9cdcfe;
+}
+
+.ads-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1050;
+}
+
+.ads-dialog {
+    width: min(36rem, 92vw);
+}
+
+.ads-dialog-message, .ads-pre-line {
+    white-space: pre-line;
+}
+
+.table td.ads-check-Pass { color: #198754; }
+.table td.ads-check-Warn { color: #b8860b; }
+.table td.ads-check-Fail { color: #dc3545; }

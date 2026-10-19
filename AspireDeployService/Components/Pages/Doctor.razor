@@ -1,0 +1,85 @@
+@page "/doctor"
+@implements IDisposable
+@inject IDoctorService DoctorService
+@inject IProfileService Profiles
+@inject RunCoordinator Runs
+
+<h1>Doctor</h1>
+<p class="text-muted">Checks the tools a deployment needs. With a profile, it also fetches the source and checks what its AppHost needs, and installs the matching Aspire CLI.</p>
+
+<div class="row g-2 align-items-end mb-3" style="max-width: 40rem">
+    <div class="col">
+        <label class="form-label" for="doctor-profile">Profile</label>
+        <select id="doctor-profile" class="form-select" @bind="_profile" @bind:after="Reattach" disabled="@Busy">
+            <option value="">(general checks only)</option>
+            @foreach (var p in _profiles)
+            {
+                <option value="@p.Name">@p.Name</option>
+            }
+        </select>
+    </div>
+    <div class="col-auto">
+        <button class="btn btn-primary" disabled="@Busy" @onclick="Run">Run checks</button>
+    </div>
+</div>
+
+<OutcomeBanner Run="_run" />
+
+@if (_run?.ValueAs<IReadOnlyList<PrerequisiteCheck>>() is { } checks)
+{
+    <table class="table">
+        <thead><tr><th>Check</th><th>State</th><th>Detail</th><th>Fix</th></tr></thead>
+        <tbody>
+            @foreach (var c in checks)
+            {
+                <tr>
+                    <td>@c.Name</td>
+                    <td class="fw-semibold @CheckClass(c.State)">@c.State</td>
+                    <td>@c.Detail</td>
+                    <td class="small">@c.Fix</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+<LogViewer Run="_run" />
+
+@code {
+    private IReadOnlyList<ProfileSummary> _profiles = [];
+    private string? _profile = "";
+    private ActiveRun? _run;
+
+    private bool Busy => _run?.IsRunning == true;
+    private string Key => "doctor:" + (_profile is { Length: > 0 } p ? p : "general");
+
+    protected override async Task OnInitializedAsync()
+    {
+        Runs.RunsChanged += OnRunsChanged;
+        if (Profiles.Location.ParseError is null)
+            _profiles = await Profiles.ListAsync(CancellationToken.None);
+        _run = Runs.TryGet(Key);
+    }
+
+    private void Run()
+    {
+        var profile = _profile is { Length: > 0 } p ? p : null;
+        _run = Runs.Start(Key, "Doctor", (observer, ct) => DoctorService.CheckAsync(profile, observer, ct),
+            checks => checks.Any(c => c.State == CheckState.Fail)
+                ? new OperationResult(OutcomeCode.MissingPrerequisite, $"{checks.Count(c => c.State == CheckState.Fail)} check(s) failed. See the Fix column.")
+                : OperationResult.Ok("Everything needed is in place."));
+    }
+
+    private static string CheckClass(CheckState s) => s switch
+    {
+        CheckState.Pass => "text-success",
+        CheckState.Warn => "text-warning-emphasis",
+        _ => "text-danger"
+    };
+
+    private void Reattach() => _run = Runs.TryGet(Key);
+
+    private void OnRunsChanged() => _ = InvokeAsync(StateHasChanged);
+
+    public void Dispose() => Runs.RunsChanged -= OnRunsChanged;
+}

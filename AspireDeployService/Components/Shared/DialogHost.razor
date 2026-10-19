@@ -1,0 +1,28 @@
+@implements IDisposable
+@inject DialogService Dialogs
+
+@* Plan §5.2: the single place confirmations from Core are shown. Pure Blazor; there is no Bootstrap JS. *@
+@if (Dialogs.Current is { } request)
+{
+    <div class="ads-backdrop">
+        <div class="ads-dialog card shadow" role="dialog" aria-modal="true" aria-labelledby="ads-dialog-title">
+            <div class="card-body">
+                <h5 id="ads-dialog-title" class="card-title">@request.Title</h5>
+                <p class="ads-dialog-message">@request.Message</p>
+                <div class="d-flex justify-content-end gap-2">
+                    <button class="btn btn-outline-secondary" @onclick="() => Dialogs.Answer(request, false)">Cancel</button>
+                    <button class="btn btn-primary" @onclick="() => Dialogs.Answer(request, true)">@request.ConfirmLabel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    protected override void OnInitialized() => Dialogs.Changed += OnChanged;
+
+    // Core asks from background threads, so the render is marshalled to the dispatcher.
+    private void OnChanged() => _ = InvokeAsync(StateHasChanged);
+
+    public void Dispose() => Dialogs.Changed -= OnChanged;
+}

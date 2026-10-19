@@ -1,4 +1,5 @@
 using System.Text;
+using System.Text.RegularExpressions;
 using AspireDeployService.Core.Runs;
 
 namespace AspireDeployService.Core.Logging;
@@ -8,8 +9,12 @@ namespace AspireDeployService.Core.Logging;
 /// file (shared for reading, so it can be tailed) and handed to the observer. A file that cannot be written
 /// adds one warning line and never fails the run.
 /// </summary>
-public sealed class RunLogSink : IDeploymentLogSink
+public sealed partial class RunLogSink : IDeploymentLogSink
 {
+    // The Aspire CLI colors its output; escape sequences are noise in the UI and the log file.
+    [GeneratedRegex(@"\x1B(?:\[[0-?]*[ -/]*[@-~]|\][^\x07\x1B]*(?:\x07|\x1B\\)|[@-Z\\-_])")]
+    private static partial Regex AnsiEscape();
+
     private readonly ISecretRedactor _redactor;
     private readonly IRunObserver _observer;
     private readonly TimeProvider _time;
@@ -32,7 +37,7 @@ public sealed class RunLogSink : IDeploymentLogSink
 
     public ValueTask WriteAsync(string stream, string line, CancellationToken ct = default)
     {
-        var redacted = _redactor.Redact(line);
+        var redacted = _redactor.Redact(AnsiEscape().Replace(line, ""));
         var now = _time.GetUtcNow();
         string? warning = null;
 

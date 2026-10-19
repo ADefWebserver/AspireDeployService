@@ -1,0 +1,100 @@
+@page "/settings"
+@inject IProfileService Profiles
+
+<h1>Settings</h1>
+
+@if (_snapshot is { } s)
+{
+    <dl class="row">
+        <dt class="col-sm-3">Settings file</dt>
+        <dd class="col-sm-9">
+            <code>@s.Location.Path</code>
+            <button class="btn btn-sm btn-link" @onclick="() => OpenFolder(Path.GetDirectoryName(s.Location.Path)!)">Open folder</button>
+            <div class="small text-muted">Found by: @RuleText(s.Location.Rule)@(s.Location.Exists ? "" : " (not created yet)")</div>
+        </dd>
+        <dt class="col-sm-3">Work root</dt>
+        <dd class="col-sm-9"><code>@s.Options.WorkRoot</code> <button class="btn btn-sm btn-link" @onclick="() => OpenFolder(s.Options.WorkRoot)">Open folder</button></dd>
+        <dt class="col-sm-3">Tools root</dt>
+        <dd class="col-sm-9"><code>@s.Options.ToolsRoot</code> <button class="btn btn-sm btn-link" @onclick="() => OpenFolder(s.Options.ToolsRoot)">Open folder</button></dd>
+    </dl>
+
+    @if (s.Location.ParseError is { } error)
+    {
+        <div class="alert alert-danger">
+            <p class="mb-1"><strong>The settings file cannot be read.</strong> Nothing is saved until it is fixed by hand; the file is never overwritten.</p>
+            <code>@error</code>
+        </div>
+    }
+    else
+    {
+        <h4 class="mt-4">GitHub token</h4>
+        <p class="small text-muted">
+            <code>AspireDeploy:GitHub:Token</code> is used for private repositories when a profile has no token of its own.
+            Use a fine-grained token with <strong>Contents: read</strong> on the selected repositories only. It is stored in plain text in the settings file, which git ignores.
+        </p>
+        <div class="d-flex align-items-center gap-2 mb-2">
+            <span>@(string.IsNullOrEmpty(s.Options.GitHubToken) ? "(not set)" : "(set)")</span>
+            @if (!_replacing)
+            {
+                <button class="btn btn-sm btn-outline-secondary" @onclick="() => _replacing = true">Replace</button>
+                @if (!string.IsNullOrEmpty(s.Options.GitHubToken))
+                {
+                    <button class="btn btn-sm btn-outline-danger" @onclick="() => SaveTokenAsync(null)">Clear</button>
+                }
+            }
+        </div>
+        @if (_replacing)
+        {
+            <div class="row g-2 align-items-start" style="max-width: 40rem">
+                <div class="col"><SecretInput @bind-Value="_newToken" Placeholder="github_pat_..." /></div>
+                <div class="col-auto">
+                    <button class="btn btn-primary" @onclick="() => SaveTokenAsync(_newToken)">Save</button>
+                    <button class="btn btn-outline-secondary" @onclick="() => { _replacing = false; _newToken = null; }">Cancel</button>
+                </div>
+            </div>
+        }
+        @if (_message is { } m)
+        {
+            <div class="alert @(_failed ? "alert-danger" : "alert-success") mt-3">@m</div>
+        }
+    }
+}
+
+@code {
+    private SettingsSnapshot? _snapshot;
+    private bool _replacing;
+    private string? _newToken;
+    private string? _message;
+    private bool _failed;
+
+    protected override async Task OnInitializedAsync() => _snapshot = await Profiles.LoadAsync(CancellationToken.None);
+
+    private async Task SaveTokenAsync(string? token)
+    {
+        try
+        {
+            await Profiles.SetGlobalGitHubTokenAsync(token, CancellationToken.None);
+            (_message, _failed) = (token is null ? "Token cleared." : "Token saved.", false);
+            _replacing = false;
+            _newToken = null;
+            _snapshot = await Profiles.LoadAsync(CancellationToken.None);
+        }
+        catch (DeployerException ex)
+        {
+            (_message, _failed) = (ex.Message, true);
+        }
+    }
+
+    private static string RuleText(SettingsRule rule) => rule switch
+    {
+        SettingsRule.EnvironmentVariable => "the ADS_SETTINGS environment variable",
+        SettingsRule.ProjectFolder => "the project folder (running from Visual Studio)",
+        _ => "%LOCALAPPDATA%\\AspireDeployService"
+    };
+
+    private static void OpenFolder(string folder)
+    {
+        Directory.CreateDirectory(folder);
+        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("explorer.exe", folder) { UseShellExecute = true });
+    }
+}

@@ -1,4 +1,7 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using AspireDeployService.Core;
+using AspireDeployService.Core.Interaction;
+using AspireDeployService.Services;
+using Microsoft.Extensions.Logging;
 
 namespace AspireDeployService;
 
@@ -15,6 +18,13 @@ public static class MauiProgram
 			});
 
 		builder.Services.AddMauiBlazorWebView();
+
+		// Plan §6.2: Core services, the dialog host's IUserInteraction, and the run owner.
+		builder.Services.AddAspireDeployerCore();
+		builder.Services.AddSingleton<DialogService>();
+		builder.Services.AddSingleton<IUserInteraction>(sp => sp.GetRequiredService<DialogService>());
+		builder.Services.AddSingleton<RunCoordinator>();
+		builder.AddWindowsShell();
 
 #if DEBUG
 		builder.Services.AddBlazorWebViewDeveloperTools();

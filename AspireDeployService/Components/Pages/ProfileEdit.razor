@@ -1,0 +1,290 @@
+@page "/profiles/{Name}"
+@inject IProfileService Profiles
+@inject RunCoordinator Runs
+
+<h1>Profile @Name</h1>
+
+@if (_error is { } e)
+{
+    <div class="alert alert-danger ads-pre-line">@e</div>
+}
+@if (_saved)
+{
+    <div class="alert alert-success">Saved.</div>
+}
+
+@if (_edit is { } p && _original is { } o)
+{
+    var busy = Runs.TryGet("deploy:" + Name)?.IsRunning == true;
+    <fieldset disabled="@(busy || _readOnly)" style="max-width: 56rem">
+        @if (busy)
+        {
+            <div class="alert alert-info">A deployment of this profile is running; editing is disabled until it ends.</div>
+        }
+
+        <h4>Source</h4>
+        <dl class="row">
+            <dt class="col-sm-3">Kind</dt><dd class="col-sm-9">@o.Source.Kind</dd>
+            <dt class="col-sm-3">Location</dt><dd class="col-sm-9"><code>@o.Source.Location</code></dd>
+        </dl>
+        <div class="row g-2 mb-3">
+            @if (o.Source.Kind == SourceKind.GitHub)
+            {
+                <div class="col-md-4">
+                    <label class="form-label" for="pe-ref">Branch, tag or SHA</label>
+                    <input id="pe-ref" class="form-control" placeholder="default branch" @bind="p.Source.Ref" />
+                </div>
+            }
+            <div class="col-md-8">
+                <label class="form-label" for="pe-apphost">AppHost path</label>
+                <input id="pe-apphost" class="form-control" placeholder="found automatically" @bind="p.Source.AppHostPath" />
+            </div>
+            @if (o.Source.Kind == SourceKind.GitHub)
+            {
+                <div class="col-12">
+                    <label class="form-label">GitHub token for this profile</label>
+                    <SecretField Label="token" HasValue="@(!string.IsNullOrEmpty(o.Source.GitHubToken))" Original="@o.Source.GitHubToken"
+                                 @bind-Replacement="_tokenReplacement" @bind-Cleared="_tokenCleared" />
+                </div>
+            }
+        </div>
+
+        <h4>Destination</h4>
+        <div class="row g-2 mb-3">
+            <div class="col-md-6">
+                <label class="form-label" for="pe-sub">Subscription ID</label>
+                <input id="pe-sub" class="form-control" @bind="p.Destination.SubscriptionId" />
+            </div>
+            <div class="col-md-6">
+                <label class="form-label" for="pe-tenant">Tenant ID <span class="text-muted">(optional)</span></label>
+                <input id="pe-tenant" class="form-control" @bind="p.Destination.TenantId" />
+            </div>
+            <div class="col-md-4">
+                <label class="form-label" for="pe-loc">Region</label>
+                <input id="pe-loc" class="form-control" placeholder="eastus2" @bind="p.Destination.Location" />
+            </div>
+            <div class="col-md-4">
+                <label class="form-label" for="pe-rg">Resource group</label>
+                <input id="pe-rg" class="form-control" @bind="p.Destination.ResourceGroup" />
+            </div>
+            <div class="col-md-4">
+                <label class="form-label" for="pe-cred">Credential source</label>
+                <input id="pe-cred" class="form-control" placeholder="AzureCli" @bind="p.Destination.CredentialSource" />
+            </div>
+            <div class="col-md-4">
+                <label class="form-label" for="pe-env">Environment</label>
+                <input id="pe-env" class="form-control" placeholder="Production" @bind="p.Environment" />
+            </div>
+            <div class="col-md-4">
+                <label class="form-label" for="pe-rt">Container runtime</label>
+                <select id="pe-rt" class="form-select" @bind="p.ContainerRuntime">
+                    <option value="">(default)</option>
+                    <option value="docker">docker</option>
+                    <option value="podman">podman</option>
+                </select>
+            </div>
+            <div class="col-md-4 d-flex align-items-end">
+                <div class="form-check">
+                    <input id="pe-create" class="form-check-input" type="checkbox" checked="@(p.Destination.AllowResourceGroupCreation ?? true)"
+                           @onchange="e => p.Destination.AllowResourceGroupCreation = (bool)e.Value! ? null : false" />
+                    <label class="form-check-label" for="pe-create">Allow creating the resource group</label>
+                </div>
+            </div>
+        </div>
+
+        <h4>Parameters</h4>
+        <p class="small text-muted">An empty value means the AppHost's own configuration supplies it. Removing a parameter makes it missing.</p>
+        <table class="table table-sm align-middle">
+            <thead><tr><th>Name</th><th>Value</th><th>Secret</th><th>Config key override</th><th></th></tr></thead>
+            <tbody>
+                @foreach (var name in p.Parameters.Keys.OrderBy(k => k, StringComparer.Ordinal).ToList())
+                {
+                    var isSecret = _secret.Contains(name);
+                    <tr>
+                        <td><code>@name</code></td>
+                        <td style="min-width: 18rem">
+                            @if (isSecret && o.Parameters.ContainsKey(name))
+                            {
+                                <SecretField Label="@name" HasValue="@(o.Parameters[name].Length > 0)" Original="@o.Parameters[name]"
+                                             Replacement="@_replacements.GetValueOrDefault(name)"
+                                             ReplacementChanged="v => SetReplacement(name, v)"
+                                             Cleared="@_clearedSecrets.Contains(name)"
+                                             ClearedChanged="c => Toggle(_clearedSecrets, name, c)" />
+                            }
+                            else if (isSecret)
+                            {
+                                <SecretInput Value="@p.Parameters[name]" ValueChanged="v => p.Parameters[name] = v ?? string.Empty" />
+                            }
+                            else
+                            {
+                                <input class="form-control form-control-sm" value="@p.Parameters[name]" @onchange="ev => p.Parameters[name] = ev.Value?.ToString() ?? string.Empty" />
+                            }
+                        </td>
+                        <td><input type="checkbox" class="form-check-input" checked="@isSecret" @onchange="ev => Toggle(_secret, name, (bool)ev.Value!)" /></td>
+                        <td>
+                            <input class="form-control form-control-sm" placeholder="@($"Parameters:{name}")" value="@p.ParameterConfigKeys.GetValueOrDefault(name)"
+                                   @onchange="ev => SetConfigKey(p, name, ev.Value?.ToString())" />
+                        </td>
+                        <td><button class="btn btn-sm btn-outline-danger" @onclick="() => RemoveParameter(p, name)">Remove</button></td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+        <div class="input-group mb-3" style="max-width: 28rem">
+            <input class="form-control" placeholder="parameter name" @bind="_newParameter" />
+            <button class="btn btn-outline-secondary" @onclick="() => AddParameter(p)">Add parameter</button>
+        </div>
+
+        <p class="small text-muted">Last deployed with Aspire: @(o.LastDeployedAspireVersion ?? "never")</p>
+
+        <button class="btn btn-primary" @onclick="SaveAsync">Save</button>
+        <a class="btn btn-outline-primary" href="deploy/@Name">Deploy…</a>
+        <a class="btn btn-outline-secondary" href="profiles">Back</a>
+    </fieldset>
+}
+else if (_error is null)
+{
+    <p>Loading…</p>
+}
+
+@code {
+    [Parameter] public string Name { get; set; } = "";
+
+    private DeployProfile? _original;
+    private DeployProfile? _edit;
+    private HashSet<string> _secret = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, string?> _replacements = new(StringComparer.Ordinal);
+    private readonly HashSet<string> _clearedSecrets = new(StringComparer.Ordinal);
+    private string? _tokenReplacement;
+    private bool _tokenCleared;
+    private string? _newParameter;
+    private string? _error;
+    private bool _saved;
+    private bool _readOnly;
+
+    protected override async Task OnParametersSetAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        var location = Profiles.Location;
+        _readOnly = location.ParseError is not null;
+        if (_readOnly)
+            _error = $"The settings file cannot be read, so editing is disabled: {location.ParseError}";
+        _original = await Profiles.GetAsync(Name, CancellationToken.None);
+        if (_original is null)
+        {
+            _error ??= $"Profile '{Name}' does not exist.";
+            _edit = null;
+            return;
+        }
+        _edit = _original.Clone();
+        // Saved secret values never go into inputs; the edit copy holds "" until replaced (plan §6.1).
+        foreach (var s in _original.SecretParameters.Where(_edit.Parameters.ContainsKey))
+            _edit.Parameters[s] = "";
+        _edit.Source.GitHubToken = null;
+        _secret = new HashSet<string>(_original.SecretParameters, StringComparer.Ordinal);
+        _replacements.Clear();
+        _clearedSecrets.Clear();
+        _tokenReplacement = null;
+        _tokenCleared = false;
+    }
+
+    private void SetReplacement(string name, string? value) => _replacements[name] = value;
+
+    private static void Toggle(HashSet<string> set, string name, bool on)
+    {
+        if (on) set.Add(name); else set.Remove(name);
+    }
+
+    private static void SetConfigKey(DeployProfile p, string name, string? key)
+    {
+        if (string.IsNullOrWhiteSpace(key)) p.ParameterConfigKeys.Remove(name); else p.ParameterConfigKeys[name] = key.Trim();
+    }
+
+    private void RemoveParameter(DeployProfile p, string name)
+    {
+        p.Parameters.Remove(name);
+        p.ParameterConfigKeys.Remove(name);
+        _secret.Remove(name);
+    }
+
+    private void AddParameter(DeployProfile p)
+    {
+        var name = _newParameter?.Trim();
+        if (string.IsNullOrEmpty(name) || p.Parameters.ContainsKey(name))
+            return;
+        p.Parameters[name] = "";
+        _newParameter = null;
+    }
+
+    /// <summary>Writes only what changed, onto a fresh copy of the profile (D16), and never rewrites an untouched secret.</summary>
+    private async Task SaveAsync()
+    {
+        _saved = false;
+        var o = _original!;
+        var e = _edit!;
+        var secret = _secret.ToHashSet(StringComparer.Ordinal);
+        var replacements = _replacements.Where(r => r.Value is { Length: > 0 }).ToDictionary(r => r.Key, r => r.Value!);
+        var cleared = _clearedSecrets.ToHashSet(StringComparer.Ordinal);
+        var token = _tokenCleared ? "" : _tokenReplacement;
+
+        try
+        {
+            await Profiles.UpdateAsync(Name, p =>
+            {
+                if (e.Source.Ref != o.Source.Ref) p.Source.Ref = Empty(e.Source.Ref);
+                if (e.Source.AppHostPath != o.Source.AppHostPath) p.Source.AppHostPath = Empty(e.Source.AppHostPath);
+                if (token is not null) p.Source.GitHubToken = Empty(token);
+                Copy(o.Destination.SubscriptionId, e.Destination.SubscriptionId, v => p.Destination.SubscriptionId = v);
+                Copy(o.Destination.TenantId, e.Destination.TenantId, v => p.Destination.TenantId = v);
+                Copy(o.Destination.Location, e.Destination.Location, v => p.Destination.Location = v);
+                Copy(o.Destination.ResourceGroup, e.Destination.ResourceGroup, v => p.Destination.ResourceGroup = v);
+                Copy(o.Destination.CredentialSource, e.Destination.CredentialSource, v => p.Destination.CredentialSource = v);
+                if (e.Destination.AllowResourceGroupCreation != o.Destination.AllowResourceGroupCreation)
+                    p.Destination.AllowResourceGroupCreation = e.Destination.AllowResourceGroupCreation;
+                Copy(o.Environment, e.Environment, v => p.Environment = v);
+                Copy(o.ContainerRuntime, e.ContainerRuntime, v => p.ContainerRuntime = v);
+
+                foreach (var removed in o.Parameters.Keys.Where(k => !e.Parameters.ContainsKey(k)))
+                {
+                    p.Parameters.Remove(removed);
+                    p.ParameterConfigKeys.Remove(removed);
+                }
+                foreach (var (name, value) in e.Parameters)
+                {
+                    var wasSecretAndSaved = o.SecretParameters.Contains(name) && o.Parameters.ContainsKey(name);
+                    if (wasSecretAndSaved)
+                    {
+                        if (replacements.TryGetValue(name, out var r)) p.Parameters[name] = r;
+                        else if (cleared.Contains(name)) p.Parameters[name] = "";
+                    }
+                    else if (!o.Parameters.TryGetValue(name, out var old) || old != value)
+                    {
+                        p.Parameters[name] = value;
+                    }
+
+                    if (e.ParameterConfigKeys.TryGetValue(name, out var key)) p.ParameterConfigKeys[name] = key;
+                    else p.ParameterConfigKeys.Remove(name);
+                }
+                p.SecretParameters = p.Parameters.Keys.Where(secret.Contains)
+                    .Concat(p.SecretParameters.Where(s => !p.Parameters.ContainsKey(s) && secret.Contains(s)))
+                    .Distinct().ToList();
+            }, CancellationToken.None);
+            _error = null;
+            await LoadAsync();
+            _saved = true;
+        }
+        catch (DeployerException ex)
+        {
+            _error = ex.Message;
+        }
+    }
+
+    private static void Copy(string? original, string? edited, Action<string?> set)
+    {
+        if (Empty(original) != Empty(edited))
+            set(Empty(edited));
+    }
+
+    private static string? Empty(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
+}
