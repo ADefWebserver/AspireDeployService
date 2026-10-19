@@ -25,7 +25,9 @@ public static class DeployEnvironment
         profile.ParameterConfigKeys.TryGetValue(name, out var custom) && custom.Length > 0 ? custom
         : discovered.FirstOrDefault(p => p.Name == name)?.ConfigKey ?? $"Parameters:{name}";
 
-    private static readonly string[] ReservedPrefixes = ["Azure__", "ASPIRE_", "DCP_", "DOTNET_", "OTEL_", "MSBuild", "NUGET_"];
+    // "AZURE_" (one underscore, case-insensitive) also covers the "Azure__" destination keys, and AZURE_CONFIG_DIR,
+    // AZURE_CLIENT_SECRET and the other credential variables ProcessRunner strips from the inherited environment.
+    private static readonly string[] ReservedPrefixes = ["AZURE_", "ASPIRE_", "DCP_", "DOTNET_", "OTEL_", "MSBuild", "NUGET_"];
     private static readonly string[] ReservedNames = ["PATH", "PATHEXT", "ComSpec", "SystemRoot", "TEMP", "TMP", "HOME", "USERPROFILE"];
 
     /// <summary>
@@ -35,7 +37,14 @@ public static class DeployEnvironment
     /// </summary>
     public static bool IsReserved(string environmentVariable) =>
         ReservedNames.Contains(environmentVariable, StringComparer.OrdinalIgnoreCase)
-        || ReservedPrefixes.Any(p => environmentVariable.StartsWith(p, StringComparison.OrdinalIgnoreCase));
+        || ReservedPrefixes.Concat(StrippedButNotParameters)
+            .Any(p => environmentVariable.StartsWith(p, StringComparison.OrdinalIgnoreCase));
+
+    // Whatever ProcessRunner strips from the inherited environment (credentials, managed identity, MSBuild paths)
+    // must not come back through a parameter either. Parameters__ and ConnectionStrings__ are what parameters are for.
+    private static readonly string[] StrippedButNotParameters = ProcessRunner.StrippedPrefixes
+        .Where(p => p is not ("Parameters__" or "ConnectionStrings__"))
+        .ToArray();
 
     /// <summary>The parameters whose configuration key maps onto a reserved variable (empty when all are allowed).</summary>
     public static IReadOnlyList<string> ReservedParameterMappings(DeployProfile profile, IReadOnlyList<DiscoveredParameter> discovered) =>

@@ -24,6 +24,12 @@ public class ReservedParameterMappingTests
     [InlineData("ASPIRE_CONTAINER_RUNTIME")]
     [InlineData("DOTNET_ENVIRONMENT")]
     [InlineData("PATH")]
+    [InlineData("AZURE_CONFIG_DIR")]
+    [InlineData("AZURE_CLIENT_SECRET")]
+    [InlineData("azure_tenant_id")]
+    [InlineData("GITHUB_TOKEN")]
+    [InlineData("IDENTITY_ENDPOINT")]
+    [InlineData("MSBuildSDKsPath")]
     public void Override_onto_a_deployment_setting_is_refused(string key)
     {
         var p = Profile();
@@ -59,6 +65,28 @@ public class MultilineSecretTests
 
         Assert.Equal("[REDACTED]", redactor.Redact("first-fragment-1234"));
         Assert.Equal("value: [REDACTED]", redactor.Redact("value: second-fragment-5678"));
+    }
+
+    [Theory]
+    [InlineData("abcdefgh\nabcdefgh-sensitive-tail")]
+    [InlineData("abcdefgh-sensitive-tail\nabcdefgh")]
+    public void A_line_that_starts_another_line_does_not_leave_the_longer_one_half_masked(string secret)
+    {
+        var redactor = new DeploySecretRedactor();
+        redactor.AddSecret(secret);
+
+        Assert.Equal("x [REDACTED] y", redactor.Redact("x abcdefgh-sensitive-tail y"));
+        Assert.Equal("x [REDACTED] y", redactor.Redact("x abcdefgh y"));
+    }
+
+    [Fact]
+    public void Separately_registered_overlapping_secrets_are_masked_longest_first()
+    {
+        var redactor = new DeploySecretRedactor();
+        redactor.AddSecret("key");
+        redactor.AddSecret("key-and-more");
+
+        Assert.Equal("[REDACTED] [REDACTED]", redactor.Redact("key-and-more key"));
     }
 }
 

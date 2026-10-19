@@ -52,7 +52,7 @@ public static partial class ProfileRules
         foreach (var (name, key) in p.ParameterConfigKeys)
         {
             if (Deploy.DeployEnvironment.IsReserved(Deploy.DeployEnvironment.ToEnvironmentVariable(key)))
-                errors.Add($"ParameterConfigKeys:{name}: '{key}' is reserved for the deployment itself (Azure:*, ASPIRE_*, DOTNET_*, PATH, ...).");
+                errors.Add($"ParameterConfigKeys:{name}: '{key}' is reserved for the deployment itself (Azure:*, AZURE_*, ASPIRE_*, DOTNET_*, PATH, ...).");
         }
         if (p.ContainerRuntime is { Length: > 0 } rt && rt is not ("docker" or "podman"))
             errors.Add("ContainerRuntime: must be docker, podman or empty.");
