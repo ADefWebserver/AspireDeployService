@@ -24,6 +24,7 @@ public static class MauiProgram
 		builder.Services.AddSingleton<DialogService>();
 		builder.Services.AddSingleton<IUserInteraction>(sp => sp.GetRequiredService<DialogService>());
 		builder.Services.AddSingleton<RunCoordinator>();
+		builder.Services.AddSingleton<AIHelpService>();
 		builder.AddWindowsShell();
 
 #if DEBUG

@@ -2,7 +2,7 @@ Design a modern, polished desktop app UI called **Aspire Deploy**. It is a Windo
 
 ## Layout (important)
 - **No left sidebar.** Navigation is a **horizontal top app bar** across the full width.
-- Top bar, left to right: small logo mark + "Aspire Deploy" wordmark; horizontal nav tabs **Home · Doctor · Discover · Profiles · Settings** (active tab marked with an underline or pill); on the right, a compact "signed in to Azure" status chip (account name + tenant) and a small settings/theme toggle icon.
+- Top bar, left to right: small logo mark + "Aspire Deploy" wordmark; horizontal nav tabs **Home · Setup · Discover · Profiles · Settings** (active tab marked with an underline or pill); on the right, a compact "signed in to Azure" status chip (account name + tenant) and a small settings/theme toggle icon.
 - A nav tab shows a tiny animated spinner/dot next to its label while a background task for that page is running (e.g. "Profiles ●" while a deploy runs).
 - Under the top bar, each page has a page header (title, one-line description, primary action on the right), then content in a centered column, max width ~1100px, generous whitespace.
 - Below 1000px wide, the nav tabs collapse into a horizontal scrolling tab strip (still no side drawer).
@@ -29,8 +29,8 @@ Design a modern, polished desktop app UI called **Aspire Deploy**. It is a Windo
 - "Settings file" card: monospace path `C:\Users\dev\AppData\Local\AspireDeployService\appsettings.Local.json`, "Exists. Profiles: 3." Show an alternate error state: red callout "The settings file cannot be read, so the app is read-only until it is fixed."
 - "Recent profiles" mini list (3 rows) with quick Deploy buttons.
 
-### 2. Doctor (prerequisite checks)
-- Header: "Doctor", description "Checks the tools a deployment needs. With a profile, it also fetches the source and checks what its AppHost needs, and installs the matching Aspire CLI."
+### 2. Setup (prerequisite checks)
+- Header: "Setup", description "Checks the tools a deployment needs. With a profile, it also fetches the source and checks what its AppHost needs, and installs the matching Aspire CLI."
 - Toolbar: "Profile" dropdown (default "(general checks only)") + primary "Run checks" button.
 - Results as a clean list/table of checks: .NET SDK, Azure CLI signed in, Docker running, Node.js, GitHub CLI, Aspire CLI version. Columns: Check, State pill (Pass/Warn/Fail), Detail, Fix (Fix text in a subtle box with a copy button for commands like `az login`).
 - Summary chips above the table: "5 passed · 1 warning · 0 failed".

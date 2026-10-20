@@ -9,7 +9,7 @@ namespace AspireDeployService.Core.Infrastructure;
 /// <summary>
 /// Where a run keeps its source copy, logs, lock and history (source plan D10, extended in plan §6.2):
 /// <c>&lt;WorkRoot&gt;/&lt;profile&gt;</c>; or <c>&lt;WorkRoot&gt;/adhoc-&lt;12 hex&gt;</c> for a source without a profile;
-/// or <c>&lt;WorkRoot&gt;/doctor</c> for Doctor without a profile.
+/// or <c>&lt;WorkRoot&gt;/setup</c> for Setup without a profile.
 /// </summary>
 public static class WorkKeys
 {
@@ -25,7 +25,7 @@ public static class WorkKeys
             return Path.Combine(workRoot, profileName);
         }
         if (source is null)
-            return Path.Combine(workRoot, "doctor");
+            return Path.Combine(workRoot, "setup");
         return Path.Combine(workRoot, "adhoc-" + Hash(AdHocIdentity(source)));
     }
 

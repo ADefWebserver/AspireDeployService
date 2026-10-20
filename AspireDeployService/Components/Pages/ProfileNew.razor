@@ -62,7 +62,7 @@
     </div>
 </div>
 
-<OutcomeBanner Run="_run" />
+<OutcomeBanner Run="_run" Page="New profile" />
 
 @if (_run?.ValueAs<WizardData>() is { } data && _form is { } p)
 {
@@ -72,6 +72,7 @@
             <div class="ads-callout ads-callout-warn">
                 <Icon Name="alert-triangle" Size="17" />
                 <div class="ads-callout-body">@w</div>
+                <AIHelpButton GetContext="@(() => AIHelpContexts.FromWarning("New profile", w, _run))" Compact="true" />
             </div>
         }
 
@@ -166,6 +167,7 @@
                     <div class="ads-callout ads-callout-error w-100">
                         <Icon Name="x-circle" Size="17" />
                         <div class="ads-callout-body ads-pre-line">@se</div>
+                        <AIHelpButton GetContext="@(() => AIHelpContexts.FromError("New profile", se))" Compact="true" />
                     </div>
                 }
                 @if (_savedName is { } saved)
@@ -188,7 +190,7 @@
     </div>
 }
 
-<LogViewer Run="_run" />
+<LogViewer Run="_run" Page="New profile" />
 
 @code {
     [SupplyParameterFromQuery(Name = "kind")] public string? QueryKind { get; set; }

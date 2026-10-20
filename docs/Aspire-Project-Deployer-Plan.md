@@ -100,7 +100,7 @@ Versions 8.x and 9.x would need a second discovery path (`dotnet run -- --publis
 ```mermaid
 flowchart LR
     subgraph Cli["BlazorDataDeploymentWebsite.Cli"]
-        Cmds["Commands: doctor, discover, profile, deploy"]
+        Cmds["Commands: setup, discover, profile, deploy"]
         Src["Source providers: Local, GitHub"]
         Scan["Static scanner"]
         Man["Manifest runner and parser"]
@@ -167,7 +167,7 @@ Run as `dotnet run --project BlazorDataDeploymentWebsite.Cli -- <command>`, or a
 
 | Command | Options (type, default) | Does |
 |---|---|---|
-| `bdn doctor` | `--profile <string>` (none) | Checks the prerequisites in §6.6. With a profile, also materializes that profile's source and checks what its AppHost needs. |
+| `bdn setup` | `--profile <string>` (none) | Checks the prerequisites in §6.6. With a profile, also materializes that profile's source and checks what its AppHost needs. |
 | `bdn discover` | `--source <string>` (required unless `--profile` is given), `--ref <string>` (default branch), `--apphost <relative path>` (auto), `--static` (bool, false), `--json` (bool, false), `--yes` (bool, false), `--profile <string>` | Runs stage 1, then stage 2 unless `--static` is set. Prints a table, or the `DiscoveryResult` as JSON. Without a profile it uses an ad-hoc work key (D10). |
 | `bdn profile init <name>` | `--source`, `--ref`, `--apphost`, `--subscription <guid>`, `--tenant <guid>`, `--location <string>`, `--resource-group <string>` (default `rg-<name>`), `--environment <string>` (`Production`), `--force` (bool, false), `--yes` (bool, false) | Runs discovery, asks for any missing destination values and for every parameter that has no default and no generator (secrets are read without echo), then saves the profile. Refuses with exit 2 if the profile already exists and `--force` is not set. |
 | `bdn profile list` | none | Lists profile names, sources and destinations. |
@@ -379,7 +379,7 @@ Sample `bdn discover --json` output (shortened):
 }
 ```
 
-### 6.6 Prerequisites (`bdn doctor`)
+### 6.6 Prerequisites (`bdn setup`)
 
 | Check | How | If missing |
 |---|---|---|
@@ -493,7 +493,7 @@ flowchart TD
     C --> D["Static scan and version check"]
     D -- "Below 13.0" --> X4["Exit 6"]
     D -- "No Azure target, or submodules or LFS" --> X5["Exit 4"]
-    D --> E["Doctor checks"]
+    D --> E["Setup checks"]
     E -- "Missing tool or sign-in" --> X6["Exit 3"]
     E --> F["Trust prompt for new GitHub SHA"]
     F -- "Declined" --> X7["Exit 7"]
@@ -572,7 +572,7 @@ sequenceDiagram
 | `BlazorDataDeploymentWebsite.DeployWorker/Dockerfile` | Modified | The Dockerfile copies each project's `.csproj` and then its folder, one project at a time ([Dockerfile:14-20](../BlazorDataDeploymentWebsite.DeployWorker/Dockerfile#L14)). Add the same two `COPY` lines for `BlazorDataDeploymentWebsite.DeployTools`, or the restore fails. |
 | `BlazorDataDeploymentWebsite.Cli/BlazorDataDeploymentWebsite.Cli.csproj` | New | `Exe`, `net10.0`, `AssemblyName=bdn`. References DeployTools and Core. Packages: `System.CommandLine` and `Microsoft.Extensions.Hosting`. No `appsettings*.json` is copied to output (§6.3). |
 | `BlazorDataDeploymentWebsite.Cli/Program.cs` | New | Builds the host, binds and validates options, registers services (`ISecretRedactor` → `CliSecretRedactor`), wires Ctrl+C, and builds the command tree. |
-| `BlazorDataDeploymentWebsite.Cli/Commands/{Doctor,Discover,Profile,Deploy}Command.cs` | New | §6.1. |
+| `BlazorDataDeploymentWebsite.Cli/Commands/{Setup,Discover,Profile,Deploy}Command.cs` | New | §6.1. |
 | `BlazorDataDeploymentWebsite.Cli/Options/AspireDeployOptions.cs` | New | The §6.3 keys and their defaults, with `ValidateOnStart`. |
 | `BlazorDataDeploymentWebsite.Cli/Settings/SettingsLocator.cs` | New | The lookup order in §6.3. |
 | `BlazorDataDeploymentWebsite.Cli/Infrastructure/{WorkKeyLock,TrustStore,WorkKeys}.cs` | New | §6.1 lock, §6.8 trust, and the D10 work key derivation. |
@@ -601,7 +601,7 @@ sequenceDiagram
 | Secrets at rest | `appsettings.Local.json` is plain text and ignored by git ([.gitignore:12](../.gitignore#L12)); the README says so. Aspire's own `~/.aspire/deployments/` cache is also plain text ([aspire.dev: deployment state caching](https://aspire.dev/deployment/deployment-state-caching/)). Both follow the user's choice of local settings (D3). |
 | Settings file committed by accident | The `.gitignore` pattern applies at every depth, and only the placeholder example file is committed. gitleaks reports secrets but never blocks a build: it runs with `continue-on-error: true` under owner policy. So it is a hint, not a control. |
 | GitHub token scope | The README asks for a fine-grained token with **Contents: read** on the selected repos only. The token is sent only to `api.github.com` (§7.5). |
-| Deploying to the wrong subscription | Every deploy prints the tenant, subscription and resource group and asks for confirmation unless `--yes` is used (flow 7.4). `doctor` checks that the subscription is visible to the signed-in account. |
+| Deploying to the wrong subscription | Every deploy prints the tenant, subscription and resource group and asks for confirmation unless `--yes` is used (flow 7.4). `setup` checks that the subscription is visible to the signed-in account. |
 | Zip bombs and zip slip in GitHub archives | `SafeZip` caps size and checks paths ([SafeZip.cs:10-44](../BlazorDataDeploymentWebsite.DeployWorker/Releases/SafeZip.cs#L10)), and the download itself is capped. |
 | Stray credentials in the developer's environment | `ProcessRunner` strips `AZURE_CLIENT_SECRET`, `AZURE_CLIENT_CERTIFICATE` and similar variables ([ProcessRunner.cs:62-67](../BlazorDataDeploymentWebsite.DeployWorker/Processes/ProcessRunner.cs#L62)), so the explicit `Azure__CredentialSource` decides which credential is used. |
 | Personal data | None is collected. History and trust files hold repo names and SHAs only. |
@@ -658,14 +658,14 @@ Each task is one PR, except the spikes. Before every PR, run `dotnet test Blazor
   *Done when:* the solution builds; every existing test passes unchanged; and the worker image builds and runs the `FakeEngine` loop locally with `Worker:UseFakeEngine=true`.
 - [ ] **T2: CLI skeleton.** Add the project, `Program.cs`, `System.CommandLine`, `AspireDeployOptions`, `SettingsLocator`, `ConsoleLogSink`, `CliSecretRedactor`, `WorkKeyLock`, the Ctrl+C wiring, the example settings file and a README stub. The only command is `bdn --version`.
   *Done when:* the `SettingsLocatorTests`, `CliSecretRedactorTests` and `WorkKeyLockTests` pass, and `dotnet run --project BlazorDataDeploymentWebsite.Cli -- --help` lists the command tree.
-- [ ] **T3: Doctor.** Add `PrerequisiteChecker` and `bdn doctor` without `--profile`.
+- [ ] **T3: Setup.** Add `PrerequisiteChecker` and `bdn setup` without `--profile`.
   *Done when:* on a dev machine every check in §6.6 reports its state, and the exit codes match §6.1.
 - [ ] **T4: Profiles.** Add `ProfileStore` and the `profile list`, `show` and `set` commands.
   *Done when:* the `ProfileStoreTests` pass, and `profile set --secret` reads its value without echo.
 - [ ] **T5: Local source and static scan.** Add `LocalFolderSource`, `AppHostScanner`, `AspireVersionRules` and `bdn discover --static`.
   *Done when:* the scanner and version tests pass, and `--static` on this repo reports its AppHost (13.6.1) with two declared targets.
-- [ ] **T6: Aspire CLI provisioner.** Implement D9 and `bdn doctor --profile`.
-  *Done when:* the provisioner tests pass, and on a machine without a matching CLI, `doctor --profile` installs one under `ToolsRoot`.
+- [ ] **T6: Aspire CLI provisioner.** Implement D9 and `bdn setup --profile`.
+  *Done when:* the provisioner tests pass, and on a machine without a matching CLI, `setup --profile` installs one under `ToolsRoot`.
 - [ ] **T7: Manifest discovery.** Add `ManifestRunner`, `ManifestParser`, and full `bdn discover` with table and `--json` output, using the T0a fixtures.
   *Done when:* the parser tests pass, and `bdn discover --source <starter-app-folder>` lists the app's parameters and resources.
 - [ ] **T8: Trust and history.** Add `TrustStore`, `DeployHistory`, the trust prompt and the ad-hoc work keys.
@@ -699,9 +699,9 @@ Each task is one PR, except the spikes. Before every PR, run `dotnet test Blazor
 | R5 | Code from a hostile repo runs on the developer's machine. | The trust prompt (D7), static-only mode, and README guidance. |
 | R6 | Moving the shared files breaks the worker build or image. | T1 is a refactor only, and its done-when check runs the worker image with the fake engine. |
 | R7 | Large monorepos scan slowly, or contain several AppHosts. | The scan skips heavy folders. With several AppHosts the user picks one with `--apphost`, and the profile saves it. |
-| R8 | The developer's az token expires during a long deploy. | `doctor` runs first. The README documents `Azure__CredentialProcessTimeoutSeconds`. The deploy timeout defaults to 60 minutes. |
+| R8 | The developer's az token expires during a long deploy. | `setup` runs first. The README documents `Azure__CredentialProcessTimeoutSeconds`. The deploy timeout defaults to 60 minutes. |
 | R9 | A parameter that the AppHost's own `appsettings.json` supplies looks required in discovery. | `profile init` accepts an empty answer, stored as `""`, and nothing is passed for it (§6.3). |
-| R10 | Windows path length limits break builds of deep source trees. | `WorkRoot` is short by default (`bdn/w`), the inner archive folder is flattened (D10), and `doctor` checks for long paths (§6.6). |
+| R10 | Windows path length limits break builds of deep source trees. | `WorkRoot` is short by default (`bdn/w`), the inner archive folder is flattened (D10), and `setup` checks for long paths (§6.6). |
 | R11 | Static target detection is wrong for conditional code. | Targets are reported as "declared". `aspire deploy` is the final authority, and a failure there exits 5 with its log. |
 | R12 | Submodules and Git LFS content are missing from zipballs. | Detected during the scan; `deploy` exits 4 and tells the user to use a local clone (§6.4). |
 

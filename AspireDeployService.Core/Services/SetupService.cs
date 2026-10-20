@@ -7,13 +7,13 @@ using AspireDeployService.Core.Settings;
 
 namespace AspireDeployService.Core.Services;
 
-public interface IDoctorService
+public interface ISetupService
 {
     /// <summary>Source plan §6.6. With a profile, it also materializes the source and checks what its AppHost needs.</summary>
     Task<IReadOnlyList<PrerequisiteCheck>> CheckAsync(string? profileName, IRunObserver observer, CancellationToken ct);
 }
 
-public sealed class DoctorService(ProfileStore store, IRunContextFactory runs, PrerequisiteChecker checker, DiscoveryPipeline pipeline) : IDoctorService
+public sealed class SetupService(ProfileStore store, IRunContextFactory runs, PrerequisiteChecker checker, DiscoveryPipeline pipeline) : ISetupService
 {
     public async Task<IReadOnlyList<PrerequisiteCheck>> CheckAsync(string? profileName, IRunObserver observer, CancellationToken ct)
     {

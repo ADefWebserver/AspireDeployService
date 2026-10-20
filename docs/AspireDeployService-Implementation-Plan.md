@@ -20,7 +20,7 @@ All paths are relative to the repository root unless they start with `<ref>/`. L
 | F2 | Discovery | Stage 1 is a static scan that runs no code. It finds the AppHost, its kind, its Aspire version and its declared deployment targets, and refuses versions below 13.0. Stage 2 runs `aspire do publish-manifest` and turns the manifest into parameters and resources. |
 | F3 | Local settings | Named **deploy profiles** in `appsettings.Local.json`, which a new `.gitignore` excludes. A profile holds the source, the Azure destination and the parameter values. A committed `appsettings.Local.example.json` shows the shape with placeholders. |
 | F4 | Deploy | Uses the Aspire CLI version that matches the AppHost SDK, installing it if needed, then runs `aspire deploy --non-interactive` with every value passed as an environment variable. Signs in with the developer's own `az login`. Output streams live into the page. |
-| F5 | Desktop UI | Windows-only MAUI Blazor Hybrid pages: **Doctor**, **Discover**, **Profiles** (list, edit, new-profile wizard) and **Deploy**. These replace the template's Counter and Weather pages. |
+| F5 | Desktop UI | Windows-only MAUI Blazor Hybrid pages: **Setup**, **Discover**, **Profiles** (list, edit, new-profile wizard) and **Deploy**. These replace the template's Counter and Weather pages. |
 
 Every piece of logic lives in a new `net10.0` class library, `AspireDeployService.Core`, so it can be unit-tested without MAUI. The MAUI project only holds pages, dialogs and DI wiring.
 
@@ -126,12 +126,12 @@ Source-plan decisions that carry over unchanged: SP-D2 (13.x only), SP-D4 (one r
 ```mermaid
 flowchart LR
     subgraph Ui["AspireDeployService (MAUI, Windows)"]
-        Pages["Pages: Doctor, Discover, Profiles, Deploy, Settings"]
+        Pages["Pages: Setup, Discover, Profiles, Deploy, Settings"]
         Viewer["LogViewer component"]
         Dialog["DialogService (IUserInteraction)"]
     end
     subgraph CoreLib["AspireDeployService.Core (net10.0)"]
-        Svc["Services: Doctor, Discovery, Profile, Deploy"]
+        Svc["Services: Setup, Discovery, Profile, Deploy"]
         Src["Sources: Local, GitHub"]
         Scan["AppHostScanner"]
         Man["ManifestRunner and Parser"]
@@ -184,20 +184,20 @@ flowchart LR
 | `Profiles/ProfileStore`, `Profiles/DeployProfile`, `Profiles/ProfileKeys` | Core | Load, validate, set, delete and save under D16's rules. |
 | `Infrastructure/WorkKeys`, `WorkKeyLock`, `TrustStore` | Core | Work keys (SP-D10, extended in §6.2), SP §6.1 single-run lock (D17), SP §6.8 trust. |
 | `Processes/ChildProcessJob` | Core | The Windows Job Object from D15. `ProcessRunner` assigns each started process to it. On other platforms it does nothing. |
-| `Azure/AzureAccountService` | Core | Runs `az account show` and `az account list --output json` for Doctor and for the wizard's subscription list. |
+| `Azure/AzureAccountService` | Core | Runs `az account show` and `az account list --output json` for Setup and for the wizard's subscription list. |
 | `Runs/IRunObserver`, `Runs/RunContext`, `Runs/RunContextFactory` | Core | One `RunContext` per run: run id, per-run `DeploySecretRedactor`, a `ProcessRunner` built with that redactor, and the `RunLogSink`. Services create it after they compute the work key. |
 | `Sources/ISourceProvider`, `LocalFolderSource`, `GitHubSource`, `GitHub/GitHubTokenResolver` | Core | SP F1 and SP §7.5. |
 | `Discovery/AppHostScanner`, `AspireVersionRules`, `ManifestRunner`, `ManifestParser` | Core | SP §6.4 and §6.5. |
 | `Prerequisites/PrerequisiteChecker` | Core | SP §6.6. |
 | `Tools/AspireCliProvisioner` | Core | SP-D9. |
 | `Deploy/AspireDeployRunner`, `Deploy/DeployHistory` | Core | SP §6.7 and §6.8. |
-| `Services/DoctorService`, `DiscoveryService`, `ProfileService`, `DeployService` | Core | One service per former command (§6.2). Each returns its result type (§6.2) or throws `DeployerException`. `RunCoordinator` turns either one into an `OperationResult` for the banner. |
+| `Services/SetupService`, `DiscoveryService`, `ProfileService`, `DeployService` | Core | One service per former command (§6.2). Each returns its result type (§6.2) or throws `DeployerException`. `RunCoordinator` turns either one into an `OperationResult` for the banner. |
 | `ServiceCollectionExtensions.AddAspireDeployerCore()` | Core | DI registration. |
 | `Services/DialogService : IUserInteraction`, `Components/Shared/DialogHost.razor` | MAUI | A pure-Blazor modal, because there is no Bootstrap JS. `DialogHost` is placed once in `MainLayout`. Requests go into a FIFO queue, so two runs that both ask are shown one at a time. Each request is a `TaskCompletionSource<bool>` that is cancelled when its `ct` fires; the dialog then closes as "declined". The host updates through `InvokeAsync`, because Core calls in from background threads. |
 | `Services/RunCoordinator`, `Services/ActiveRun : IRunObserver` | MAUI | D11 and D14: owns every active run, its token, its log ring buffer and its result. `CancelAllAsync` is used by the D15 close handler. |
 | `Components/Shared/LogViewer.razor`, `SecretInput.razor`, `OutcomeBanner.razor` | MAUI | Live log of an `ActiveRun`, password-style input, result banner. |
 | `Platforms/Windows/WindowCloseGuard.cs` | MAUI | D15 (2), registered from `MauiProgram` with `ConfigureLifecycleEvents`. |
-| `Components/Pages/{Doctor,Discover,Profiles,ProfileEdit,ProfileNew,Deploy,Settings}.razor` | MAUI | §6.1. |
+| `Components/Pages/{Setup,Discover,Profiles,ProfileEdit,ProfileNew,Deploy,Settings}.razor` | MAUI | §6.1. |
 
 ## 6. Contracts
 
@@ -205,8 +205,8 @@ flowchart LR
 
 | Route | Replaces | Inputs (type, default) | Does |
 |---|---|---|---|
-| `/` | Template Home | none | A dashboard: the settings file in use, the profile count, and links to Doctor and New profile. |
-| `/doctor` | `bdn doctor [--profile]` | Profile picker (string?, none) | Runs SP §6.6 checks and shows a table of name, state (Pass, Warn or Fail), detail and fix. With a profile selected, it also materializes the source and checks what the AppHost needs (container runtime, Node, Aspire CLI). |
+| `/` | Template Home | none | A dashboard: the settings file in use, the profile count, and links to Setup and New profile. |
+| `/setup` | `bdn setup [--profile]` | Profile picker (string?, none) | Runs SP §6.6 checks and shows a table of name, state (Pass, Warn or Fail), detail and fix. With a profile selected, it also materializes the source and checks what the AppHost needs (container runtime, Node, Aspire CLI). |
 | `/discover` | `bdn discover` | Source kind (LocalFolder or GitHub, LocalFolder); folder (folder picker, required for LocalFolder); repo `<owner>/<repo>` (required for GitHub); ref (string?, default branch); AppHost path (string?, auto); Static only (bool, false); profile (string?, none) | Stage 1, then stage 2 unless Static only is set. Shows the AppHost card, the parameters table, the resources table and the warnings. **Copy JSON** puts the `DiscoveryResult` JSON (SP §6.5 sample) on the clipboard. **Create profile from this** opens `/profiles/new` prefilled. |
 | `/profiles` | `profile list` | none | A table of name, source and destination, with Edit, Deploy and Delete (D12) actions. Delete takes the profile's work key lock (code 2 while a run is active) and offers "Also delete the work folder `<WorkRoot>/<name>`" (default on), so a later profile with the same name starts clean. Aspire's own `~/.aspire/deployments` cache is not touched. |
 | `/profiles/new` | `profile init` | Name (`^[a-z0-9][a-z0-9-]{1,39}$`); source fields as on `/discover`; then subscription (guid), tenant (guid?), location, resource group (default `rg-<name>`), environment (`Production`), and one input for each parameter that has **no default and no generator** | Flow §7.2. The inputs appear after discovery; parameters with a default or a generator are listed read-only, and can be overridden later on `/profiles/{name}`. Secret parameters use `SecretInput`. Every input has a "Leave empty (AppHost supplies it)" checkbox, which stores `""`. Save also stores `Source:AppHostPath` and `SecretParameters` (SP T10). Save fails with code 2 if the name exists, unless "Overwrite" is ticked. If another profile has the same local `Source:Location` and `AppHostPath` **and** the same `Environment`, the page warns that the two share Aspire's deploy cache (§3 corrections) and suggests a different Environment name. |
@@ -257,11 +257,11 @@ public sealed record LogLine(DateTimeOffset Utc, string Stream, string Text);
 public static class WorkKeys
 {
     // "<WorkRoot>/<profile>"; or "<WorkRoot>/adhoc-<12 hex of SHA-256>" of "github:<owner>/<repo>",
-    // or of "local:" + full folder path without trailing separator, lower-cased; or "<WorkRoot>/doctor".
+    // or of "local:" + full folder path without trailing separator, lower-cased; or "<WorkRoot>/setup".
     public static string For(string workRoot, string? profileName, SourceSpec? source);
 }
 
-public interface IDoctorService
+public interface ISetupService
 {
     Task<IReadOnlyList<PrerequisiteCheck>> CheckAsync(string? profileName, IRunObserver observer, CancellationToken ct);
 }
@@ -554,11 +554,11 @@ The file is opened with `FileShare.Read`, so a developer can tail it while a run
 | `AspireDeployService/App.xaml.cs` | Modified | Sets the window title to "Aspire Deploy". |
 | `AspireDeployService/Platforms/Windows/WindowCloseGuard.cs` | New | D15 (2). |
 | `AspireDeployService/Components/_Imports.razor` | Modified | Adds `AspireDeployService.Core.*` namespaces and `AspireDeployService.Components.Shared`. |
-| `AspireDeployService/Components/Layout/NavMenu.razor` | Modified | The links become Home, Doctor, Discover, Profiles, Settings, with an active-run spinner (§6.1). |
+| `AspireDeployService/Components/Layout/NavMenu.razor` | Modified | The links become Home, Setup, Discover, Profiles, Settings, with an active-run spinner (§6.1). |
 | `AspireDeployService/Components/Layout/MainLayout.razor` | Modified | Removes the "About" link to learn.microsoft.com. Wraps `@Body` in an `ErrorBoundary` (D14). Adds `<DialogHost />` once. |
 | `AspireDeployService/Components/Pages/{Counter,Weather}.razor` | Deleted | Template pages. |
 | `AspireDeployService/Components/Pages/Home.razor` | Modified | The dashboard in §6.1. |
-| `AspireDeployService/Components/Pages/{Doctor,Discover,Profiles,ProfileEdit,ProfileNew,Deploy,Settings}.razor` | New | §6.1. |
+| `AspireDeployService/Components/Pages/{Setup,Discover,Profiles,ProfileEdit,ProfileNew,Deploy,Settings}.razor` | New | §6.1. |
 | `AspireDeployService/Components/Shared/{LogViewer,DialogHost,SecretInput,OutcomeBanner,SourcePicker}.razor` | New | `SourcePicker` is the shared source block used by Discover and ProfileNew. The folder button uses `CommunityToolkit.Maui`'s `FolderPicker` **(assumed; T7 picks between it and a text box with a "folder exists" check)**. |
 | `AspireDeployService/Services/{DialogService,RunCoordinator,ActiveRun}.cs` | New | §5.2, D11, D14. |
 | `AspireDeployService/wwwroot/app.css` | Modified | Log viewer (monospace, fixed height, scroll) and modal backdrop styles. |
@@ -582,7 +582,7 @@ The file is opened with `FileShare.Read`, so a developer can tail it while a run
 | `AspireDeployService.Core/Prerequisites/PrerequisiteChecker.cs` | New | §6.5. |
 | `AspireDeployService.Core/Tools/AspireCliProvisioner.cs` | New | SP-D9, using the copied `FindAspire`. |
 | `AspireDeployService.Core/Deploy/{AspireDeployRunner,DeployEnvironment,DeployHistory}.cs` | New | §6.6, §6.7. |
-| `AspireDeployService.Core/Services/{DoctorService,DiscoveryService,ProfileService,DeployService}.cs`, `ServiceCollectionExtensions.cs` | New | §6.2. |
+| `AspireDeployService.Core/Services/{SetupService,DiscoveryService,ProfileService,DeployService}.cs`, `ServiceCollectionExtensions.cs` | New | §6.2. |
 | `AspireDeployService.Tests/AspireDeployService.Tests.csproj` | New | `net10.0`, xUnit (D13), `<Using Include="Xunit" />`, `Microsoft.Extensions.Logging.Abstractions`. References Core only. `<Compile Remove="Fixtures/**" />`, so fixture `apphost.cs` and `AppHost.cs` files are not compiled, and `<None Include="Fixtures/**" CopyToOutputDirectory="PreserveNewest" />`. Fixtures never contain folders named `bin`, `obj`, `node_modules` or `.git`, because `.gitignore` would drop them; the skip-folder tests create those folders in a temp copy at run time. |
 | `AspireDeployService.Tests/Support/{ListLogSink,ListRunObserver,FakeProcessRunner,FakeUserInteraction,StubHttpHandler,TempDir,Zipball}.cs` | New | Test helpers. `ListLogSink` and `Zipball` are copied (§4). |
 | `AspireDeployService.Tests/Copied/*Tests.cs` | New (copied) | The tests listed in §4. |
@@ -623,7 +623,7 @@ Every SP §11 unit test row carries over, retargeted at `AspireDeployService.Tes
 | `ChildProcessJob`: start `ping -n 300 127.0.0.1` through `ProcessRunner`, dispose the job handle, and the ping process is gone | Unit (Windows only) | `ChildProcessJobTests.cs` |
 | Settings lookup (D7): `ADS_SETTINGS` wins; then the csproj folder, found by walking up from a fake base directory, **even when the settings file does not exist yet**; then `%LOCALAPPDATA%` (injected root); the reported rule matches | Unit | `SettingsLocatorTests.cs` |
 | Settings safety (D16): the first save creates the file; an unparseable file sets `ParseError`, and every write then fails with code 2 and leaves the bytes unchanged; two concurrent `SetAsync` calls on different keys both persist; comments and trailing commas are read | Unit | `ProfileStoreTests.cs` |
-| `WorkKeys.For`: profile key; GitHub ad-hoc key; local-folder ad-hoc key is the same for `C:\X\` and `c:\x`; doctor key | Unit | `WorkKeysTests.cs` |
+| `WorkKeys.For`: profile key; GitHub ad-hoc key; local-folder ad-hoc key is the same for `C:\X\` and `c:\x`; setup key | Unit | `WorkKeysTests.cs` |
 | `SettingsDocument` round trip keeps `""` distinct from an absent parameter, and keeps unknown keys | Unit | `ProfileStoreTests.cs` |
 | `ProfileService.DeleteAsync` removes only that profile, and deletes the work folder only when asked; deleting a missing profile, or one whose work key is locked, gives code 2 | Unit | `ProfileStoreTests.cs` |
 | `DraftFromDiscoveryAsync`: `ToAsk` holds only parameters with no default and no generator; the shared-cache warning appears for the same folder, AppHost and Environment | Unit | `ProfileServiceTests.cs` |
@@ -657,14 +657,14 @@ Each task is one PR, except the spikes. Before every PR, run `dotnet build Aspir
   *Done when:* the app starts; Settings shows the resolved file and its rule; and a hand-broken settings file shows its error on Settings without changing the file.
 - [ ] **T4b: Run infrastructure.** Add `RunCoordinator`, `ActiveRun`, `LogViewer`, `OutcomeBanner`, `DialogService`, `DialogHost`, `SecretInput` and `WindowCloseGuard` (D11, D14, D15 part 2).
   *Done when:* a debug-only page runs `ping -n 300 127.0.0.1` through `RunCoordinator` and shows its output; another debug-only run streams 20,000 lines with the window responsive; leaving and re-opening that page re-attaches; two simultaneous debug confirmations are shown one after the other; closing the window asks, then leaves no `ping` process; and stopping the debugger (or killing the app in Task Manager) also leaves no `ping` process.
-- [ ] **T5: Doctor.** Add `PrerequisiteChecker`, `AzureAccountService`, `DoctorService` (without a profile) and the Doctor page.
+- [ ] **T5: Setup.** Add `PrerequisiteChecker`, `AzureAccountService`, `SetupService` (without a profile) and the Setup page.
   *Done when:* on a dev machine each check in SP §6.6 shows its state; a missing tool shows Fail with its fix text; and installing a tool while the app is open is detected on the next run (PATH freshness, §6.2).
 - [ ] **T6: Profile pages.** Add the Profiles list, ProfileEdit (secret "(set)", Reveal and Replace) and Delete (with the work folder option), plus the global token on the Settings page. The Profiles list has no Deploy action yet; T13b adds it.
   *Done when:* a hand-written profile in the settings file can be viewed, edited and deleted; an untouched secret is unchanged on disk after Save; and the file on disk changes as expected.
 - [ ] **T7: Local source and static scan.** Add `LocalFolderSource`, `AppHostScanner`, `AspireVersionRules`, `SourcePicker` (decide the folder-picker approach, §8), and the Discover page in Static-only mode.
   *Done when:* the scanner and version tests pass, and Static only on this repository's folder shows AppHost 13.5.4 with the "no Azure target" warning.
-- [ ] **T8: Aspire CLI provisioner.** Add `AspireCliProvisioner`, and Doctor with a profile.
-  *Done when:* the provisioner tests pass, and on a machine without the matching CLI, Doctor with a profile installs it under `ToolsRoot`.
+- [ ] **T8: Aspire CLI provisioner.** Add `AspireCliProvisioner`, and Setup with a profile.
+  *Done when:* the provisioner tests pass, and on a machine without the matching CLI, Setup with a profile installs it under `ToolsRoot`.
 - [ ] **T9: Manifest discovery.** Add `ManifestRunner`, `ManifestParser`, full Discover with the tables and Copy JSON, and the T0a fixtures.
   *Done when:* the parser tests pass, and Discover on a local starter app lists its parameters and resources.
 - [ ] **T10: Trust and history.** Add `TrustStore`, `DeployHistory`, and the trust dialog in `DiscoveryService`.

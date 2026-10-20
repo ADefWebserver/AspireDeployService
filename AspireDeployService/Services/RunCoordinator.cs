@@ -133,6 +133,9 @@ public sealed class ActiveRun : IRunObserver
     public string Title { get; }
     public DateTimeOffset StartedUtc { get; } = DateTimeOffset.UtcNow;
     public string? LogFile { get; private set; }
+
+    /// <summary>AI Help plan D11: the folder the source was materialized to; a later call (deploy) overwrites it.</summary>
+    public string? SourceRoot { get; private set; }
     public bool IsRunning => Result is null;
     public OperationResult? Result { get; private set; }
     public object? Value { get; private set; }
@@ -172,6 +175,8 @@ public sealed class ActiveRun : IRunObserver
     }
 
     void IRunObserver.OnRunStarted(Guid runId, string logFile) => LogFile ??= logFile;
+
+    void IRunObserver.OnSourceReady(string rootFolder) => SourceRoot = rootFolder;
 
     internal void Finish(OperationResult result, object? value)
     {

@@ -1,19 +1,19 @@
-@page "/doctor"
+@page "/setup"
 @implements IDisposable
-@inject IDoctorService DoctorService
+@inject ISetupService SetupService
 @inject IProfileService Profiles
 @inject RunCoordinator Runs
 
 <header class="ads-page-header ads-hero">
     <div class="ads-page-text">
         <div class="ads-eyebrow"><span class="ads-eyebrow-icon"><Icon Name="stethoscope" Size="16" /></span> Preflight diagnostics</div>
-        <h1>Doctor</h1>
+        <h1>Setup</h1>
         <p class="ads-lead">Checks the tools a deployment needs. With a profile, it also fetches the source and checks what its AppHost needs, and installs the matching Aspire CLI.</p>
     </div>
     <div class="ads-page-actions">
         <div class="ads-scope">
-            <label class="ads-scope-label" for="doctor-profile">Profile scope</label>
-            <select id="doctor-profile" class="form-select" @bind="_profile" @bind:after="Reattach" disabled="@Busy">
+            <label class="ads-scope-label" for="setup-profile">Profile scope</label>
+            <select id="setup-profile" class="form-select" @bind="_profile" @bind:after="Reattach" disabled="@Busy">
                 <option value="">(general checks only)</option>
                 @foreach (var p in _profiles)
                 {
@@ -34,7 +34,7 @@
     </div>
 </header>
 
-<OutcomeBanner Run="_run" />
+<OutcomeBanner Run="_run" Page="Setup" />
 
 @if (_run?.ValueAs<IReadOnlyList<PrerequisiteCheck>>() is { } checks)
 {
@@ -84,6 +84,11 @@
                             {
                                 <span class="ads-yes ads-small"><Icon Name="check" Size="13" /> None needed</span>
                             }
+                            @if (c.State is CheckState.Fail or CheckState.Warn)
+                            {
+                                var check = c;
+                                <div class="mt-1"><AIHelpButton GetContext="@(() => AIHelpContexts.FromCheck(check, _run))" Compact="true" /></div>
+                            }
                         </td>
                     </tr>
                 }
@@ -100,7 +105,7 @@ else if (_run is null)
     </div>
 }
 
-<LogViewer Run="_run" />
+<LogViewer Run="_run" Page="Setup" />
 
 @code {
     private IReadOnlyList<ProfileSummary> _profiles = [];
@@ -109,7 +114,7 @@ else if (_run is null)
     private string? _copied;
 
     private bool Busy => _run?.IsRunning == true;
-    private string Key => "doctor:" + (_profile is { Length: > 0 } p ? p : "general");
+    private string Key => "setup:" + (_profile is { Length: > 0 } p ? p : "general");
 
     protected override async Task OnInitializedAsync()
     {
@@ -117,8 +122,8 @@ else if (_run is null)
         if (Profiles.Location.ParseError is null)
             _profiles = await Profiles.ListAsync(CancellationToken.None);
         // Come back to the last run, whichever profile it was for, so its banner, log and Cancel return too.
-        if (Runs.Latest("doctor:") is { } latest)
-            _profile = latest.Key == "doctor:general" ? "" : latest.Key["doctor:".Length..];
+        if (Runs.Latest("setup:") is { } latest)
+            _profile = latest.Key == "setup:general" ? "" : latest.Key["setup:".Length..];
         _run = Runs.TryGet(Key);
     }
 
@@ -126,7 +131,7 @@ else if (_run is null)
     {
         var profile = _profile is { Length: > 0 } p ? p : null;
         _copied = null;
-        _run = Runs.Start(Key, "Doctor", (observer, ct) => DoctorService.CheckAsync(profile, observer, ct),
+        _run = Runs.Start(Key, "Setup", (observer, ct) => SetupService.CheckAsync(profile, observer, ct),
             checks => checks.Any(c => c.State == CheckState.Fail)
                 ? new OperationResult(OutcomeCode.MissingPrerequisite, $"{checks.Count(c => c.State == CheckState.Fail)} check(s) failed. See the Fix column.")
                 : OperationResult.Ok("Everything needed is in place."));

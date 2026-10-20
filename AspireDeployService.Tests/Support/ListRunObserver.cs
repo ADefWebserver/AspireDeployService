@@ -20,5 +20,9 @@ public sealed class ListRunObserver : IRunObserver
         LogFile = logFile;
     }
 
+    public ConcurrentQueue<string> SourceRoots { get; } = new();
+
+    public void OnSourceReady(string rootFolder) => SourceRoots.Enqueue(rootFolder);
+
     public bool Contains(string text) => _lines.Any(l => l.Text.Contains(text, StringComparison.Ordinal));
 }

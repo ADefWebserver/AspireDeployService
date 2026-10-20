@@ -42,15 +42,23 @@ public sealed partial class SecretRedactor : ISecretRedactor
     private static partial Regex SecretFlagPattern();
 
     // JSON properties.
-    [GeneratedRegex(@"""(client_?secret|clientSecret|password|access_?token|accessToken|refresh_?token|refreshToken|id_token|client_assertion|federatedToken|accountKey|primaryKey|secondaryKey|connectionString)""\s*:\s*""[^""]*""", RegexOptions.IgnoreCase)]
+    [GeneratedRegex(@"""(client_?secret|clientSecret|password|access_?token|accessToken|refresh_?token|refreshToken|id_token|client_assertion|federatedToken|accountKey|primaryKey|secondaryKey|connectionString|api_?key)""\s*:\s*""[^""]*""", RegexOptions.IgnoreCase)]
     private static partial Regex JsonSecretPattern();
 
     [GeneratedRegex(@"\bBearer\s+[A-Za-z0-9\-._~+/]+=*", RegexOptions.IgnoreCase)]
     private static partial Regex BearerPattern();
 
     // Environment dumps (KEY=value or KEY: value).
-    [GeneratedRegex(@"\b(AZURE_OIDC_TOKEN|AZURE_OIDC_REQUEST_TOKEN|AZURE_CLIENT_SECRET|AZURE_FEDERATED_TOKEN|ARM_CLIENT_SECRET|GITHUB_TOKEN|GitHub__Token|AspireDeploy__GitHub__Token)\s*[=:]\s*\S+", RegexOptions.IgnoreCase)]
+    [GeneratedRegex(@"\b(AZURE_OIDC_TOKEN|AZURE_OIDC_REQUEST_TOKEN|AZURE_CLIENT_SECRET|AZURE_FEDERATED_TOKEN|ARM_CLIENT_SECRET|GITHUB_TOKEN|GitHub__Token|AspireDeploy__GitHub__Token|OPENAI_API_KEY|AZURE_OPENAI_API_KEY|ANTHROPIC_API_KEY|GEMINI_API_KEY|GOOGLE_API_KEY)\s*[=:]\s*\S+", RegexOptions.IgnoreCase)]
     private static partial Regex SecretEnvPattern();
+
+    // AI Help plan D9: API key headers (HTTP dumps, curl -v).
+    [GeneratedRegex(@"\b(x-api-key|Ocp-Apim-Subscription-Key|api-key)\s*:\s*\S+", RegexOptions.IgnoreCase)]
+    private static partial Regex ApiKeyHeaderPattern();
+
+    // AI Help plan D9: tokens recognisable by shape alone. OpenAI/Anthropic "sk-" keys, GitHub tokens, Google API keys.
+    [GeneratedRegex(@"\bsk-[A-Za-z0-9_-]{20,}|\bgh[pousr]_[A-Za-z0-9]{36,}|\bgithub_pat_[A-Za-z0-9_]{22,}|\bAIza[0-9A-Za-z_-]{35}")]
+    private static partial Regex KnownTokenPattern();
 
     [GeneratedRegex(@"-----BEGIN [A-Z0-9 ]+-----")]
     internal static partial Regex PemBeginPattern();
@@ -81,6 +89,8 @@ public sealed partial class SecretRedactor : ISecretRedactor
         line = PemPattern().Replace(line, "[REDACTED-PEM]");
         line = JwtPattern().Replace(line, "[REDACTED-JWT]");
         line = BearerPattern().Replace(line, "Bearer " + Mask);
+        line = KnownTokenPattern().Replace(line, Mask);
+        line = ApiKeyHeaderPattern().Replace(line, m => m.Groups[1].Value + ": " + Mask);
         line = JsonSecretPattern().Replace(line, m => $"\"{m.Groups[1].Value}\": \"{Mask}\"");
         line = SecretFlagPattern().Replace(line, m => m.Groups[1].Value + m.Groups[2].Value + Mask);
         line = SecretEnvPattern().Replace(line, m => m.Groups[1].Value + "=" + Mask);

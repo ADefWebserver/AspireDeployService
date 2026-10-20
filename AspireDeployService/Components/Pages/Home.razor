@@ -12,7 +12,7 @@
         </p>
     </div>
     <div class="ads-page-actions">
-        <a class="btn btn-outline-secondary" href="doctor"><Icon Name="stethoscope" Size="15" /> Run checks</a>
+        <a class="btn btn-outline-secondary" href="setup"><Icon Name="stethoscope" Size="15" /> Run checks</a>
         <a class="btn btn-primary" href="profiles/new"><Icon Name="plus" Size="15" /> New profile</a>
     </div>
 </header>
@@ -22,12 +22,12 @@
     <div class="ads-card ads-step">
         <div class="ads-step-top">
             <span class="ads-tile-icon ads-tone-pass"><Icon Name="stethoscope" Size="19" /></span>
-            @StepState(Runs.Latest("doctor:"), "Passed")
+            @StepState(Runs.Latest("setup:"), "Passed")
         </div>
         <span class="ads-step-num">Step 1</span>
         <h3>Check prerequisites</h3>
         <p>Verify the .NET SDK, Azure CLI sign-in, a container runtime and the Aspire CLI.</p>
-        <a class="btn btn-outline-secondary" href="doctor"><Icon Name="refresh" Size="14" /> Run Doctor</a>
+        <a class="btn btn-outline-secondary" href="setup"><Icon Name="refresh" Size="14" /> Run Setup</a>
     </div>
     <div class="ads-card ads-step">
         <div class="ads-step-top">

@@ -26,6 +26,7 @@ public sealed class AspireDeploySection
     public int? DeployTimeoutMinutes { get; set; }
     public int? MaxSourceDownloadMegabytes { get; set; }
     public GitHubSection? GitHub { get; set; }
+    public AISection? AI { get; set; }
     public Dictionary<string, DeployProfile> Profiles { get; set; } = new(StringComparer.Ordinal);
 
     [JsonExtensionData]
@@ -35,6 +36,37 @@ public sealed class AspireDeploySection
 public sealed class GitHubSection
 {
     public string? Token { get; set; }
+
+    [JsonExtensionData]
+    public Dictionary<string, JsonElement>? Extra { get; set; }
+}
+
+/// <summary>
+/// <c>AspireDeploy:AI</c> (AI Help plan §6.1). Provider keys are <c>AIServiceType</c> names; empty or absent strings
+/// mean "not set".
+/// </summary>
+public sealed class AISection
+{
+    public string? ActiveServiceType { get; set; }
+
+    // System.Text.Json replaces this dictionary on read, so the comparer is lost. AISettingsService maps each key
+    // with AIServiceTypes.TryParse and skips (but keeps on save) keys that do not parse.
+    public Dictionary<string, AIProviderSection> Providers { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+    public bool? EnableFileTools { get; set; }
+    public int? MaxLogTailLines { get; set; }
+
+    [JsonExtensionData]
+    public Dictionary<string, JsonElement>? Extra { get; set; }
+}
+
+public sealed class AIProviderSection
+{
+    public string? ApiKey { get; set; }
+    public string? AIModel { get; set; }
+    public string? Endpoint { get; set; }
+    public string? ApiVersion { get; set; }
+    public string? DeploymentPath { get; set; }
+    public string? ApiProtocol { get; set; }
 
     [JsonExtensionData]
     public Dictionary<string, JsonElement>? Extra { get; set; }

@@ -55,6 +55,19 @@
                 setTimeout(function () { next.focus(); }, 0);
             }
         };
+        // AI Help chat input: Enter sends, Shift+Enter is a new line. Blazor cannot decide preventDefault per key.
+        window.adsChat = {
+            enterToSend: function (textarea, dotNetRef) {
+                if (!textarea || textarea.adsChatAttached) return;
+                textarea.adsChatAttached = true;
+                textarea.addEventListener('keydown', function (e) {
+                    if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
+                        e.preventDefault();
+                        dotNetRef.invokeMethodAsync('SendFromKeyboard');
+                    }
+                });
+            }
+        };
         // Tab must not leave an open dialog: the default move is cancelled while one is shown.
         document.addEventListener('keydown', function (e) {
             if (e.key === 'Tab' && document.querySelector('.ads-dialog')) e.preventDefault();

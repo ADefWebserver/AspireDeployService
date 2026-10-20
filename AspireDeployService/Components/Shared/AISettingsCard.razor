@@ -1,0 +1,427 @@
+@implements IDisposable
+@using AspireDeployService.Core.AI.ModelCatalog
+@using AspireDeployService.Core.AI.Providers
+@inject IAISettingsService AISettings
+@inject AIModelListCache Models
+@inject AIConnectionTester Tester
+@inject IProfileService Profiles
+@inject DialogService Dialogs
+
+@* AI Help plan §6.2. A saved key is never put in an input (D4); D14 guards the key against a changed endpoint. *@
+<div class="ads-card">
+    <div class="ads-card-header">
+        <Icon Name="sparkles" Size="18" /><h2>AI assistant</h2>
+        <span class="ads-spacer"></span>
+        @if (_session is { } head)
+        {
+            var on = _saved?.IsReadyForChat == true;
+            <span class="ads-pill @(on ? "ads-pill-pass" : "")">@(on ? $"AI Help on · {AIServiceTypes.ToDisplayName(head.ActiveType)}" : "AI Help off")</span>
+        }
+    </div>
+    <p class="ads-muted">
+        Turns on <strong>AI Help</strong> buttons on failed results, setup checks, warnings and the log. Context is sent to the
+        provider chosen here only when you send a message, with known secrets masked. Keys are stored in plain text in the settings file, which git ignores.
+    </p>
+
+    @if (_session is { } s)
+    {
+        <div class="ads-stack gap-3" style="max-width: 44rem">
+            <div class="ads-row align-items-end">
+                <div class="flex-grow-1">
+                    <label class="form-label" for="ai-provider">Provider</label>
+                    <select id="ai-provider" class="form-select" value="@s.Type" @onchange="OnProviderChanged" disabled="@_busy">
+                        @foreach (var type in AIServiceTypes.All)
+                        {
+                            <option value="@type">@AIServiceTypes.ToDisplayName(type)@(type == s.ActiveType ? " (active)" : "")</option>
+                        }
+                    </select>
+                </div>
+                @if (s.IsActive)
+                {
+                    <span class="ads-pill ads-pill-primary mb-2">Active</span>
+                }
+                else
+                {
+                    <button class="btn btn-outline-secondary" disabled="@(_busy || !s.HasSavedEntry)" title="@(s.HasSavedEntry ? "" : "Save this provider first")" @onclick="MakeActiveAsync">Make active</button>
+                }
+            </div>
+
+            <div>
+                <div class="form-label">API key</div>
+                @if (_replacingKey)
+                {
+                    <div class="ads-row align-items-start">
+                        <div class="flex-grow-1"><SecretInput Value="@_typedKey" ValueChanged="OnKeyTyped" Placeholder="Paste the API key" CssClass="ads-mono-input" /></div>
+                        <button class="btn btn-outline-secondary" @onclick="CancelKey">Cancel</button>
+                    </div>
+                    <div class="form-text">Used once you select Save. Test connection uses it right away.</div>
+                }
+                else
+                {
+                    <div class="ads-secret">
+                        <span class="ads-secret-value"><Icon Name="lock" Size="13" /> @(s.HasSavedKey ? "•••••• (set)" : "(not set)")</span>
+                        <button class="btn btn-sm btn-outline-secondary" disabled="@_busy" @onclick="() => _replacingKey = true">@(s.HasSavedKey ? "Replace" : "Enter key")</button>
+                        @if (s.HasSavedKey)
+                        {
+                            <button class="btn btn-sm btn-outline-danger" disabled="@_busy" @onclick="ClearKeyAsync">Clear</button>
+                        }
+                    </div>
+                }
+            </div>
+
+            @if (s.NeedsEndpoint)
+            {
+                <div>
+                    <label class="form-label" for="ai-endpoint">Endpoint</label>
+                    <input id="ai-endpoint" class="form-control ads-mono-input" placeholder="@(s.Type == AIServiceType.AzureAIFoundry ? "https://<resource>.services.ai.azure.com" : "https://<resource>.openai.azure.com")"
+                           @bind="s.Endpoint" @bind:event="oninput" @bind:after="ScheduleModelLoad" spellcheck="false" />
+                    @if (s.Type == AIServiceType.AzureAIFoundry)
+                    {
+                        var (url, notices, error) = s.FoundryPreview();
+                        @if (url is not null)
+                        {
+                            <div class="form-text">Requests go to <span class="ads-code">@url</span></div>
+                        }
+                        @foreach (var notice in notices)
+                        {
+                            <div class="form-text text-warning">@notice</div>
+                        }
+                        @if (error is not null)
+                        {
+                            <div class="form-text text-warning">@error</div>
+                        }
+                    }
+                    @if (!s.CanSendKey)
+                    {
+                        <div class="form-text text-warning">@AISettingsEditSession.RetypeKeyMessage</div>
+                    }
+                </div>
+            }
+            @if (s.Type == AIServiceType.AzureOpenAI)
+            {
+                <div class="ads-row">
+                    <div class="flex-grow-1">
+                        <label class="form-label" for="ai-version">API version</label>
+                        <input id="ai-version" class="form-control ads-mono-input" placeholder="2024-10-21" @bind="s.ApiVersion" />
+                    </div>
+                    <div class="flex-grow-1">
+                        <label class="form-label" for="ai-path">Deployment path</label>
+                        <input id="ai-path" class="form-control ads-mono-input" placeholder="(optional)" @bind="s.DeploymentPath" />
+                    </div>
+                </div>
+            }
+            @if (s.Type == AIServiceType.AzureAIFoundry)
+            {
+                <div>
+                    <label class="form-label" for="ai-protocol">Protocol</label>
+                    <select id="ai-protocol" class="form-select" @bind="s.ApiProtocol">
+                        <option value="">Auto</option>
+                        <option value="@nameof(FoundryApiProtocol.ChatCompletions)">Chat Completions</option>
+                        <option value="@nameof(FoundryApiProtocol.Responses)">Responses</option>
+                        <option value="@nameof(FoundryApiProtocol.AnthropicMessages)">Anthropic Messages</option>
+                    </select>
+                </div>
+            }
+
+            <div>
+                <label class="form-label" for="ai-model">@(s.NeedsEndpoint ? "Model (deployment name)" : "Model")</label>
+                <div class="ads-row flex-nowrap">
+                    <input id="ai-model" class="form-control ads-mono-input" list="ai-model-list" placeholder="@(_models.Count > 0 ? "Pick or type a model" : "Type the model name")"
+                           @bind="s.AIModel" @bind:event="oninput" spellcheck="false" autocomplete="off" />
+                    <button class="btn btn-outline-secondary" title="Reload the model list" disabled="@(_loadingModels || !s.KeyIsSet)" @onclick="() => LoadModelsAsync(refresh: true)">
+                        @if (_loadingModels)
+                        {
+                            <span class="ads-spinner ads-spinner-sm"></span>
+                        }
+                        else
+                        {
+                            <Icon Name="refresh" Size="14" />
+                        }
+                    </button>
+                </div>
+                <datalist id="ai-model-list">
+                    @foreach (var model in _models)
+                    {
+                        <option value="@model"></option>
+                    }
+                </datalist>
+                @if (_modelStatus is { } status)
+                {
+                    <div class="form-text text-warning">@status</div>
+                }
+                else if (_models.Count > 0)
+                {
+                    <div class="form-text">@_models.Count models available.</div>
+                }
+            </div>
+
+            <label class="form-check">
+                <input class="form-check-input" type="checkbox" checked="@_options.EnableFileTools" disabled="@_busy" @onchange="OnFileToolsChanged" />
+                <span class="form-check-label">Let the AI read files in the run's source folder and its log (read-only)</span>
+            </label>
+
+            @if (s.KeyIsSet && s.MissingForChat is { } missing)
+            {
+                <div class="ads-small ads-muted"><Icon Name="info" Size="13" /> @missing</div>
+            }
+
+            <div class="ads-row">
+                <button class="btn btn-primary" disabled="@_busy" @onclick="SaveAsync"><Icon Name="check" Size="14" /> Save</button>
+                <button class="btn btn-outline-secondary" disabled="@(_busy || !s.KeyIsSet)" @onclick="TestAsync">
+                    @if (_testing)
+                    {
+                        <span class="ads-spinner ads-spinner-sm"></span> <span>Testing…</span>
+                    }
+                    else
+                    {
+                        <Icon Name="zap" Size="14" /> <span>Test connection</span>
+                    }
+                </button>
+                <span class="ads-spacer"></span>
+                @if (s.HasSavedEntry)
+                {
+                    <button class="btn btn-outline-danger" disabled="@_busy" @onclick="ClearProviderAsync"><Icon Name="trash" Size="14" /> Clear provider</button>
+                }
+            </div>
+
+            @if (_test is { } test)
+            {
+                <div class="ads-callout @(test.Success ? "ads-callout-success" : "ads-callout-error")">
+                    <Icon Name="@(test.Success ? "check-circle" : "x-circle")" Size="17" />
+                    <div class="ads-callout-body">
+                        <div class="ads-pre-line">@test.Message</div>
+                        <div class="ads-small ads-muted mt-1">@test.Protocol · @test.OperationUrl · @test.Elapsed.TotalSeconds.ToString("0.0") s</div>
+                    </div>
+                </div>
+            }
+            @if (_message is { } m)
+            {
+                <div class="ads-callout @(_failed ? "ads-callout-error" : "ads-callout-success")">
+                    <Icon Name="@(_failed ? "x-circle" : "check-circle")" Size="17" />
+                    <div class="ads-callout-body">@m</div>
+                    @if (_failed)
+                    {
+                        <AIHelpButton GetContext="@(() => AIHelpContexts.FromError("Settings", m))" Compact="true" />
+                    }
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private AISettingsEditSession? _session;
+    private AISettings? _saved;
+    private AIOptions _options = AIOptions.Default;
+    private bool _replacingKey;
+    private string? _typedKey;
+    private IReadOnlyList<string> _models = [];
+    private string? _modelStatus;
+    private bool _loadingModels;
+    private CancellationTokenSource? _modelLoad;
+    private Timer? _debounce;
+    private bool _busy;
+    private bool _testing;
+    private AIConnectionTestResult? _test;
+    private string? _message;
+    private bool _failed;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await ReloadAsync(null);
+        await LoadModelsAsync();
+    }
+
+    private async Task ReloadAsync(AIServiceType? keep)
+    {
+        _saved = await AISettings.GetAsync(CancellationToken.None);
+        _options = await AISettings.GetOptionsAsync(CancellationToken.None);
+        _session = new AISettingsEditSession(_saved, keep);
+        _replacingKey = false;
+        _typedKey = null;
+    }
+
+    private async Task OnProviderChanged(ChangeEventArgs e)
+    {
+        if (_session is null || !Enum.TryParse<AIServiceType>(e.Value?.ToString(), out var type))
+            return;
+        _session.Select(type);
+        (_replacingKey, _typedKey, _test, _message, _models, _modelStatus) = (false, null, null, null, [], null);
+        await LoadModelsAsync();
+    }
+
+    private void OnKeyTyped(string? value)
+    {
+        _typedKey = value;
+        _session?.SetNewKey(value);
+        ScheduleModelLoad();
+    }
+
+    private void CancelKey()
+    {
+        _replacingKey = false;
+        _typedKey = null;
+        _session?.KeepKey();
+        ScheduleModelLoad();
+    }
+
+    /// <summary>750 ms after the key or endpoint stop changing; a newer load cancels an older one.</summary>
+    private void ScheduleModelLoad()
+    {
+        _debounce?.Dispose();
+        _debounce = new Timer(_ => _ = InvokeAsync(() => LoadModelsAsync()), null, 750, Timeout.Infinite);
+    }
+
+    private async Task LoadModelsAsync(bool refresh = false)
+    {
+        if (_session is not { } s)
+            return;
+        _modelLoad?.Cancel();
+        var cts = _modelLoad = new CancellationTokenSource();
+        var settings = s.Effective();
+        if (!settings.IsConfigured)
+        {
+            (_models, _modelStatus) = ([], null);
+            return;
+        }
+        if (!s.CanSendKey)
+        {
+            (_models, _modelStatus) = ([], "Type the API key again to list models for this endpoint.");
+            return;
+        }
+        if (s.NeedsEndpoint && string.IsNullOrWhiteSpace(settings.Endpoint))
+        {
+            (_models, _modelStatus) = ([], "Enter the endpoint to list models.");
+            return;
+        }
+
+        _loadingModels = true;
+        StateHasChanged();
+        try
+        {
+            var result = await Task.Run(() => Models.GetAsync(settings, refresh, cts.Token));
+            if (cts.IsCancellationRequested)
+                return;
+            _models = result.Models;
+            _modelStatus = result.Status == ModelListStatus.Success ? null : result.ErrorMessage;
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch (Exception ex)
+        {
+            if (!cts.IsCancellationRequested)
+                (_models, _modelStatus) = ([], "Could not list models: " + await ScrubAsync(ex.Message));
+        }
+        finally
+        {
+            if (ReferenceEquals(_modelLoad, cts))
+                _loadingModels = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task TestAsync()
+    {
+        if (_session is not { } s)
+            return;
+        _test = null;
+        _message = null;
+        if (!s.CanSendKey)
+        {
+            (_message, _failed) = (AISettingsEditSession.RetypeKeyMessage, true);
+            return;
+        }
+        _testing = _busy = true;
+        try
+        {
+            var settings = s.Effective();
+            var result = await Task.Run(() => Tester.TestAsync(settings, CancellationToken.None));
+            _test = result with { Message = await ScrubAsync(result.Message) };
+        }
+        finally
+        {
+            _testing = _busy = false;
+        }
+    }
+
+    private async Task SaveAsync()
+    {
+        if (_session is not { } s)
+            return;
+        _test = null;
+        if (s.Validate() is [var first, ..])
+        {
+            (_message, _failed) = (first, true);
+            return;
+        }
+        // The first provider saved becomes the active one.
+        var makeActive = s.IsActive || _saved?.Providers.Values.Any(p => p.IsConfigured) != true;
+        await WriteAsync(() => AISettings.SaveProviderAsync(s.ToEdit(), makeActive, CancellationToken.None), "Saved.", s.Type);
+    }
+
+    private async Task ClearKeyAsync()
+    {
+        if (_session is not { } s)
+            return;
+        s.ClearKey();
+        await WriteAsync(() => AISettings.SaveProviderAsync(s.ToEdit(), false, CancellationToken.None), "API key cleared.", s.Type);
+    }
+
+    private Task MakeActiveAsync() =>
+        _session is { } s
+            ? WriteAsync(() => AISettings.SetActiveAsync(s.Type, CancellationToken.None), $"{AIServiceTypes.ToDisplayName(s.Type)} is now the active provider.", s.Type)
+            : Task.CompletedTask;
+
+    private async Task ClearProviderAsync()
+    {
+        if (_session is not { } s)
+            return;
+        var name = AIServiceTypes.ToDisplayName(s.Type);
+        if (!await Dialogs.ConfirmAsync("Clear provider?", $"This removes the saved key, endpoint and model for {name}.", "Clear", CancellationToken.None))
+            return;
+        await WriteAsync(() => AISettings.ClearProviderAsync(s.Type, CancellationToken.None), $"{name} was cleared.", s.Type);
+    }
+
+    private async Task OnFileToolsChanged(ChangeEventArgs e)
+    {
+        var enabled = e.Value is true || string.Equals(e.Value?.ToString(), "true", StringComparison.OrdinalIgnoreCase);
+        await WriteAsync(() => AISettings.SetOptionsAsync(_options with { EnableFileTools = enabled }, CancellationToken.None),
+            enabled ? "File tools turned on." : "File tools turned off.", _session?.Type);
+    }
+
+    private async Task WriteAsync(Func<Task> write, string done, AIServiceType? keep)
+    {
+        _busy = true;
+        _message = null;
+        try
+        {
+            await write();
+            await ReloadAsync(keep);
+            (_message, _failed) = (done, false);
+            await LoadModelsAsync();
+        }
+        catch (DeployerException ex)
+        {
+            (_message, _failed) = (ex.Message, true);
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    /// <summary>Provider messages may echo request details, so they go through the same scrubber as AI Help (§9).</summary>
+    private async Task<string> ScrubAsync(string text)
+    {
+        var snapshot = await Profiles.LoadAsync(CancellationToken.None);
+        return AIPromptScrubber.Create(snapshot.Document, _session?.NewApiKey).Scrub(text);
+    }
+
+    public void Dispose()
+    {
+        _debounce?.Dispose();
+        _modelLoad?.Cancel();
+        _modelLoad?.Dispose();
+    }
+}

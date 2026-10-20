@@ -1,0 +1,420 @@
+@implements IDisposable
+@inject AIHelpService Help
+@inject IAIChatService Chat
+@inject DialogService Dialogs
+@inject IJSRuntime JS
+
+@*
+    AI Help plan §6.6: a non-modal side panel, mounted once in MainLayout outside ads-shell (D2), so a live log keeps
+    streaming and Cancel still works beside it. Chat work runs on the thread pool and a 100 ms timer re-renders while
+    the reply buffer changed (D17), like LogViewer.
+*@
+@if (Help.Current is { } context)
+{
+    <aside class="ads-ai-panel" role="complementary" aria-label="AI Help" inert="@(Dialogs.Current is not null)" @onkeydown="OnKeyDown">
+        <header class="ads-ai-head">
+            <span class="ads-ai-mark"><Icon Name="sparkles" Size="16" /></span>
+            <div class="ads-ai-head-text">
+                <div class="ads-ai-title">AI Help</div>
+                <div class="ads-ai-sub" title="@context.Title">@context.Title</div>
+                @if (_session is { } s)
+                {
+                    <div class="ads-ai-sub ads-subtle">@AIServiceTypes.ToDisplayName(s.Provider) · @s.Model</div>
+                }
+            </div>
+            <button type="button" class="btn btn-sm btn-ghost" title="Start a new chat about this" disabled="@Busy" @onclick="NewChat"><Icon Name="plus" Size="14" /> New chat</button>
+            <button type="button" class="btn btn-sm btn-ghost" title="Close (Esc)" aria-label="Close AI Help" @onclick="Help.Close"><Icon Name="x" Size="15" /></button>
+        </header>
+
+        <div class="ads-ai-body">
+            @if (_startError is { } startError)
+            {
+                <div class="ads-callout ads-callout-error">
+                    <Icon Name="x-circle" Size="17" />
+                    <div class="ads-callout-body">
+                        <div>@startError</div>
+                        <a class="ads-small" href="settings" @onclick="Help.Close">Open AI settings</a>
+                    </div>
+                </div>
+            }
+            else if (_session is null)
+            {
+                <div class="ads-muted ads-small"><span class="ads-spinner ads-spinner-sm"></span> Preparing the context…</div>
+            }
+            else
+            {
+                var session = _session;
+                <details class="ads-ai-context">
+                    <summary>Context sent</summary>
+                    <pre>@session.ContextText</pre>
+                    <div class="ads-small ads-muted">
+                        @if (session.ToolsEnabled)
+                        {
+                            <span>The AI can read files under <span class="ads-code">@(context.SourceRoot ?? "(none)")</span>@(context.LogFile is null ? "" : " and this run's log"). It cannot change anything.</span>
+                        }
+                        else
+                        {
+                            <span>@session.ToolsUnavailableReason</span>
+                        }
+                    </div>
+                    <div class="ads-small ads-subtle mt-1">Nothing is sent until you send a message. Known secrets are replaced with [REDACTED].</div>
+                </details>
+
+                var turns = session.Turns;
+                var streamingHere = _streaming && ReferenceEquals(_streamSession, session);
+                @if (turns.Count == 0 && !streamingHere)
+                {
+                    <div class="ads-ai-chips">
+                        @foreach (var suggestion in Suggestions)
+                        {
+                            <button type="button" class="ads-ai-chip" @onclick="() => Send(suggestion)">@suggestion</button>
+                        }
+                    </div>
+                }
+                @foreach (var turn in turns)
+                {
+                    @Bubble(turn.Role, turn.Text, turn.Activity, turn.Stopped, turn.Failed)
+                }
+                @if (streamingHere)
+                {
+                    string text;
+                    string[] activity;
+                    lock (_buffer)
+                    {
+                        text = _pending.ToString();
+                        activity = _activity.ToArray();
+                    }
+                    @if (_pendingUser is { } question && turns is not [.., { Role: AIChatRole.User }])
+                    {
+                        @Bubble(AIChatRole.User, question, null, false, false)
+                    }
+                    @Bubble(AIChatRole.Assistant, text, activity, false, false, typing: true)
+                }
+                @if (_sendError is { } error && !streamingHere)
+                {
+                    <div class="ads-callout ads-callout-error ads-ai-error">
+                        <Icon Name="x-circle" Size="17" />
+                        <div class="ads-callout-body">
+                            <div class="ads-pre-line">@error</div>
+                            <div class="ads-row mt-2">
+                                <button type="button" class="btn btn-sm btn-outline-danger" @onclick="Retry"><Icon Name="refresh" Size="13" /> Retry</button>
+                                <a class="ads-small" href="settings" @onclick="Help.Close">Open AI settings</a>
+                            </div>
+                        </div>
+                    </div>
+                }
+            }
+        </div>
+
+        @if (_session is not null)
+        {
+            <footer class="ads-ai-input">
+                <textarea @ref="_textarea" class="form-control" rows="3" placeholder="Ask about this… (Enter sends, Shift+Enter for a new line)"
+                          aria-label="Message" @bind="_input" @bind:event="oninput"></textarea>
+                <div class="ads-row mt-2">
+                    <span class="ads-small ads-subtle">Read-only: the AI never changes files.</span>
+                    <span class="ads-spacer"></span>
+                    @if (Busy)
+                    {
+                        <button type="button" class="btn btn-sm btn-outline-danger" @onclick="Stop"><Icon Name="square" Size="13" /> Stop</button>
+                    }
+                    else
+                    {
+                        <button type="button" class="btn btn-sm btn-primary" disabled="@string.IsNullOrWhiteSpace(_input)" @onclick="() => Send(_input)"><Icon Name="send" Size="13" /> Send</button>
+                    }
+                </div>
+            </footer>
+        }
+    </aside>
+}
+
+@code {
+    private static readonly string[] Suggestions = ["What went wrong?", "How do I fix it?", "Explain this log"];
+
+    private readonly object _buffer = new();
+    private readonly System.Text.StringBuilder _pending = new();
+    private readonly List<string> _activity = [];
+    private AIHelpContext? _context;
+    private AIChatSession? _session;
+    private AIChatSession? _streamSession;
+    private string? _startError;
+    private string? _sendError;
+    private string? _pendingUser;
+    private string? _input;
+    private volatile bool _streaming;
+    private volatile bool _dirty;
+    private CancellationTokenSource? _cts;
+    private Timer? _timer;
+    private ElementReference _textarea;
+    private string? _attachedTo;
+    private bool _focusPending;
+    private DotNetObjectReference<AIChatPanel>? _self;
+    private string? _copied;
+
+    private bool Busy => _streaming && ReferenceEquals(_streamSession, _session) || _session?.IsBusy == true;
+
+    protected override void OnInitialized()
+    {
+        Help.Changed += OnHelpChanged;
+        Dialogs.Changed += OnDialogsChanged;
+        _timer = new Timer(_ =>
+        {
+            if (!_dirty)
+                return;
+            _dirty = false;
+            _ = InvokeAsync(StateHasChanged);
+        }, null, TimeSpan.FromMilliseconds(100), TimeSpan.FromMilliseconds(100));
+        Sync();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (Help.Current is null || _session is null)
+        {
+            _attachedTo = null;
+            return;
+        }
+        // The textarea is a new element after the panel was closed; attach the Enter handler once per element.
+        if (_textarea.Id is { } id && id != _attachedTo)
+        {
+            _attachedTo = id;
+            _self ??= DotNetObjectReference.Create(this);
+            await JS.InvokeVoidAsync("adsChat.enterToSend", _textarea, _self);
+        }
+        if (_focusPending)
+        {
+            _focusPending = false;
+            try
+            {
+                await _textarea.FocusAsync();
+            }
+            catch (InvalidOperationException)
+            {
+                // Not rendered yet; the user can click into it.
+            }
+        }
+    }
+
+    [JSInvokable]
+    public Task SendFromKeyboard() => InvokeAsync(() => Send(_input));
+
+    private void OnHelpChanged() => _ = InvokeAsync(() =>
+    {
+        Sync();
+        StateHasChanged();
+    });
+
+    private void OnDialogsChanged() => _ = InvokeAsync(StateHasChanged);
+
+    /// <summary>Picks up a newly opened context: resumes its session or starts one on the thread pool.</summary>
+    private void Sync()
+    {
+        var context = Help.Current;
+        if (context is null)
+        {
+            _context = null;
+            return;
+        }
+        if (_context?.Id == context.Id && (_session is not null || _startError is not null))
+            return;
+
+        _context = context;
+        _startError = null;
+        _sendError = null;
+        _focusPending = true;
+        _session = Help.GetSession(context.Id);
+        if (_session is not null)
+            return;
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                var session = await Chat.StartAsync(context, CancellationToken.None);
+                Help.SetSession(context.Id, session);
+                await InvokeAsync(() =>
+                {
+                    if (_context?.Id == context.Id)
+                    {
+                        _session = session;
+                        _focusPending = true;
+                    }
+                    StateHasChanged();
+                });
+            }
+            catch (Exception ex)
+            {
+                await InvokeAsync(() =>
+                {
+                    if (_context?.Id == context.Id)
+                        _startError = ex is Core.AI.Providers.AIConfigurationException ? ex.Message : "AI Help could not start: " + ex.Message;
+                    StateHasChanged();
+                });
+            }
+        });
+    }
+
+    private void Send(string? text)
+    {
+        if (_session is not { } session || Busy || string.IsNullOrWhiteSpace(text))
+            return;
+        _input = "";
+        _pendingUser = text.Trim();
+        Run(session, ct => Chat.SendAsync(session, text, ct));
+    }
+
+    private void Retry()
+    {
+        if (_session is not { } session || Busy)
+            return;
+        _pendingUser = null;
+        Run(session, ct => Chat.RetryAsync(session, ct));
+    }
+
+    private void Run(AIChatSession session, Func<CancellationToken, IAsyncEnumerable<AIChatUpdate>> start)
+    {
+        lock (_buffer)
+        {
+            _pending.Clear();
+            _activity.Clear();
+        }
+        _sendError = null;
+        _streamSession = session;
+        _streaming = true;
+        _cts?.Dispose();
+        var cts = _cts = new CancellationTokenSource();
+
+        // D17: never on the UI dispatcher; file tools do synchronous I/O inside function invocation.
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await foreach (var update in start(cts.Token))
+                {
+                    lock (_buffer)
+                    {
+                        if (update.Text is { } delta)
+                            _pending.Append(delta);
+                        if (update.ToolActivity is { } line)
+                            _activity.Add(line);
+                    }
+                    _dirty = true;
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                // Stop: the service keeps the partial reply as a stopped turn.
+            }
+            catch (Exception ex)
+            {
+                _sendError = ex is AIChatException or InvalidOperationException ? ex.Message : "AI Help hit an error: " + ex.Message;
+            }
+            finally
+            {
+                _streaming = false;
+                _dirty = true;
+            }
+        });
+        StateHasChanged();
+    }
+
+    private void Stop() => _cts?.Cancel();
+
+    private void NewChat()
+    {
+        if (_context is not { } context || Busy)
+            return;
+        _session = null;
+        _sendError = null;
+        _startError = null;
+        _context = null;
+        Help.DropSession(context.Id); // raises Changed, which starts a fresh session through Sync
+    }
+
+    private void OnKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape")
+            Help.Close();
+    }
+
+    private async Task CopyAsync(string text)
+    {
+        await Clipboard.Default.SetTextAsync(text);
+        _copied = text;
+    }
+
+    private RenderFragment Bubble(AIChatRole role, string text, IReadOnlyList<string>? activity, bool stopped, bool failed, bool typing = false) => __builder =>
+    {
+        if (failed)
+            return;
+        <div class="ads-ai-msg @(role == AIChatRole.User ? "is-user" : "is-assistant")">
+            @if (activity is { Count: > 0 })
+            {
+                @foreach (var line in activity)
+                {
+                    <div class="ads-ai-activity"><Icon Name="file-text" Size="12" /> @line</div>
+                }
+            }
+            @if (role == AIChatRole.User)
+            {
+                <div class="ads-ai-bubble ads-pre-line">@text</div>
+            }
+            else if (text.Length > 0 || stopped)
+            {
+                <div class="ads-ai-bubble">
+                    @foreach (var segment in AIReplyFormatter.Split(text))
+                    {
+                        if (segment.IsCode)
+                        {
+                            var codeText = segment.Text;
+                            <div class="ads-ai-code">
+                                <div class="ads-ai-code-bar">
+                                    <span>@(segment.Language ?? "code")</span>
+                                    <button type="button" class="btn btn-sm btn-ghost" @onclick="() => CopyAsync(codeText)">
+                                        <Icon Name="@(_copied == codeText ? "check" : "copy")" Size="12" /> @(_copied == codeText ? "Copied" : "Copy")
+                                    </button>
+                                </div>
+                                <pre><code>@codeText</code></pre>
+                            </div>
+                        }
+                        else
+                        {
+                            var parts = AIReplyFormatter.SplitInlineCode(segment.Text);
+                            <div class="ads-ai-text">
+                                @for (var i = 0; i < parts.Count; i++)
+                                {
+                                    if (i % 2 == 1)
+                                    {
+                                        <code>@parts[i]</code>
+                                    }
+                                    else
+                                    {
+                                        @parts[i]
+                                    }
+                                }
+                            </div>
+                        }
+                    }
+                    @if (stopped)
+                    {
+                        <div class="ads-small ads-subtle">(stopped)</div>
+                    }
+                </div>
+            }
+            else if (typing)
+            {
+                <div class="ads-ai-bubble ads-muted ads-small"><span class="ads-spinner ads-spinner-sm"></span> Thinking…</div>
+            }
+        </div>
+    };
+
+    public void Dispose()
+    {
+        Help.Changed -= OnHelpChanged;
+        Dialogs.Changed -= OnDialogsChanged;
+        _timer?.Dispose();
+        _cts?.Cancel();
+        _cts?.Dispose();
+        _self?.Dispose();
+    }
+}

@@ -16,8 +16,8 @@ public class WorkKeysTests
         Assert.Equal(Path.Combine("W", "shop"), WorkKeys.For("W", "shop", null));
 
     [Fact]
-    public void Doctor_without_a_profile_has_its_own_key() =>
-        Assert.Equal(Path.Combine("W", "doctor"), WorkKeys.For("W", null, null));
+    public void Setup_without_a_profile_has_its_own_key() =>
+        Assert.Equal(Path.Combine("W", "setup"), WorkKeys.For("W", null, null));
 
     [Fact]
     public void GitHub_ad_hoc_key_ignores_case_and_ref()

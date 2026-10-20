@@ -1,11 +1,12 @@
 @page "/settings"
 @inject IProfileService Profiles
+@inject AIHelpService Help
 
 <header class="ads-page-header">
     <div class="ads-page-text">
         <div class="ads-eyebrow">Configuration</div>
         <h1>Settings</h1>
-        <p class="ads-lead">Where this app keeps its settings, work and tools, and the GitHub token used for private repositories.</p>
+        <p class="ads-lead">Where this app keeps its settings, work and tools, the GitHub token used for private repositories, and the AI assistant.</p>
     </div>
 </header>
 
@@ -94,9 +95,15 @@
                     <div class="ads-callout @(_failed ? "ads-callout-error" : "ads-callout-success") mt-3">
                         <Icon Name="@(_failed ? "x-circle" : "check-circle")" Size="17" />
                         <div class="ads-callout-body">@m</div>
+                        @if (_failed)
+                        {
+                            <AIHelpButton GetContext="@(() => AIHelpContexts.FromError("Settings", m))" Compact="true" />
+                        }
                     </div>
                 }
             </div>
+
+            <AISettingsCard />
         }
     </div>
 }
@@ -108,7 +115,12 @@
     private string? _message;
     private bool _failed;
 
-    protected override async Task OnInitializedAsync() => _snapshot = await Profiles.LoadAsync(CancellationToken.None);
+    protected override async Task OnInitializedAsync()
+    {
+        _snapshot = await Profiles.LoadAsync(CancellationToken.None);
+        // Picks up hand edits of the AI settings, so AI Help buttons appear without a restart.
+        await Help.RefreshAsync();
+    }
 
     private Task ClearTokenAsync() => WriteTokenAsync(null);
 

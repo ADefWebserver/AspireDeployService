@@ -1,0 +1,128 @@
+// Copied from <ref>/src/BlazorDataOrchestrator.Core/Services/ModelCatalog/HttpModelCatalogBase.cs (Blazor-Data-Orchestrator). Re-sync changes from there.
+using System.Net;
+using AspireDeployService.Core.AI.Models;
+using Microsoft.Extensions.Logging;
+
+namespace AspireDeployService.Core.AI.ModelCatalog;
+
+using ServiceKind = AspireDeployService.Core.AI.Models.AIServiceType;
+
+/// <summary>
+/// Shared HTTP plumbing for the provider catalogs: one retry on a transient failure,
+/// a 10 second timeout, and status mapping that never logs the API key.
+/// </summary>
+public abstract class HttpModelCatalogBase : IAIModelCatalog
+{
+    /// <summary>Named <see cref="HttpClient"/> used by every catalog.</summary>
+    public const string HttpClientName = "AIModelCatalog";
+
+    private static readonly TimeSpan RequestTimeout = TimeSpan.FromSeconds(10);
+
+    private readonly IHttpClientFactory _httpClientFactory;
+    private readonly ILogger _logger;
+
+    protected HttpModelCatalogBase(IHttpClientFactory httpClientFactory, ILogger logger)
+    {
+        _httpClientFactory = httpClientFactory;
+        _logger = logger;
+    }
+
+    public abstract ServiceKind ServiceType { get; }
+
+    public abstract Task<ModelListResult> ListModelsAsync(AIProviderSettings settings, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Sends the request, retrying once on a transient 5xx or timeout.
+    /// Returns null when the response was successful and <paramref name="body"/> is populated.
+    /// </summary>
+    protected async Task<ModelListResult?> SendAsync(
+        Func<HttpRequestMessage> requestFactory,
+        CancellationToken cancellationToken,
+        Action<string> onSuccessBody)
+    {
+        var client = _httpClientFactory.CreateClient(HttpClientName);
+        client.Timeout = RequestTimeout;
+
+        for (var attempt = 0; attempt < 2; attempt++)
+        {
+            try
+            {
+                using var request = requestFactory();
+                using var response = await client.SendAsync(request, cancellationToken);
+
+                if (response.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
+                {
+                    _logger.LogWarning("{Provider} model listing rejected the API key ({StatusCode}).",
+                        ServiceType, (int)response.StatusCode);
+                    return ModelListResult.InvalidKey();
+                }
+
+                if ((int)response.StatusCode >= 500 && attempt == 0)
+                {
+                    continue;
+                }
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    var errorBody = await ReadBodySafelyAsync(response, cancellationToken);
+
+                    // Google AI reports a bad key as 400 INVALID_ARGUMENT rather than 401.
+                    if (LooksLikeInvalidKey(errorBody))
+                    {
+                        _logger.LogWarning("{Provider} model listing rejected the API key ({StatusCode}).",
+                            ServiceType, (int)response.StatusCode);
+                        return ModelListResult.InvalidKey();
+                    }
+
+                    _logger.LogWarning("{Provider} model listing failed with {StatusCode}.",
+                        ServiceType, (int)response.StatusCode);
+                    return ModelListResult.Unreachable($"HTTP {(int)response.StatusCode}");
+                }
+
+                onSuccessBody(await response.Content.ReadAsStringAsync(cancellationToken));
+                return null;
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+            {
+                if (attempt == 1)
+                {
+                    _logger.LogWarning(ex, "{Provider} model listing could not reach the provider.", ServiceType);
+                    return ModelListResult.Unreachable(ex.Message);
+                }
+            }
+        }
+
+        return ModelListResult.Unreachable();
+    }
+
+    private static async Task<string> ReadBodySafelyAsync(HttpResponseMessage response, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await response.Content.ReadAsStringAsync(cancellationToken);
+        }
+        catch
+        {
+            return "";
+        }
+    }
+
+    private static bool LooksLikeInvalidKey(string body)
+    {
+        if (string.IsNullOrEmpty(body))
+        {
+            return false;
+        }
+
+        return body.Contains("API key not valid", StringComparison.OrdinalIgnoreCase)
+            || body.Contains("API_KEY_INVALID", StringComparison.OrdinalIgnoreCase)
+            || body.Contains("invalid_api_key", StringComparison.OrdinalIgnoreCase)
+            || body.Contains("invalid x-api-key", StringComparison.OrdinalIgnoreCase)
+            || body.Contains("authentication_error", StringComparison.OrdinalIgnoreCase)
+            || body.Contains("invalid subscription key", StringComparison.OrdinalIgnoreCase);
+    }
+}

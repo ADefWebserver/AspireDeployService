@@ -13,6 +13,9 @@ public interface IRunObserver
     void OnLine(LogLine line);
 
     void OnRunStarted(Guid runId, string logFile);
+
+    /// <summary>AI Help plan D11: the source is on disk at <paramref name="rootFolder"/>. A deploy calls it twice.</summary>
+    void OnSourceReady(string rootFolder) { }
 }
 
 /// <summary>An observer that ignores everything, for callers that need no live output.</summary>
@@ -26,9 +29,10 @@ public sealed class NullRunObserver : IRunObserver
 /// <summary>Everything one run needs: its id, its own redactor, a runner that uses it, and its log (plan §6.2).</summary>
 public sealed class RunContext : IAsyncDisposable
 {
-    internal RunContext(Guid runId, DeploySecretRedactor redactor, IProcessRunner runner, RunLogSink log)
+    internal RunContext(Guid runId, DeploySecretRedactor redactor, IProcessRunner runner, RunLogSink log, IRunObserver observer)
     {
         RunId = runId;
+        Observer = observer;
         Redactor = redactor;
         Runner = runner;
         Log = log;
@@ -38,6 +42,7 @@ public sealed class RunContext : IAsyncDisposable
     public ISecretRedactor Redactor { get; }
     public IProcessRunner Runner { get; }
     public RunLogSink Log { get; }
+    public IRunObserver Observer { get; }
     public string LogFile => Log.LogFile;
     public RunServices Services => new(Log, Redactor);
 
@@ -60,6 +65,6 @@ public sealed class RunContextFactory(ILoggerFactory loggerFactory, TimeProvider
         var sink = new RunLogSink(runId, logFile, redactor, observer, time);
         var runner = new ProcessRunner(redactor, loggerFactory.CreateLogger<ProcessRunner>());
         observer.OnRunStarted(runId, logFile);
-        return new RunContext(runId, redactor, runner, sink);
+        return new RunContext(runId, redactor, runner, sink, observer);
     }
 }

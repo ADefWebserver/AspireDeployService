@@ -36,7 +36,7 @@
     </div>
 </div>
 
-<OutcomeBanner Run="_run" />
+<OutcomeBanner Run="_run" Page="Discover" />
 
 @if (_run?.ValueAs<DiscoveryResult>() is { } result)
 {
@@ -76,6 +76,7 @@
             <div class="ads-callout ads-callout-warn">
                 <Icon Name="alert-triangle" Size="17" />
                 <div class="ads-callout-body">@w</div>
+                <AIHelpButton GetContext="@(() => AIHelpContexts.FromWarning("Discover", w, _run))" Compact="true" />
             </div>
         }
 
@@ -159,7 +160,7 @@
     </div>
 }
 
-<LogViewer Run="_run" />
+<LogViewer Run="_run" Page="Discover" />
 
 @code {
     private SourceKind _kind = SourceKind.LocalFolder;

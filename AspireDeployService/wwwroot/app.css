@@ -1798,3 +1798,220 @@ fieldset {
     font-weight: 600;
     margin: 6px 0 0;
 }
+
+/* ---------- AI Help (docs/AI-Help-Plan.md §6.6) ---------- */
+
+/* Below the dialog backdrop (1050), so a deploy confirmation still sits on top. */
+.ads-ai-panel {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1040;
+    width: 28rem;
+    display: flex;
+    flex-direction: column;
+    background: var(--ads-panel);
+    border-left: 1px solid var(--ads-border);
+    box-shadow: var(--ads-shadow);
+    color: var(--ads-text);
+}
+
+.ads-shell-ai-open {
+    padding-right: 28rem;
+}
+
+@media (max-width: 900px) {
+    .ads-ai-panel {
+        width: 100vw;
+    }
+
+    .ads-shell-ai-open {
+        padding-right: 0;
+    }
+}
+
+.ads-ai-head {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 14px 14px 12px;
+    border-bottom: 1px solid var(--ads-border);
+}
+
+.ads-ai-mark {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    background: var(--ads-primary-tint);
+    color: var(--ads-primary-text);
+}
+
+.ads-ai-head-text {
+    flex: 1;
+    min-width: 0;
+}
+
+.ads-ai-title {
+    font-weight: 600;
+    color: var(--bs-emphasis-color);
+}
+
+.ads-ai-sub {
+    font-size: 12px;
+    color: var(--ads-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.ads-ai-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.ads-ai-context {
+    border: 1px solid var(--ads-border);
+    border-radius: 8px;
+    background: var(--ads-well);
+    padding: 8px 10px;
+    font-size: 12.5px;
+}
+
+    .ads-ai-context summary {
+        cursor: pointer;
+        color: var(--ads-muted);
+    }
+
+    .ads-ai-context pre {
+        margin: 8px 0;
+        max-height: 16rem;
+        overflow: auto;
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+        font-family: var(--ads-mono);
+        font-size: 11.5px;
+        color: var(--ads-text);
+    }
+
+.ads-ai-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.ads-ai-chip {
+    border: 1px solid var(--ads-border-strong);
+    border-radius: 999px;
+    background: var(--ads-card);
+    color: var(--ads-text);
+    padding: 5px 12px;
+    font-size: 13px;
+}
+
+    .ads-ai-chip:hover {
+        border-color: var(--ads-primary);
+        background: var(--ads-primary-tint);
+    }
+
+.ads-ai-msg {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+    .ads-ai-msg.is-user {
+        align-items: flex-end;
+    }
+
+.ads-ai-bubble {
+    max-width: 100%;
+    padding: 8px 12px;
+    border-radius: 10px;
+    background: var(--ads-card);
+    border: 1px solid var(--ads-border);
+    font-size: 13.5px;
+    overflow-wrap: anywhere;
+}
+
+.ads-ai-msg.is-user .ads-ai-bubble {
+    max-width: 85%;
+    background: var(--ads-primary-tint);
+    border-color: transparent;
+}
+
+.ads-ai-text {
+    white-space: pre-wrap;
+}
+
+    .ads-ai-text + .ads-ai-text,
+    .ads-ai-code + .ads-ai-text,
+    .ads-ai-text + .ads-ai-code {
+        margin-top: 8px;
+    }
+
+    .ads-ai-text code {
+        padding: 1px 4px;
+        border-radius: 4px;
+        background: var(--ads-raised);
+        font-size: 12.5px;
+    }
+
+.ads-ai-code {
+    border: 1px solid var(--ads-border);
+    border-radius: 8px;
+    background: var(--ads-well);
+    overflow: hidden;
+}
+
+.ads-ai-code-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 2px 4px 2px 10px;
+    border-bottom: 1px solid var(--ads-border);
+    font-size: 11.5px;
+    color: var(--ads-muted);
+}
+
+.ads-ai-code pre {
+    margin: 0;
+    padding: 8px 10px;
+    overflow-x: auto;
+    font-family: var(--ads-mono);
+    font-size: 12px;
+    color: var(--ads-text);
+}
+
+.ads-ai-activity {
+    font-size: 12px;
+    color: var(--ads-subtle);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.ads-ai-input {
+    padding: 12px 14px 14px;
+    border-top: 1px solid var(--ads-border);
+}
+
+    .ads-ai-input textarea {
+        resize: none;
+        font-size: 13.5px;
+    }
+
+.ads-ai-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+}

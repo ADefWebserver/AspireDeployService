@@ -41,7 +41,7 @@ public sealed class FakeRunContextFactory(FakeProcessRunner runner) : IRunContex
         var redactor = new DeploySecretRedactor();
         var runId = Guid.NewGuid();
         var file = Path.Combine(workKeyDir, "logs", runId.ToString("N") + ".log");
-        var context = new RunContext(runId, redactor, runner, new RunLogSink(runId, file, redactor, observer));
+        var context = new RunContext(runId, redactor, runner, new RunLogSink(runId, file, redactor, observer), observer);
         observer.OnRunStarted(runId, file);
         Created.Add(context);
         return context;

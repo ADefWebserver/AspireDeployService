@@ -26,7 +26,7 @@ public sealed record PipelineResult(SourceIdentity Source, ScanResult Scan, Aspi
 }
 
 /// <summary>
-/// The steps Discover, Doctor and Deploy share (flows §7.1 and SP §7.3): materialize the source, scan it,
+/// The steps Discover, Setup and Deploy share (flows §7.1 and SP §7.3): materialize the source, scan it,
 /// ask for trust before running GitHub code, ensure the Aspire CLI, and run the manifest. The caller holds the
 /// work key lock and owns the <see cref="RunContext"/>.
 /// </summary>
@@ -57,6 +57,7 @@ public sealed class DiscoveryPipeline(
         };
 
         var identity = await Task.Run(() => provider.MaterializeAsync(source, workKeyDir, run.Services, ct), ct);
+        run.Observer.OnSourceReady(identity.RootFolder);
         var scan = await Task.Run(() => AppHostScanner.Scan(identity.RootFolder, source.AppHostPath, options), ct);
         await run.Log.InfoAsync($"AppHost: {scan.AppHost.AppHostPath} ({scan.AppHost.Kind}, Aspire {scan.AppHost.AspireSdkVersion}).", ct);
         foreach (var warning in scan.Warnings)

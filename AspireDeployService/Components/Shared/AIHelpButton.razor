@@ -1,0 +1,29 @@
+@implements IDisposable
+@inject AIHelpService Help
+
+@* AI Help plan §6.5: renders nothing until AI is set up. The context is built only on click (D12). *@
+@if (Help.IsConfigured)
+{
+    <button type="button" class="btn btn-sm @(Compact ? "btn-ghost" : "btn-outline-primary") ads-ai-btn @Class"
+            title="Ask AI for help with this" aria-label="@Label" @onclick="Open">
+        <Icon Name="sparkles" Size="14" />@if (!Compact) { <span>@Label</span> }
+    </button>
+}
+
+@code {
+    // Not "Context": Razor reserves that name for templates.
+    [Parameter, EditorRequired] public Func<AIHelpContext> GetContext { get; set; } = default!;
+    [Parameter] public string Label { get; set; } = "AI Help";
+
+    /// <summary>Icon only, for table rows and the log toolbar.</summary>
+    [Parameter] public bool Compact { get; set; }
+    [Parameter] public string? Class { get; set; }
+
+    protected override void OnInitialized() => Help.Changed += OnChanged;
+
+    private void Open() => Help.Show(GetContext());
+
+    private void OnChanged() => _ = InvokeAsync(StateHasChanged);
+
+    public void Dispose() => Help.Changed -= OnChanged;
+}

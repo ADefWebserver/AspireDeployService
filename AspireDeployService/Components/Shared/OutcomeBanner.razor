@@ -33,6 +33,10 @@
                     <div class="ads-small ads-muted mt-1">@ExtraLine</div>
                 }
             </div>
+            @if (!result.Succeeded && result.Code != OutcomeCode.Declined && result.Category != ErrorCategory.Canceled)
+            {
+                <AIHelpButton GetContext="@(() => AIHelpContexts.FromRun(run, Page, ExtraLine))" />
+            }
         </div>
     }
 }
@@ -42,4 +46,7 @@
 
     /// <summary>For example the resource group, shown under the result.</summary>
     [Parameter] public string? ExtraLine { get; set; }
+
+    /// <summary>The page name ("Discover", "Setup", "Deploy", "New profile"), sent to AI Help as the Page fact.</summary>
+    [Parameter] public string? Page { get; set; }
 }

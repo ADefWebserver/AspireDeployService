@@ -1,8 +1,9 @@
 ﻿@inherits LayoutComponentBase
 @implements IDisposable
 @inject DialogService Dialogs
+@inject AIHelpService Help
 
-<div class="ads-shell" inert="@(Dialogs.Current is not null)">
+<div class="ads-shell @(Help.IsOpen ? "ads-shell-ai-open" : "")" inert="@(Dialogs.Current is not null)">
     <NavMenu />
 
     <main class="ads-main">
@@ -28,14 +29,51 @@
 
 <DialogHost />
 
+@* AI Help plan §6.6: outside ads-shell (D2), with its own boundary so a panel error never takes down the page or a run. *@
+<ErrorBoundary @ref="_aiBoundary">
+    <ChildContent>
+        <AIChatPanel />
+    </ChildContent>
+    <ErrorContent>
+        <aside class="ads-ai-panel" role="complementary" aria-label="AI Help">
+            <div class="ads-ai-body">
+                <div class="ads-callout ads-callout-error">
+                    <Icon Name="x-circle" Size="17" />
+                    <div class="ads-callout-body">
+                        <div class="ads-callout-title">AI Help hit an error</div>
+                        <div class="ads-small ads-muted">The page and any running work are not affected.</div>
+                        <button class="btn btn-sm btn-outline-danger mt-2" @onclick="CloseAIHelp"><Icon Name="x" Size="13" /> Close</button>
+                    </div>
+                </div>
+            </div>
+        </aside>
+    </ErrorContent>
+</ErrorBoundary>
+
 @code {
     private ErrorBoundary? _boundary;
+    private ErrorBoundary? _aiBoundary;
 
-    protected override void OnInitialized() => Dialogs.Changed += OnDialogsChanged;
+    protected override async Task OnInitializedAsync()
+    {
+        Dialogs.Changed += OnDialogsChanged;
+        Help.Changed += OnDialogsChanged;
+        await Help.InitializeAsync();
+    }
 
     private void OnDialogsChanged() => _ = InvokeAsync(StateHasChanged);
 
-    public void Dispose() => Dialogs.Changed -= OnDialogsChanged;
+    private void CloseAIHelp()
+    {
+        Help.Close();
+        _aiBoundary?.Recover();
+    }
+
+    public void Dispose()
+    {
+        Dialogs.Changed -= OnDialogsChanged;
+        Help.Changed -= OnDialogsChanged;
+    }
 
     private void Recover() => _boundary?.Recover();
 }
