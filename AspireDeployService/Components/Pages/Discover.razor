@@ -4,92 +4,158 @@
 @inject RunCoordinator Runs
 @inject NavigationManager Nav
 
-<h1>Discover</h1>
-<p class="text-muted">
-    Stage 1 reads files only. Stage 2 runs <code>aspire do publish-manifest</code>, which builds and runs the AppHost on this machine
-    (code from GitHub is run only after you trust the commit). Nothing is created in Azure.
-</p>
-
-<div style="max-width: 48rem">
-    <SourcePicker Id="discover" @bind-Kind="_kind" @bind-Location="_location" @bind-Ref="_ref" @bind-AppHostPath="_appHost" Disabled="@Busy" />
-    <div class="form-check mt-3">
-        <input id="discover-static" class="form-check-input" type="checkbox" @bind="_staticOnly" disabled="@Busy" />
-        <label class="form-check-label" for="discover-static">Static scan only (runs nothing)</label>
+<header class="ads-page-header">
+    <div class="ads-page-text">
+        <div class="ads-eyebrow"><span class="ads-dot-live"></span> Stage 1 &amp; 2 · AppHost inspector</div>
+        <h1>Discover</h1>
+        <p class="ads-lead">
+            Stage 1 reads files only. Stage 2 runs <span class="ads-code">aspire do publish-manifest</span>, which builds and runs the AppHost on this machine
+            (code from GitHub is run only after you trust the commit). <strong>Nothing is created in Azure.</strong>
+        </p>
     </div>
-    <button class="btn btn-primary mt-3" disabled="@(Busy || string.IsNullOrWhiteSpace(_location))" @onclick="Run">Discover</button>
+</header>
+
+<div class="ads-card mb-4">
+    <SourcePicker Id="discover" @bind-Kind="_kind" @bind-Location="_location" @bind-Ref="_ref" @bind-AppHostPath="_appHost" Disabled="@Busy" />
+    <div class="ads-card-footer">
+        <div class="form-check form-switch mb-0">
+            <input id="discover-static" class="form-check-input" type="checkbox" role="switch" @bind="_staticOnly" disabled="@Busy" />
+            <label class="form-check-label" for="discover-static">Static scan only (runs nothing)</label>
+        </div>
+        <span class="ads-spacer"></span>
+        <button class="btn btn-primary" disabled="@(Busy || string.IsNullOrWhiteSpace(_location))" @onclick="Run">
+            @if (Busy)
+            {
+                <span class="ads-spinner ads-spinner-sm"></span> <span>Discovering…</span>
+            }
+            else
+            {
+                <Icon Name="search" Size="15" /> <span>Discover</span>
+            }
+        </button>
+    </div>
 </div>
 
-<div class="mt-3"><OutcomeBanner Run="_run" /></div>
+<OutcomeBanner Run="_run" />
 
 @if (_run?.ValueAs<DiscoveryResult>() is { } result)
 {
     var app = result.AppHost;
-    <div class="card mb-3">
-        <div class="card-body">
-            <h5 class="card-title">AppHost</h5>
-            <dl class="row mb-0">
-                <dt class="col-sm-3">Path</dt><dd class="col-sm-9"><code>@app.AppHostPath</code></dd>
-                <dt class="col-sm-3">Kind</dt><dd class="col-sm-9">@app.Kind</dd>
-                <dt class="col-sm-3">Aspire SDK</dt><dd class="col-sm-9">@app.AspireSdkVersion</dd>
-                <dt class="col-sm-3">Source</dt><dd class="col-sm-9">@result.Source.Display</dd>
-                <dt class="col-sm-3">Declared targets</dt>
-                <dd class="col-sm-9">@(app.DeclaredTargets.Count == 0 ? "none" : string.Join(", ", app.DeclaredTargets))</dd>
-                @if (app.DotnetSdkFromGlobalJson is { } sdk)
-                {
-                    <dt class="col-sm-3">global.json SDK</dt><dd class="col-sm-9">@sdk</dd>
-                }
+    <div class="ads-stack">
+        <div class="ads-card">
+            <div class="ads-card-header">
+                <Icon Name="layers" Size="18" />
+                <h2>AppHost</h2>
+                <span class="ads-spacer"></span>
+                <span class="ads-pill @(result.ManifestRan ? "ads-pill-pass" : "")">@(result.ManifestRan ? "Manifest parsed" : "Static scan")</span>
+            </div>
+            <dl class="ads-defs">
+                <div class="ads-def-wide"><dt>Path</dt><dd class="ads-mono">@app.AppHostPath</dd></div>
+                <div><dt>Kind</dt><dd>@KindText(app.Kind)</dd></div>
+                <div><dt>Aspire SDK</dt><dd class="ads-mono" style="color: var(--ads-azure-text)">@app.AspireSdkVersion</dd></div>
+                <div><dt>Source</dt><dd class="ads-mono">@result.Source.Display</dd></div>
+                <div><dt>global.json SDK</dt><dd class="ads-mono">@(app.DotnetSdkFromGlobalJson ?? "—")</dd></div>
+                <div class="ads-def-wide">
+                    <dt>Declared targets</dt>
+                    <dd class="ads-row gap-2">
+                        @if (app.DeclaredTargets.Count == 0)
+                        {
+                            <span class="ads-subtle">none</span>
+                        }
+                        @foreach (var t in app.DeclaredTargets)
+                        {
+                            <span class="ads-chip @(t.IsAzure() ? "ads-chip-azure" : "")"><Icon Name="@(t.IsAzure() ? "cloud" : "box")" Size="12" /> @TargetText(t)</span>
+                        }
+                    </dd>
+                </div>
             </dl>
         </div>
-    </div>
 
-    @foreach (var w in result.Warnings)
-    {
-        <div class="alert alert-warning py-2">@w</div>
-    }
-
-    @if (result.ManifestRan)
-    {
-        <h4>Parameters</h4>
-        @if (result.Parameters.Count == 0)
+        @foreach (var w in result.Warnings)
         {
-            <p class="text-muted">None.</p>
-        }
-        else
-        {
-            <table class="table table-sm">
-                <thead><tr><th>Name</th><th>Secret</th><th>Default</th><th>Generated</th><th>Configuration key</th></tr></thead>
-                <tbody>
-                    @foreach (var p in result.Parameters)
-                    {
-                        <tr>
-                            <td>@p.Name</td><td>@YesNo(p.Secret)</td><td>@YesNo(p.HasDefault)</td><td>@YesNo(p.Generated)</td><td><code>@p.ConfigKey</code></td>
-                        </tr>
-                    }
-                </tbody>
-            </table>
+            <div class="ads-callout ads-callout-warn">
+                <Icon Name="alert-triangle" Size="17" />
+                <div class="ads-callout-body">@w</div>
+            </div>
         }
 
-        <h4>Resources</h4>
-        <table class="table table-sm">
-            <thead><tr><th>Name</th><th>Type</th><th>Image or project</th><th>Azure</th><th>Needs container runtime</th></tr></thead>
-            <tbody>
-                @foreach (var r in result.Resources)
+        @if (result.ManifestRan)
+        {
+            <div class="ads-card">
+                <div class="ads-card-header">
+                    <Icon Name="key" Size="18" />
+                    <h2>Parameters</h2>
+                    <span class="ads-spacer"></span>
+                    <span class="ads-meta">@result.Parameters.Count @(result.Parameters.Count == 1 ? "key" : "keys") detected</span>
+                    <p class="ads-card-desc">Values the AppHost needs when it is provisioned.</p>
+                </div>
+                @if (result.Parameters.Count == 0)
                 {
-                    <tr>
-                        <td>@r.Name</td><td>@r.Type</td><td><code>@(r.Image ?? r.ProjectPath)</code></td><td>@YesNo(r.IsAzure)</td><td>@YesNo(r.NeedsContainerRuntime)</td>
-                    </tr>
+                    <p class="ads-muted mb-0">None.</p>
                 }
-            </tbody>
-        </table>
-    }
+                else
+                {
+                    <div class="ads-table-wrap">
+                        <table class="ads-table">
+                            <thead><tr><th>Name</th><th>Secret</th><th>Default</th><th>Generated</th><th>Configuration key</th></tr></thead>
+                            <tbody>
+                                @foreach (var p in result.Parameters)
+                                {
+                                    <tr>
+                                        <td class="ads-cell-mono ads-cell-name">@p.Name</td>
+                                        <td>@if (p.Secret) { <span class="ads-chip ads-chip-primary"><Icon Name="lock" Size="12" /> Yes</span> } else { <span class="ads-no">—</span> }</td>
+                                        <td>@YesNo(p.HasDefault)</td>
+                                        <td>@YesNo(p.Generated)</td>
+                                        <td class="ads-cell-mono">@p.ConfigKey</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </div>
 
-    <div class="d-flex gap-2 mb-3">
-        <button class="btn btn-outline-secondary" @onclick="() => CopyJsonAsync(result)">Copy JSON</button>
-        <button class="btn btn-outline-primary" @onclick="CreateProfile">Create profile from this</button>
-        @if (_copied)
-        {
-            <span class="align-self-center small text-success">Copied.</span>
+            <div class="ads-card">
+                <div class="ads-card-header">
+                    <Icon Name="box" Size="18" />
+                    <h2>Resources</h2>
+                    <span class="ads-spacer"></span>
+                    <span class="ads-chip">@result.Resources.Count @(result.Resources.Count == 1 ? "resource" : "resources")</span>
+                    <p class="ads-card-desc">What the manifest declares, and what each one needs.</p>
+                </div>
+                <div class="ads-table-wrap">
+                    <table class="ads-table">
+                        <thead><tr><th>Name</th><th>Type</th><th>Image or project</th><th>Azure</th><th>Needs container runtime</th></tr></thead>
+                        <tbody>
+                            @foreach (var r in result.Resources)
+                            {
+                                <tr>
+                                    <td class="ads-cell-mono ads-cell-name"><span class="ads-row gap-2 flex-nowrap"><Icon Name="@ResourceIcon(r)" Size="15" Class="ads-subtle" /> @r.Name</span></td>
+                                    <td><span class="ads-chip">@r.Type</span></td>
+                                    <td class="ads-cell-mono ads-cell-wrap" style="color: var(--ads-primary-text)">@(r.Image ?? r.ProjectPath)</td>
+                                    <td>@YesNo(r.IsAzure)</td>
+                                    <td>@if (r.NeedsContainerRuntime) { <span class="ads-pill ads-pill-run ads-pill-nodot"><Icon Name="layers" Size="11" /> Yes</span> } else { <span class="ads-no">—</span> }</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         }
+
+        <div class="ads-card ads-row py-3">
+            <span class="ads-meta">
+                <span class="ads-yes"><Icon Name="check" Size="14" /></span>
+                @(result.ManifestRan ? "AppHost built and its manifest read." : "Static scan only; nothing was built or run.")
+            </span>
+            <span class="ads-spacer"></span>
+            @if (_copied)
+            {
+                <span class="ads-toast"><Icon Name="check" Size="13" /> Copied</span>
+            }
+            <button class="btn btn-outline-secondary" @onclick="() => CopyJsonAsync(result)"><Icon Name="copy" Size="14" /> Copy JSON</button>
+            <button class="btn btn-primary" @onclick="CreateProfile">Create profile from this <Icon Name="arrow-right" Size="14" /></button>
+        </div>
     </div>
 }
 
@@ -146,7 +212,30 @@
         Nav.NavigateTo("profiles/new" + query);
     }
 
-    private static string YesNo(bool b) => b ? "yes" : "";
+    private static RenderFragment YesNo(bool b) => b
+        ? @<span class="ads-yes"><Icon Name="check-circle" Size="14" /> Yes</span>
+        : @<span class="ads-no">—</span>;
+
+    private static string KindText(AppHostKind kind) => kind switch
+    {
+        AppHostKind.ProjectCsproj => "C# project",
+        AppHostKind.FileBasedCs => "File-based C#",
+        _ => "TypeScript"
+    };
+
+    /// <summary>"AzureContainerApps" → "azure-container-apps", as in the mockups.</summary>
+    private static string TargetText(DeploymentTarget t) =>
+        string.Concat(t.ToString().Select((c, i) => char.IsUpper(c) && i > 0 ? "-" + char.ToLowerInvariant(c) : char.ToLowerInvariant(c).ToString()));
+
+    private static string ResourceIcon(DiscoveredResource r) => r switch
+    {
+        { ProjectPath: not null } => "terminal",
+        _ when r.Type.Contains("postgres", StringComparison.OrdinalIgnoreCase) || r.Type.Contains("sql", StringComparison.OrdinalIgnoreCase)
+            || r.Type.Contains("redis", StringComparison.OrdinalIgnoreCase) || r.Type.Contains("cosmos", StringComparison.OrdinalIgnoreCase) => "database",
+        { IsAzure: true } => "cloud",
+        { Image: not null } => "layers",
+        _ => "box"
+    };
 
     private void OnRunsChanged() => _ = InvokeAsync(StateHasChanged);
 

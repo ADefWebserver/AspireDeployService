@@ -1,36 +1,69 @@
 @implements IDisposable
 
 @* Plan D11: polls the run's ring buffer every 100 ms and re-renders only when it changed. *@
-<div class="ads-log" aria-live="polite">
-    @if (_lines.Count == 0)
-    {
-        <div class="text-muted">No output yet.</div>
-    }
-    else
-    {
-        <div class="ads-log-lines">
-            @foreach (var line in _lines)
+<section class="ads-console @(_collapsed ? "is-collapsed" : "")">
+    <div class="ads-console-bar">
+        <button type="button" class="ads-console-title" aria-expanded="@(!_collapsed)" @onclick="() => _collapsed = !_collapsed">
+            <Icon Name="@(_collapsed ? "chevron-right" : "chevron-down")" Size="14" />
+            Terminal output
+            @if (Run is { } run)
             {
-                <div class="ads-log-line @StreamClass(line.Stream)">@line.Text</div>
+                <span class="ads-console-sub">/ @run.Title.ToLowerInvariant()</span>
+            }
+        </button>
+        <span class="ads-spacer"></span>
+        @if (_copied)
+        {
+            <span class="ads-toast me-1"><Icon Name="check" Size="13" /> Copied</span>
+        }
+        <button type="button" class="btn btn-sm btn-ghost" disabled="@(_lines.Count == 0)" @onclick="CopyAsync"><Icon Name="copy" Size="13" /> Copy</button>
+        <button type="button" class="btn btn-sm btn-ghost @(_wrap ? "is-on" : "")" aria-pressed="@_wrap" @onclick="() => _wrap = !_wrap"><Icon Name="wrap" Size="13" /> Wrap</button>
+        <button type="button" class="btn btn-sm btn-ghost @(_follow ? "is-on" : "")" aria-pressed="@_follow" @onclick="() => _follow = !_follow"><Icon Name="arrow-right" Size="13" Class="ads-rot-90" /> Follow</button>
+    </div>
+    @if (!_collapsed)
+    {
+        <div class="ads-log @(_follow ? "is-follow" : "") @(_wrap ? "is-wrap" : "")" aria-live="polite">
+            @if (_lines.Count == 0)
+            {
+                <div class="ads-log-empty">No output yet.</div>
+            }
+            else
+            {
+                <div class="ads-log-lines">
+                    @foreach (var line in _lines)
+                    {
+                        <div class="ads-log-line @LineClass(line)"><span class="ads-log-time">@line.Utc.ToLocalTime().ToString("HH:mm:ss.fff")</span><span class="ads-log-text">@line.Text</span></div>
+                    }
+                </div>
             }
         </div>
+        @if (Run?.LogFile is { } file)
+        {
+            <div class="ads-console-foot"><Icon Name="file-text" Size="13" /> <span>Log file: @file</span></div>
+        }
     }
-</div>
-@if (Run?.LogFile is { } file)
-{
-    <div class="small text-muted mt-1">Log file: <code>@file</code></div>
-}
+</section>
 
 @code {
     [Parameter] public ActiveRun? Run { get; set; }
+
+    /// <summary>Starts folded; the page can still be read without the log.</summary>
+    [Parameter] public bool StartCollapsed { get; set; }
 
     private IReadOnlyList<LogLine> _lines = [];
     private long _seen = -1;
     private ActiveRun? _current;
     private Timer? _timer;
+    private bool _collapsed;
+    private bool _wrap = true;
+    private bool _follow = true;
+    private bool _copied;
 
-    protected override void OnInitialized() =>
+    protected override void OnInitialized()
+    {
+        _collapsed = StartCollapsed;
         _timer = new Timer(_ => _ = InvokeAsync(Refresh), null, TimeSpan.Zero, TimeSpan.FromMilliseconds(100));
+    }
 
     protected override void OnParametersSet()
     {
@@ -38,6 +71,7 @@
         {
             _current = Run;
             _seen = -1;
+            _copied = false;
             Refresh();
         }
     }
@@ -62,10 +96,17 @@
         StateHasChanged();
     }
 
-    private static string StreamClass(string stream) => stream switch
+    private async Task CopyAsync()
+    {
+        await Clipboard.Default.SetTextAsync(string.Join(Environment.NewLine, _lines.Select(l => l.Text)));
+        _copied = true;
+    }
+
+    private static string LineClass(LogLine line) => line.Stream switch
     {
         LogStreams.StdErr => "ads-log-err",
         LogStreams.System => "ads-log-sys",
+        _ when line.Text.Contains("warn", StringComparison.OrdinalIgnoreCase) => "ads-log-warn",
         _ => ""
     };
 

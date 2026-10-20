@@ -4,43 +4,100 @@
 @inject IProfileService Profiles
 @inject RunCoordinator Runs
 
-<h1>Doctor</h1>
-<p class="text-muted">Checks the tools a deployment needs. With a profile, it also fetches the source and checks what its AppHost needs, and installs the matching Aspire CLI.</p>
-
-<div class="row g-2 align-items-end mb-3" style="max-width: 40rem">
-    <div class="col">
-        <label class="form-label" for="doctor-profile">Profile</label>
-        <select id="doctor-profile" class="form-select" @bind="_profile" @bind:after="Reattach" disabled="@Busy">
-            <option value="">(general checks only)</option>
-            @foreach (var p in _profiles)
+<header class="ads-page-header ads-hero">
+    <div class="ads-page-text">
+        <div class="ads-eyebrow"><span class="ads-eyebrow-icon"><Icon Name="stethoscope" Size="16" /></span> Preflight diagnostics</div>
+        <h1>Doctor</h1>
+        <p class="ads-lead">Checks the tools a deployment needs. With a profile, it also fetches the source and checks what its AppHost needs, and installs the matching Aspire CLI.</p>
+    </div>
+    <div class="ads-page-actions">
+        <div class="ads-scope">
+            <label class="ads-scope-label" for="doctor-profile">Profile scope</label>
+            <select id="doctor-profile" class="form-select" @bind="_profile" @bind:after="Reattach" disabled="@Busy">
+                <option value="">(general checks only)</option>
+                @foreach (var p in _profiles)
+                {
+                    <option value="@p.Name">@p.Name</option>
+                }
+            </select>
+        </div>
+        <button class="btn btn-primary btn-lg" disabled="@Busy" @onclick="Run">
+            @if (Busy)
             {
-                <option value="@p.Name">@p.Name</option>
+                <span class="ads-spinner ads-spinner-sm"></span> <span>Checking…</span>
             }
-        </select>
+            else
+            {
+                <Icon Name="refresh" Size="15" /> <span>Run checks</span>
+            }
+        </button>
     </div>
-    <div class="col-auto">
-        <button class="btn btn-primary" disabled="@Busy" @onclick="Run">Run checks</button>
-    </div>
-</div>
+</header>
 
 <OutcomeBanner Run="_run" />
 
 @if (_run?.ValueAs<IReadOnlyList<PrerequisiteCheck>>() is { } checks)
 {
-    <table class="table">
-        <thead><tr><th>Check</th><th>State</th><th>Detail</th><th>Fix</th></tr></thead>
-        <tbody>
-            @foreach (var c in checks)
-            {
-                <tr>
-                    <td>@c.Name</td>
-                    <td class="fw-semibold @CheckClass(c.State)">@c.State</td>
-                    <td>@c.Detail</td>
-                    <td class="small">@c.Fix</td>
-                </tr>
-            }
-        </tbody>
-    </table>
+    var passed = checks.Count(c => c.State == CheckState.Pass);
+    var warned = checks.Count(c => c.State == CheckState.Warn);
+    var failed = checks.Count(c => c.State == CheckState.Fail);
+    <div class="ads-row mb-3">
+        <span class="ads-summary-chip ads-tone-pass"><Icon Name="check-circle" Size="14" /> @passed passed</span>
+        <span class="ads-summary-chip @(warned > 0 ? "ads-tone-warn" : "")"><Icon Name="alert-triangle" Size="14" /> @warned @(warned == 1 ? "warning" : "warnings")</span>
+        <span class="ads-summary-chip @(failed > 0 ? "ads-tone-fail" : "")"><Icon Name="x-circle" Size="14" /> @failed failed</span>
+        <span class="ads-spacer"></span>
+        @if (_run.Result is not null)
+        {
+            <span class="ads-meta"><span class="ads-pill-dot"></span> Last run: @_run.StartedUtc.ToLocalTime().ToString("t")</span>
+        }
+    </div>
+
+    <div class="ads-table-wrap">
+        <table class="ads-table">
+            <thead><tr><th>Check</th><th>State</th><th>Detail</th><th class="ads-cell-end">Fix / action</th></tr></thead>
+            <tbody>
+                @foreach (var c in checks)
+                {
+                    <tr class="@(c.State switch { CheckState.Warn => "ads-row-warn", CheckState.Fail => "ads-row-fail", _ => "" })">
+                        <td class="ads-cell-name"><span class="ads-row gap-2 flex-nowrap"><Icon Name="@CheckIcon(c.Name)" Size="17" Class="ads-subtle" /> @c.Name</span></td>
+                        <td><span class="ads-pill @StatePill(c.State)">@c.State</span></td>
+                        <td class="ads-cell-mono">@c.Detail</td>
+                        <td class="ads-cell-end ads-fix">
+                            @if (c.Fix is { Length: > 0 } fix)
+                            {
+                                var (text, command) = SplitFix(fix);
+                                @if (text.Length > 0)
+                                {
+                                    <div class="ads-small ads-muted">@text</div>
+                                }
+                                @if (command is not null)
+                                {
+                                    <span class="ads-cmd mt-1">
+                                        <span>@command</span>
+                                        <button class="btn btn-sm btn-ghost" title="Copy command" aria-label="Copy command" @onclick="() => CopyAsync(command)">
+                                            <Icon Name="@(_copied == command ? "check" : "copy")" Size="13" />
+                                        </button>
+                                    </span>
+                                }
+                            }
+                            else
+                            {
+                                <span class="ads-yes ads-small"><Icon Name="check" Size="13" /> None needed</span>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+else if (_run is null)
+{
+    <div class="ads-empty">
+        <span class="ads-tile-icon"><Icon Name="stethoscope" Size="24" /></span>
+        <h2>No checks run yet</h2>
+        <p class="mb-0">Choose a profile scope, or keep the general checks, and select <strong>Run checks</strong>.</p>
+    </div>
 }
 
 <LogViewer Run="_run" />
@@ -49,6 +106,7 @@
     private IReadOnlyList<ProfileSummary> _profiles = [];
     private string? _profile = "";
     private ActiveRun? _run;
+    private string? _copied;
 
     private bool Busy => _run?.IsRunning == true;
     private string Key => "doctor:" + (_profile is { Length: > 0 } p ? p : "general");
@@ -67,17 +125,47 @@
     private void Run()
     {
         var profile = _profile is { Length: > 0 } p ? p : null;
+        _copied = null;
         _run = Runs.Start(Key, "Doctor", (observer, ct) => DoctorService.CheckAsync(profile, observer, ct),
             checks => checks.Any(c => c.State == CheckState.Fail)
                 ? new OperationResult(OutcomeCode.MissingPrerequisite, $"{checks.Count(c => c.State == CheckState.Fail)} check(s) failed. See the Fix column.")
                 : OperationResult.Ok("Everything needed is in place."));
     }
 
-    private static string CheckClass(CheckState s) => s switch
+    private async Task CopyAsync(string command)
     {
-        CheckState.Pass => "text-success",
-        CheckState.Warn => "text-warning-emphasis",
-        _ => "text-danger"
+        await Clipboard.Default.SetTextAsync(command);
+        _copied = command;
+    }
+
+    /// <summary>Fix texts that end in "run: &lt;command&gt;" show the command in a copyable box.</summary>
+    private static (string Text, string? Command) SplitFix(string fix)
+    {
+        var at = fix.LastIndexOf("run: ", StringComparison.OrdinalIgnoreCase);
+        if (at < 0)
+            return (fix, null);
+        var command = fix[(at + 5)..].Trim().TrimEnd('.');
+        var text = fix[..at].Trim().TrimEnd(',');
+        return (text.Length == 0 ? "" : text + (text.EndsWith("then", StringComparison.OrdinalIgnoreCase) ? " run:" : ""), command);
+    }
+
+    private static string StatePill(CheckState s) => s switch
+    {
+        CheckState.Pass => "ads-pill-pass",
+        CheckState.Warn => "ads-pill-warn",
+        _ => "ads-pill-fail"
+    };
+
+    private static string CheckIcon(string name) => name switch
+    {
+        _ when name.Contains(".NET", StringComparison.Ordinal) => "terminal",
+        _ when name.Contains("Azure", StringComparison.Ordinal) => "cloud",
+        _ when name.Contains("Container", StringComparison.Ordinal) => "layers",
+        _ when name.Contains("Node", StringComparison.Ordinal) => "code",
+        _ when name.Contains("GitHub", StringComparison.Ordinal) => "github",
+        _ when name.Contains("Aspire", StringComparison.Ordinal) => "box",
+        _ when name.Contains("source", StringComparison.OrdinalIgnoreCase) => "git-branch",
+        _ => "shield-check"
     };
 
     private void Reattach() => _run = Runs.TryGet(Key);

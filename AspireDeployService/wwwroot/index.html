@@ -1,9 +1,24 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-bs-theme="dark">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-    <title>AspireDeployService</title>
+    <title>Aspire Deploy</title>
+    <script>
+        // Theme: dark by default (docs/mockups/DESIGN.md); the top bar toggle remembers the choice.
+        window.adsTheme = {
+            get: function () { return document.documentElement.getAttribute('data-bs-theme') || 'dark'; },
+            set: function (theme) {
+                document.documentElement.setAttribute('data-bs-theme', theme);
+                try { localStorage.setItem('ads-theme', theme); } catch (e) { }
+                return theme;
+            }
+        };
+        try {
+            var saved = localStorage.getItem('ads-theme');
+            if (saved === 'light' || saved === 'dark') document.documentElement.setAttribute('data-bs-theme', saved);
+        } catch (e) { }
+    </script>
     <base href="/" />
     <link rel="stylesheet" href="lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="app.css" />

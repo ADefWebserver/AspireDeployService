@@ -1,24 +1,24 @@
 @* The source block shared by Discover and New profile (plan §6.1). *@
-<div class="row g-2">
-    <div class="col-12">
-        <div class="btn-group" role="group" aria-label="Source kind">
-            <input type="radio" class="btn-check" id="@($"{Id}-local")" checked="@(Kind == SourceKind.LocalFolder)" disabled="@Disabled"
+<div class="ads-form-grid">
+    <div>
+        <div class="ads-segmented" role="radiogroup" aria-label="Source kind">
+            <input type="radio" id="@($"{Id}-local")" name="@($"{Id}-kind")" checked="@(Kind == SourceKind.LocalFolder)" disabled="@Disabled"
                    @onchange="() => SetKind(SourceKind.LocalFolder)" />
-            <label class="btn btn-outline-primary" for="@($"{Id}-local")">Local folder</label>
-            <input type="radio" class="btn-check" id="@($"{Id}-github")" checked="@(Kind == SourceKind.GitHub)" disabled="@Disabled"
+            <label for="@($"{Id}-local")"><Icon Name="folder-open" Size="15" /> Local folder</label>
+            <input type="radio" id="@($"{Id}-github")" name="@($"{Id}-kind")" checked="@(Kind == SourceKind.GitHub)" disabled="@Disabled"
                    @onchange="() => SetKind(SourceKind.GitHub)" />
-            <label class="btn btn-outline-primary" for="@($"{Id}-github")">GitHub repository</label>
+            <label for="@($"{Id}-github")"><Icon Name="github" Size="15" /> GitHub repository</label>
         </div>
     </div>
 
     @if (Kind == SourceKind.LocalFolder)
     {
-        <div class="col-12">
-            <label class="form-label" for="@($"{Id}-folder")">Solution folder</label>
+        <div class="ads-span-8">
+            <label class="form-label" for="@($"{Id}-folder")">Solution folder <span class="ads-label-hint">absolute path</span></label>
             <div class="input-group">
-                <input id="@($"{Id}-folder")" class="form-control" placeholder="C:\src\my-aspire-app" value="@Location" disabled="@Disabled"
+                <input id="@($"{Id}-folder")" class="form-control ads-mono-input" placeholder="C:\src\my-aspire-app" value="@Location" disabled="@Disabled"
                        @onchange="e => SetLocation(e.Value?.ToString())" />
-                <button class="btn btn-outline-secondary" type="button" disabled="@Disabled" @onclick="BrowseAsync">Browse…</button>
+                <button class="btn btn-outline-secondary" type="button" disabled="@Disabled" @onclick="BrowseAsync"><Icon Name="folder" Size="14" /> Browse…</button>
             </div>
             @if (!string.IsNullOrWhiteSpace(Location) && !Directory.Exists(Location))
             {
@@ -28,21 +28,21 @@
     }
     else
     {
-        <div class="col-md-8">
-            <label class="form-label" for="@($"{Id}-repo")">Repository</label>
-            <input id="@($"{Id}-repo")" class="form-control" placeholder="owner/repo" value="@Location" disabled="@Disabled"
+        <div class="ads-span-4">
+            <label class="form-label" for="@($"{Id}-repo")">Repository <span class="ads-label-hint">owner/repo</span></label>
+            <input id="@($"{Id}-repo")" class="form-control ads-mono-input" placeholder="owner/repo" value="@Location" disabled="@Disabled"
                    @onchange="e => SetLocation(e.Value?.ToString())" />
         </div>
-        <div class="col-md-4">
+        <div class="ads-span-4">
             <label class="form-label" for="@($"{Id}-ref")">Branch, tag or SHA</label>
-            <input id="@($"{Id}-ref")" class="form-control" placeholder="default branch" value="@Ref" disabled="@Disabled"
+            <input id="@($"{Id}-ref")" class="form-control ads-mono-input" placeholder="default branch" value="@Ref" disabled="@Disabled"
                    @onchange="e => RefChanged.InvokeAsync(Empty(e.Value?.ToString()))" />
         </div>
     }
 
-    <div class="col-12">
-        <label class="form-label" for="@($"{Id}-apphost")">AppHost path <span class="text-muted">(optional)</span></label>
-        <input id="@($"{Id}-apphost")" class="form-control" placeholder="found automatically" value="@AppHostPath" disabled="@Disabled"
+    <div class="ads-span-4">
+        <label class="form-label" for="@($"{Id}-apphost")">AppHost path <span class="ads-label-hint">optional</span></label>
+        <input id="@($"{Id}-apphost")" class="form-control ads-mono-input" placeholder="found automatically" value="@AppHostPath" disabled="@Disabled"
                @onchange="e => AppHostPathChanged.InvokeAsync(Empty(e.Value?.ToString()))" />
     </div>
 </div>
