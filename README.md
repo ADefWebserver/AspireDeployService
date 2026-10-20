@@ -1,5 +1,8 @@
 # Aspire Deploy
 
+<img width="1591" height="1304" alt="image" src="https://github.com/user-attachments/assets/31de889f-bb99-4c78-bcf3-2071b5ed98b3" />
+
+
 A Windows desktop app (.NET MAUI Blazor Hybrid) that deploys **any Aspire 13.x solution**, from a local folder or a GitHub repository, to an Azure subscription with `aspire deploy`, using your own `az login`.
 
 It **discovers** what the AppHost needs first (AppHost kind, Aspire version, parameters, resources, deployment targets) and keeps per-developer **deploy profiles** in a git-ignored `appsettings.Local.json`.
