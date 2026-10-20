@@ -3,150 +3,197 @@
 @inject IProfileService Profiles
 @inject RunCoordinator Runs
 
-<h1>Profile @Name</h1>
+<header class="ads-page-header">
+    <div class="ads-page-text">
+        <div class="ads-eyebrow"><a href="profiles" class="ads-eyebrow-link"><Icon Name="arrow-left" Size="12" /> Profiles</a></div>
+        <h1>Profile @Name</h1>
+        <p class="ads-lead">Where the source comes from, where it is deployed, and the parameter values it is deployed with.</p>
+    </div>
+    @if (_session is not null)
+    {
+        <div class="ads-page-actions">
+            <a class="btn btn-outline-secondary" href="profiles"><Icon Name="arrow-left" Size="14" /> Back</a>
+            <button class="btn btn-outline-secondary" disabled="@(Busy || _readOnly)" @onclick="SaveAsync"><Icon Name="check" Size="14" /> Save</button>
+            <a class="btn btn-primary" href="deploy/@Name"><Icon Name="rocket" Size="14" /> Deploy…</a>
+        </div>
+    }
+</header>
 
 @if (_error is { } e)
 {
-    <div class="alert alert-danger ads-pre-line">@e</div>
+    <div class="ads-callout ads-callout-error mb-3">
+        <Icon Name="x-circle" Size="17" />
+        <div class="ads-callout-body ads-pre-line">@e</div>
+    </div>
 }
 @if (_saved)
 {
-    <div class="alert alert-success">Saved.</div>
+    <div class="ads-banner ads-banner-success">
+        <span class="ads-banner-icon"><Icon Name="check-circle" Size="18" /></span>
+        <div class="ads-banner-body"><span class="ads-banner-title">Saved.</span></div>
+    </div>
 }
 
 @if (_session is { } s)
 {
     var p = s.Edited;
     var o = s.Original;
-    var busy = Runs.TryGet("deploy:" + Name)?.IsRunning == true;
-    <fieldset disabled="@(busy || _readOnly)" style="max-width: 56rem">
-        @if (busy)
-        {
-            <div class="alert alert-info">A deployment of this profile is running; editing is disabled until it ends.</div>
-        }
-
-        <h4>Source</h4>
-        <dl class="row">
-            <dt class="col-sm-3">Kind</dt><dd class="col-sm-9">@o.Source.Kind</dd>
-            <dt class="col-sm-3">Location</dt><dd class="col-sm-9"><code>@o.Source.Location</code></dd>
-        </dl>
-        <div class="row g-2 mb-3">
-            @if (o.Source.Kind == SourceKind.GitHub)
-            {
-                <div class="col-md-4">
-                    <label class="form-label" for="pe-ref">Branch, tag or SHA</label>
-                    <input id="pe-ref" class="form-control" placeholder="default branch" @bind="p.Source.Ref" />
-                </div>
-            }
-            <div class="col-md-8">
-                <label class="form-label" for="pe-apphost">AppHost path</label>
-                <input id="pe-apphost" class="form-control" placeholder="found automatically" @bind="p.Source.AppHostPath" />
-            </div>
-            @if (o.Source.Kind == SourceKind.GitHub)
-            {
-                <div class="col-12">
-                    <label class="form-label">GitHub token for this profile</label>
-                    <SecretField Label="token" HasValue="@(!string.IsNullOrEmpty(o.Source.GitHubToken))" Original="@o.Source.GitHubToken"
-                                 Replacement="@s.TokenReplacement" ReplacementChanged="v => s.TokenReplacement = v"
-                                 Cleared="@s.TokenCleared" ClearedChanged="c => s.TokenCleared = c" />
-                </div>
-            }
+    var busy = Busy;
+    @if (busy)
+    {
+        <div class="ads-callout ads-callout-info mb-3">
+            <Icon Name="info" Size="17" />
+            <div class="ads-callout-body">A deployment of this profile is running; editing is disabled until it ends.</div>
         </div>
-
-        <h4>Destination</h4>
-        <div class="row g-2 mb-3">
-            <div class="col-md-6">
-                <label class="form-label" for="pe-sub">Subscription ID</label>
-                <input id="pe-sub" class="form-control" @bind="p.Destination.SubscriptionId" />
-            </div>
-            <div class="col-md-6">
-                <label class="form-label" for="pe-tenant">Tenant ID <span class="text-muted">(optional)</span></label>
-                <input id="pe-tenant" class="form-control" @bind="p.Destination.TenantId" />
-            </div>
-            <div class="col-md-4">
-                <label class="form-label" for="pe-loc">Region</label>
-                <input id="pe-loc" class="form-control" placeholder="eastus2" @bind="p.Destination.Location" />
-            </div>
-            <div class="col-md-4">
-                <label class="form-label" for="pe-rg">Resource group</label>
-                <input id="pe-rg" class="form-control" @bind="p.Destination.ResourceGroup" />
-            </div>
-            <div class="col-md-4">
-                <label class="form-label" for="pe-cred">Credential source</label>
-                <input id="pe-cred" class="form-control" placeholder="AzureCli" @bind="p.Destination.CredentialSource" />
-            </div>
-            <div class="col-md-4">
-                <label class="form-label" for="pe-env">Environment</label>
-                <input id="pe-env" class="form-control" placeholder="Production" @bind="p.Environment" />
-            </div>
-            <div class="col-md-4">
-                <label class="form-label" for="pe-rt">Container runtime</label>
-                <select id="pe-rt" class="form-select" @bind="p.ContainerRuntime">
-                    <option value="">(default)</option>
-                    <option value="docker">docker</option>
-                    <option value="podman">podman</option>
-                </select>
-            </div>
-            <div class="col-md-4 d-flex align-items-end">
-                <div class="form-check">
-                    <input id="pe-create" class="form-check-input" type="checkbox" checked="@(p.Destination.AllowResourceGroupCreation ?? true)"
-                           @onchange="e => p.Destination.AllowResourceGroupCreation = (bool)e.Value! ? null : false" />
-                    <label class="form-check-label" for="pe-create">Allow creating the resource group</label>
+    }
+    <fieldset disabled="@(busy || _readOnly)" class="ads-stack">
+        <div class="ads-card">
+            <div class="ads-card-header"><Icon Name="git-branch" Size="18" /><h2>Source</h2></div>
+            <div class="ads-form-grid">
+                <div class="ads-span-4">
+                    <div class="form-label">Kind</div>
+                    <span class="ads-chip"><Icon Name="@(o.Source.Kind == SourceKind.GitHub ? "github" : "folder")" Size="12" /> @o.Source.Kind</span>
                 </div>
-            </div>
-        </div>
-
-        <h4>Parameters</h4>
-        <p class="small text-muted">An empty value means the AppHost's own configuration supplies it. Removing a parameter makes it missing.</p>
-        <table class="table table-sm align-middle">
-            <thead><tr><th>Name</th><th>Value</th><th>Secret</th><th>Config key override</th><th></th></tr></thead>
-            <tbody>
-                @foreach (var name in p.Parameters.Keys.OrderBy(k => k, StringComparer.Ordinal).ToList())
+                <div class="ads-span-8">
+                    <div class="form-label">Location</div>
+                    <div class="ads-path"><span>@o.Source.Location</span></div>
+                </div>
+                @if (o.Source.Kind == SourceKind.GitHub)
                 {
-                    var isSecret = s.IsSecret(name);
-                    <tr @key="name">
-                        <td><code>@name</code></td>
-                        <td style="min-width: 18rem">
-                            @if (s.IsMasked(name))
-                            {
-                                <SecretField Label="@name" HasValue="@(o.Parameters[name].Length > 0)" Original="@o.Parameters[name]"
-                                             Replacement="@s.ReplacementFor(name)" ReplacementChanged="v => s.Replace(name, v)"
-                                             Cleared="@s.IsCleared(name)" ClearedChanged="c => s.Clear(name, c)" />
-                            }
-                            else if (isSecret)
-                            {
-                                <SecretInput Value="@p.Parameters[name]" ValueChanged="v => p.Parameters[name] = v ?? string.Empty" />
-                            }
-                            else
-                            {
-                                <input class="form-control form-control-sm" value="@p.Parameters[name]" @onchange="ev => p.Parameters[name] = ev.Value?.ToString() ?? string.Empty" />
-                            }
-                        </td>
-                        <td><input type="checkbox" class="form-check-input" checked="@isSecret" @onchange="ev => s.SetSecret(name, (bool)ev.Value!)" /></td>
-                        <td>
-                            <input class="form-control form-control-sm" placeholder="@($"Parameters:{name}")" value="@p.ParameterConfigKeys.GetValueOrDefault(name)"
-                                   @onchange="ev => SetConfigKey(p, name, ev.Value?.ToString())" />
-                        </td>
-                        <td><button class="btn btn-sm btn-outline-danger" @onclick="() => s.Remove(name)">Remove</button></td>
-                    </tr>
+                    <div class="ads-span-4">
+                        <label class="form-label" for="pe-ref">Branch, tag or SHA</label>
+                        <input id="pe-ref" class="form-control ads-mono-input" placeholder="default branch" @bind="p.Source.Ref" />
+                    </div>
                 }
-            </tbody>
-        </table>
-        <div class="input-group mb-3" style="max-width: 28rem">
-            <input class="form-control" placeholder="parameter name" @bind="_newParameter" />
-            <button class="btn btn-outline-secondary" @onclick="AddParameter">Add parameter</button>
+                <div class="@(o.Source.Kind == SourceKind.GitHub ? "ads-span-8" : "")">
+                    <label class="form-label" for="pe-apphost">AppHost path</label>
+                    <input id="pe-apphost" class="form-control ads-mono-input" placeholder="found automatically" @bind="p.Source.AppHostPath" />
+                </div>
+                @if (o.Source.Kind == SourceKind.GitHub)
+                {
+                    <div>
+                        <div class="form-label">GitHub token for this profile</div>
+                        <SecretField Label="token" HasValue="@(!string.IsNullOrEmpty(o.Source.GitHubToken))" Original="@o.Source.GitHubToken"
+                                     Replacement="@s.TokenReplacement" ReplacementChanged="v => s.TokenReplacement = v"
+                                     Cleared="@s.TokenCleared" ClearedChanged="c => s.TokenCleared = c" />
+                    </div>
+                }
+            </div>
         </div>
 
-        <p class="small text-muted">Last deployed with Aspire: @(o.LastDeployedAspireVersion ?? "never")</p>
+        <div class="ads-card">
+            <div class="ads-card-header"><Icon Name="cloud" Size="18" /><h2>Destination</h2></div>
+            <div class="ads-form-grid">
+                <div class="ads-span-6">
+                    <label class="form-label" for="pe-sub">Subscription ID</label>
+                    <input id="pe-sub" class="form-control ads-mono-input" @bind="p.Destination.SubscriptionId" />
+                </div>
+                <div class="ads-span-6">
+                    <label class="form-label" for="pe-tenant">Tenant ID <span class="ads-label-hint">optional</span></label>
+                    <input id="pe-tenant" class="form-control ads-mono-input" @bind="p.Destination.TenantId" />
+                </div>
+                <div class="ads-span-4">
+                    <label class="form-label" for="pe-loc">Region</label>
+                    <input id="pe-loc" class="form-control ads-mono-input" placeholder="eastus2" @bind="p.Destination.Location" />
+                </div>
+                <div class="ads-span-4">
+                    <label class="form-label" for="pe-rg">Resource group</label>
+                    <input id="pe-rg" class="form-control ads-mono-input" @bind="p.Destination.ResourceGroup" />
+                </div>
+                <div class="ads-span-4">
+                    <label class="form-label" for="pe-cred">Credential source</label>
+                    <input id="pe-cred" class="form-control" placeholder="AzureCli" @bind="p.Destination.CredentialSource" />
+                </div>
+                <div class="ads-span-4">
+                    <label class="form-label" for="pe-env">Environment</label>
+                    <input id="pe-env" class="form-control" placeholder="Production" @bind="p.Environment" />
+                </div>
+                <div class="ads-span-4">
+                    <label class="form-label" for="pe-rt">Container runtime</label>
+                    <select id="pe-rt" class="form-select" @bind="p.ContainerRuntime">
+                        <option value="">(default)</option>
+                        <option value="docker">docker</option>
+                        <option value="podman">podman</option>
+                    </select>
+                </div>
+                <div class="ads-span-4 d-flex align-items-end">
+                    <div class="form-check form-switch mb-2">
+                        <input id="pe-create" class="form-check-input" type="checkbox" role="switch" checked="@(p.Destination.AllowResourceGroupCreation ?? true)"
+                               @onchange="e => p.Destination.AllowResourceGroupCreation = (bool)e.Value! ? null : false" />
+                        <label class="form-check-label" for="pe-create">Allow creating the resource group</label>
+                    </div>
+                </div>
+            </div>
+        </div>
 
-        <button class="btn btn-primary" @onclick="SaveAsync">Save</button>
-        <a class="btn btn-outline-primary" href="deploy/@Name">Deploy…</a>
-        <a class="btn btn-outline-secondary" href="profiles">Back</a>
+        <div class="ads-card">
+            <div class="ads-card-header">
+                <Icon Name="key" Size="18" /><h2>Parameters</h2>
+                <p class="ads-card-desc">An empty value means the AppHost's own configuration supplies it. Removing a parameter makes it missing.</p>
+            </div>
+            <div class="ads-table-wrap mb-3">
+                <table class="ads-table">
+                    <thead><tr><th>Name</th><th>Value</th><th>Secret</th><th>Config key override</th><th></th></tr></thead>
+                    <tbody>
+                        @if (p.Parameters.Count == 0)
+                        {
+                            <tr><td colspan="5" class="ads-muted">No parameters.</td></tr>
+                        }
+                        @foreach (var name in p.Parameters.Keys.OrderBy(k => k, StringComparer.Ordinal).ToList())
+                        {
+                            var isSecret = s.IsSecret(name);
+                            <tr @key="name">
+                                <td class="ads-cell-mono ads-cell-name">@name</td>
+                                <td style="min-width: 18rem">
+                                    @if (s.IsMasked(name))
+                                    {
+                                        <SecretField Label="@name" HasValue="@(o.Parameters[name].Length > 0)" Original="@o.Parameters[name]"
+                                                     Replacement="@s.ReplacementFor(name)" ReplacementChanged="v => s.Replace(name, v)"
+                                                     Cleared="@s.IsCleared(name)" ClearedChanged="c => s.Clear(name, c)" />
+                                    }
+                                    else if (isSecret)
+                                    {
+                                        <SecretInput Value="@p.Parameters[name]" ValueChanged="v => p.Parameters[name] = v ?? string.Empty" CssClass="form-control-sm" />
+                                    }
+                                    else
+                                    {
+                                        <input class="form-control form-control-sm ads-mono-input" value="@p.Parameters[name]" @onchange="ev => p.Parameters[name] = ev.Value?.ToString() ?? string.Empty" />
+                                    }
+                                </td>
+                                <td>
+                                    <div class="form-check form-switch mb-0">
+                                        <input type="checkbox" class="form-check-input" role="switch" aria-label="Secret" checked="@isSecret" @onchange="ev => s.SetSecret(name, (bool)ev.Value!)" />
+                                    </div>
+                                </td>
+                                <td>
+                                    <input class="form-control form-control-sm ads-mono-input" placeholder="@($"Parameters:{name}")" value="@p.ParameterConfigKeys.GetValueOrDefault(name)"
+                                           @onchange="ev => SetConfigKey(p, name, ev.Value?.ToString())" />
+                                </td>
+                                <td class="ads-cell-end">
+                                    <button class="btn btn-sm btn-ghost btn-icon" title="Remove" aria-label="@($"Remove {name}")" @onclick="() => s.Remove(name)"><Icon Name="trash" Size="14" /></button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+            <div class="input-group" style="max-width: 28rem">
+                <input class="form-control ads-mono-input" placeholder="parameter name" @bind="_newParameter" />
+                <button class="btn btn-outline-secondary" @onclick="AddParameter"><Icon Name="plus" Size="14" /> Add parameter</button>
+            </div>
+        </div>
+
+        <div class="ads-row">
+            <span class="ads-meta"><span><Icon Name="box" Size="13" /> Last deployed with Aspire: @(o.LastDeployedAspireVersion ?? "never")</span></span>
+            <span class="ads-spacer"></span>
+            <a class="btn btn-outline-secondary" href="profiles">Back</a>
+            <button class="btn btn-primary" @onclick="SaveAsync"><Icon Name="check" Size="14" /> Save</button>
+        </div>
     </fieldset>
 }
 else if (_error is null)
 {
-    <p>Loading…</p>
+    <p class="ads-muted">Loading…</p>
 }
 
 @code {
@@ -157,6 +204,8 @@ else if (_error is null)
     private string? _error;
     private bool _saved;
     private bool _readOnly;
+
+    private bool Busy => Runs.TryGet("deploy:" + Name)?.IsRunning == true;
 
     protected override void OnInitialized() => Runs.RunsChanged += OnRunsChanged;
 

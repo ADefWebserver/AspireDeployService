@@ -1,63 +1,104 @@
 @page "/settings"
 @inject IProfileService Profiles
 
-<h1>Settings</h1>
+<header class="ads-page-header">
+    <div class="ads-page-text">
+        <div class="ads-eyebrow">Configuration</div>
+        <h1>Settings</h1>
+        <p class="ads-lead">Where this app keeps its settings, work and tools, and the GitHub token used for private repositories.</p>
+    </div>
+</header>
 
 @if (_snapshot is { } s)
 {
-    <dl class="row">
-        <dt class="col-sm-3">Settings file</dt>
-        <dd class="col-sm-9">
-            <code>@s.Location.Path</code>
-            <button class="btn btn-sm btn-link" @onclick="() => OpenFolder(Path.GetDirectoryName(s.Location.Path)!)">Open folder</button>
-            <div class="small text-muted">Found by: @RuleText(s.Location.Rule)@(s.Location.Exists ? "" : " (not created yet)")</div>
-        </dd>
-        <dt class="col-sm-3">Work root</dt>
-        <dd class="col-sm-9"><code>@s.Options.WorkRoot</code> <button class="btn btn-sm btn-link" @onclick="() => OpenFolder(s.Options.WorkRoot)">Open folder</button></dd>
-        <dt class="col-sm-3">Tools root</dt>
-        <dd class="col-sm-9"><code>@s.Options.ToolsRoot</code> <button class="btn btn-sm btn-link" @onclick="() => OpenFolder(s.Options.ToolsRoot)">Open folder</button></dd>
-    </dl>
-
-    @if (s.Location.ParseError is { } error)
-    {
-        <div class="alert alert-danger">
-            <p class="mb-1"><strong>The settings file cannot be read.</strong> Nothing is saved until it is fixed by hand; the file is never overwritten.</p>
-            <code>@error</code>
-        </div>
-    }
-    else
-    {
-        <h4 class="mt-4">GitHub token</h4>
-        <p class="small text-muted">
-            <code>AspireDeploy:GitHub:Token</code> is used for private repositories when a profile has no token of its own.
-            Use a fine-grained token with <strong>Contents: read</strong> on the selected repositories only. It is stored in plain text in the settings file, which git ignores.
-        </p>
-        <div class="d-flex align-items-center gap-2 mb-2">
-            <span>@(string.IsNullOrEmpty(s.Options.GitHubToken) ? "(not set)" : "(set)")</span>
-            @if (!_replacing)
-            {
-                <button class="btn btn-sm btn-outline-secondary" @onclick="() => _replacing = true">Replace</button>
-                @if (!string.IsNullOrEmpty(s.Options.GitHubToken))
-                {
-                    <button class="btn btn-sm btn-outline-danger" @onclick="ClearTokenAsync">Clear</button>
-                }
-            }
-        </div>
-        @if (_replacing)
+    <div class="ads-stack">
+        @if (s.Location.ParseError is { } error)
         {
-            <div class="row g-2 align-items-start" style="max-width: 40rem">
-                <div class="col"><SecretInput @bind-Value="_newToken" Placeholder="github_pat_..." /></div>
-                <div class="col-auto">
-                    <button class="btn btn-primary" @onclick="() => SaveTokenAsync(_newToken)">Save</button>
-                    <button class="btn btn-outline-secondary" @onclick="() => { _replacing = false; _newToken = null; }">Cancel</button>
+            <div class="ads-callout ads-callout-error">
+                <Icon Name="x-circle" Size="17" />
+                <div class="ads-callout-body">
+                    <div class="ads-callout-title">The settings file cannot be read.</div>
+                    <div class="mb-1">Nothing is saved until it is fixed by hand; the file is never overwritten.</div>
+                    <code>@error</code>
                 </div>
             </div>
         }
-        @if (_message is { } m)
+
+        <div class="ads-card">
+            <div class="ads-card-header"><Icon Name="folder" Size="18" /><h2>Locations</h2></div>
+            <div class="ads-stack gap-3">
+                <div>
+                    <div class="form-label">Settings file</div>
+                    <div class="ads-path">
+                        <Icon Name="file-text" Size="15" />
+                        <span>@s.Location.Path</span>
+                        <button class="btn btn-sm btn-outline-secondary" @onclick="() => OpenFolder(Path.GetDirectoryName(s.Location.Path)!)"><Icon Name="external-link" Size="13" /> Open folder</button>
+                    </div>
+                    <div class="form-text">Found by: @RuleText(s.Location.Rule)@(s.Location.Exists ? "" : " (not created yet)")</div>
+                </div>
+                <div>
+                    <div class="form-label">Work root</div>
+                    <div class="ads-path">
+                        <Icon Name="folder" Size="15" />
+                        <span>@s.Options.WorkRoot</span>
+                        <button class="btn btn-sm btn-outline-secondary" @onclick="() => OpenFolder(s.Options.WorkRoot)"><Icon Name="external-link" Size="13" /> Open folder</button>
+                    </div>
+                    <div class="form-text">Source copies, logs and history, one folder per profile.</div>
+                </div>
+                <div>
+                    <div class="form-label">Tools root</div>
+                    <div class="ads-path">
+                        <Icon Name="box" Size="15" />
+                        <span>@s.Options.ToolsRoot</span>
+                        <button class="btn btn-sm btn-outline-secondary" @onclick="() => OpenFolder(s.Options.ToolsRoot)"><Icon Name="external-link" Size="13" /> Open folder</button>
+                    </div>
+                    <div class="form-text">Aspire CLI versions installed to match each AppHost.</div>
+                </div>
+            </div>
+        </div>
+
+        @if (s.Location.ParseError is null)
         {
-            <div class="alert @(_failed ? "alert-danger" : "alert-success") mt-3">@m</div>
+            var hasToken = !string.IsNullOrEmpty(s.Options.GitHubToken);
+            <div class="ads-card">
+                <div class="ads-card-header">
+                    <Icon Name="github" Size="18" /><h2>GitHub token</h2>
+                    <span class="ads-spacer"></span>
+                    <span class="ads-pill @(hasToken ? "ads-pill-pass" : "")">@(hasToken ? "Set" : "Not set")</span>
+                </div>
+                <p class="ads-muted">
+                    <span class="ads-code">AspireDeploy:GitHub:Token</span> is used for private repositories when a profile has no token of its own.
+                    Use a fine-grained token with <strong>Contents: read</strong> on the selected repositories only. It is stored in plain text in the settings file, which git ignores.
+                </p>
+                @if (_replacing)
+                {
+                    <div class="ads-row align-items-start" style="max-width: 40rem">
+                        <div class="flex-grow-1"><SecretInput @bind-Value="_newToken" Placeholder="github_pat_..." CssClass="ads-mono-input" /></div>
+                        <button class="btn btn-primary" @onclick="() => SaveTokenAsync(_newToken)"><Icon Name="check" Size="14" /> Save</button>
+                        <button class="btn btn-outline-secondary" @onclick="() => { _replacing = false; _newToken = null; }">Cancel</button>
+                    </div>
+                }
+                else
+                {
+                    <div class="ads-secret">
+                        <span class="ads-secret-value"><Icon Name="lock" Size="13" /> @(hasToken ? "•••••• (set)" : "(not set)")</span>
+                        <button class="btn btn-sm btn-outline-secondary" @onclick="() => _replacing = true">Replace</button>
+                        @if (hasToken)
+                        {
+                            <button class="btn btn-sm btn-outline-danger" @onclick="ClearTokenAsync">Clear</button>
+                        }
+                    </div>
+                }
+                @if (_message is { } m)
+                {
+                    <div class="ads-callout @(_failed ? "ads-callout-error" : "ads-callout-success") mt-3">
+                        <Icon Name="@(_failed ? "x-circle" : "check-circle")" Size="17" />
+                        <div class="ads-callout-body">@m</div>
+                    </div>
+                }
+            </div>
         }
-    }
+    </div>
 }
 
 @code {

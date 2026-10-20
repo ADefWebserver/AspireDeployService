@@ -2,31 +2,27 @@
 @implements IDisposable
 @inject DialogService Dialogs
 
-<div class="page" inert="@(Dialogs.Current is not null)">
-    <div class="sidebar">
-        <NavMenu />
-    </div>
+<div class="ads-shell" inert="@(Dialogs.Current is not null)">
+    <NavMenu />
 
-    <main>
-        <div class="top-row px-4">
-            <span class="text-muted small">Deploy Aspire 13.x apps to Azure</span>
-        </div>
-
-        <article class="content px-4">
-            @* Plan D14: a rendering error shows here instead of the template's "Reload" bar, so runs keep going. *@
-            <ErrorBoundary @ref="_boundary">
-                <ChildContent>
-                    @Body
-                </ChildContent>
-                <ErrorContent Context="ex">
-                    <div class="alert alert-danger">
-                        <p class="mb-2">This page hit an unexpected error (result code 1): @ex.Message</p>
-                        <p class="mb-2 small">Running work is not affected.</p>
-                        <button class="btn btn-sm btn-outline-danger" @onclick="Recover">Try again</button>
+    <main class="ads-main">
+        @* Plan D14: a rendering error shows here instead of the template's "Reload" bar, so runs keep going. *@
+        <ErrorBoundary @ref="_boundary">
+            <ChildContent>
+                @Body
+            </ChildContent>
+            <ErrorContent Context="ex">
+                <div class="ads-callout ads-callout-error">
+                    <Icon Name="x-circle" Size="18" />
+                    <div class="ads-callout-body">
+                        <div class="ads-callout-title">This page hit an unexpected error (result code 1)</div>
+                        <div class="ads-pre-line">@ex.Message</div>
+                        <div class="ads-small ads-muted mt-1">Running work is not affected.</div>
+                        <button class="btn btn-sm btn-outline-danger mt-3" @onclick="Recover"><Icon Name="refresh" Size="14" /> Try again</button>
                     </div>
-                </ErrorContent>
-            </ErrorBoundary>
-        </article>
+                </div>
+            </ErrorContent>
+        </ErrorBoundary>
     </main>
 </div>
 

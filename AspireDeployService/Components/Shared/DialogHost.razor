@@ -8,15 +8,36 @@
 @if (Dialogs.Current is { } request)
 {
     <div class="ads-backdrop">
-        <div class="ads-dialog card shadow" role="dialog" aria-modal="true" aria-labelledby="ads-dialog-title" aria-describedby="ads-dialog-message"
+        <div class="ads-dialog" role="dialog" aria-modal="true" aria-labelledby="ads-dialog-title" aria-describedby="ads-dialog-message"
              @onkeydown="e => OnKeyDown(e, request)">
-            <div class="card-body">
-                <h5 id="ads-dialog-title" class="card-title">@request.Title</h5>
-                <p id="ads-dialog-message" class="ads-dialog-message">@request.Message</p>
-                <div class="d-flex justify-content-end gap-2">
-                    <button class="btn btn-outline-secondary" @ref="_cancel" @onclick="() => Dialogs.Answer(request, false)">Cancel</button>
-                    <button class="btn btn-primary" @ref="_confirm" @onclick="() => Dialogs.Answer(request, true)">@request.ConfirmLabel</button>
-                </div>
+            <div class="ads-dialog-head">
+                <span class="ads-tile-icon"><Icon Name="@HeadIcon(request)" Size="20" /></span>
+                <h2 id="ads-dialog-title">@request.Title</h2>
+            </div>
+            <div id="ads-dialog-message" class="ads-dialog-body">
+                @foreach (var block in Blocks(request.Message))
+                {
+                    @if (block.Pairs is { } pairs)
+                    {
+                        <dl class="ads-kv">
+                            @foreach (var (key, value) in pairs)
+                            {
+                                <div><dt>@key</dt><dd>@value</dd></div>
+                            }
+                        </dl>
+                    }
+                    else
+                    {
+                        <p class="ads-dialog-message">@block.Text</p>
+                    }
+                }
+            </div>
+            <div class="ads-dialog-foot">
+                <button class="btn btn-outline-secondary" @ref="_cancel" @onclick="() => Dialogs.Answer(request, false)">Cancel</button>
+                <button class="btn btn-primary" @ref="_confirm" @onclick="() => Dialogs.Answer(request, true)">
+                    <Icon Name="@(request.ConfirmLabel.StartsWith("Deploy", StringComparison.OrdinalIgnoreCase) ? "zap" : "check")" Size="15" />
+                    @request.ConfirmLabel
+                </button>
             </div>
         </div>
     </div>
@@ -27,10 +48,58 @@
     private ElementReference _confirm;
     private DialogRequest? _focused;
 
+    private sealed record Block(string? Text, List<(string Key, string Value)>? Pairs);
+
     protected override void OnInitialized() => Dialogs.Changed += OnChanged;
 
     // Core asks from background threads, so the render is marshalled to the dispatcher.
     private void OnChanged() => _ = InvokeAsync(StateHasChanged);
+
+    /// <summary>
+    /// Core writes indented "  key: value" lines for targets (tenant, subscription, …); those render as a
+    /// key/value list, everything else as paragraphs.
+    /// </summary>
+    private static List<Block> Blocks(string message)
+    {
+        var blocks = new List<Block>();
+        var text = new List<string>();
+        List<(string, string)>? pairs = null;
+
+        void FlushText()
+        {
+            if (text.Count > 0)
+                blocks.Add(new Block(string.Join("\n", text), null));
+            text.Clear();
+        }
+
+        foreach (var line in message.Replace("\r", "").Split('\n'))
+        {
+            var colon = line.IndexOf(": ", StringComparison.Ordinal);
+            if (line.StartsWith(' ') && colon > 0 && colon < 30)
+            {
+                FlushText();
+                if (pairs is null)
+                {
+                    pairs = [];
+                    blocks.Add(new Block(null, pairs));
+                }
+                pairs.Add((line[..colon].Trim(), line[(colon + 2)..].Trim()));
+                continue;
+            }
+            pairs = null;
+            if (line.Length == 0)
+                FlushText();
+            else
+                text.Add(line);
+        }
+        FlushText();
+        return blocks;
+    }
+
+    private static string HeadIcon(DialogRequest request) =>
+        request.ConfirmLabel.StartsWith("Deploy", StringComparison.OrdinalIgnoreCase) || request.ConfirmLabel == "List steps" ? "rocket"
+        : request.Title.Contains("GitHub", StringComparison.OrdinalIgnoreCase) ? "github"
+        : "alert-triangle";
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {

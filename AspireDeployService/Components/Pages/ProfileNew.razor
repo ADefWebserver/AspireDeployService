@@ -6,122 +6,185 @@
 @inject RunCoordinator Runs
 @inject NavigationManager Nav
 
-<h1>New profile</h1>
-<p class="text-muted">Flow §7.2: discover the AppHost, then fill in the destination and the parameters it needs.</p>
+@{
+    var stage = _savedName is not null ? 4 : _run?.ValueAs<WizardData>() is not null ? 2 : 1;
+}
 
-<div style="max-width: 48rem">
-    <div class="mb-3">
-        <label class="form-label" for="pn-name">Profile name</label>
-        <input id="pn-name" class="form-control" placeholder="orders-dev" @bind="_name" @bind:event="oninput" disabled="@Busy" />
-        @if (_name is { Length: > 0 } && !ProfileRules.IsValidName(_name))
-        {
-            <div class="form-text text-danger">2 to 40 lower-case letters, digits or dashes, starting with a letter or digit.</div>
-        }
+<header class="ads-page-header">
+    <div class="ads-page-text">
+        <div class="ads-eyebrow"><a href="profiles" class="ads-eyebrow-link"><Icon Name="arrow-left" Size="12" /> Profiles</a></div>
+        <h1>New profile</h1>
+        <p class="ads-lead">Discover the AppHost, then fill in the destination and the parameters it needs.</p>
     </div>
-    <SourcePicker Id="pn" @bind-Kind="_kind" @bind-Location="_location" @bind-Ref="_ref" @bind-AppHostPath="_appHost" Disabled="@Busy" />
-    <div class="form-check mt-3">
-        <input id="pn-overwrite" class="form-check-input" type="checkbox" @bind="_overwrite" disabled="@Busy" />
-        <label class="form-check-label" for="pn-overwrite">Overwrite an existing profile with this name</label>
-    </div>
-    <button class="btn btn-primary mt-3" disabled="@(Busy || !ProfileRules.IsValidName(_name) || string.IsNullOrWhiteSpace(_location))" @onclick="Discover">
-        Discover
-    </button>
+</header>
+
+<div class="ads-stepper" aria-label="Progress">
+    <span class="ads-stepper-item @StepClass(1, stage)"><span class="ads-stepper-num">@(stage > 1 ? "✓" : "1")</span> Source</span>
+    <span class="ads-stepper-line"></span>
+    <span class="ads-stepper-item @StepClass(2, stage)"><span class="ads-stepper-num">@(stage > 3 ? "✓" : "2")</span> Destination</span>
+    <span class="ads-stepper-line"></span>
+    <span class="ads-stepper-item @StepClass(3, stage)"><span class="ads-stepper-num">@(stage > 3 ? "✓" : "3")</span> Parameters</span>
 </div>
 
-<div class="mt-3"><OutcomeBanner Run="_run" /></div>
+<div class="ads-card mb-4">
+    <div class="ads-card-header"><span class="ads-stepper-num-sm">1</span><h2>Source</h2></div>
+    <div class="ads-form-grid mb-3">
+        <div class="ads-span-6">
+            <label class="form-label" for="pn-name">Profile name</label>
+            <input id="pn-name" class="form-control ads-mono-input" placeholder="orders-dev" @bind="_name" @bind:event="oninput" disabled="@Busy" />
+            @if (_name is { Length: > 0 } && !ProfileRules.IsValidName(_name))
+            {
+                <div class="form-text text-danger">2 to 40 lower-case letters, digits or dashes, starting with a letter or digit.</div>
+            }
+            else
+            {
+                <div class="form-text">2 to 40 lower-case letters, digits or dashes.</div>
+            }
+        </div>
+    </div>
+    <SourcePicker Id="pn" @bind-Kind="_kind" @bind-Location="_location" @bind-Ref="_ref" @bind-AppHostPath="_appHost" Disabled="@Busy" />
+    <div class="ads-card-footer">
+        <div class="form-check mb-0">
+            <input id="pn-overwrite" class="form-check-input" type="checkbox" @bind="_overwrite" disabled="@Busy" />
+            <label class="form-check-label" for="pn-overwrite">Overwrite an existing profile with this name</label>
+        </div>
+        <span class="ads-spacer"></span>
+        <button class="btn btn-primary" disabled="@(Busy || !ProfileRules.IsValidName(_name) || string.IsNullOrWhiteSpace(_location))" @onclick="Discover">
+            @if (Busy)
+            {
+                <span class="ads-spinner ads-spinner-sm"></span> <span>Discovering…</span>
+            }
+            else
+            {
+                <Icon Name="search" Size="15" /> <span>Discover</span>
+            }
+        </button>
+    </div>
+</div>
+
+<OutcomeBanner Run="_run" />
 
 @if (_run?.ValueAs<WizardData>() is { } data && _form is { } p)
 {
-    <div style="max-width: 56rem">
+    <div class="ads-stack mb-3">
         @foreach (var w in data.Draft.Warnings.Concat(data.Discovery.Warnings))
         {
-            <div class="alert alert-warning py-2">@w</div>
+            <div class="ads-callout ads-callout-warn">
+                <Icon Name="alert-triangle" Size="17" />
+                <div class="ads-callout-body">@w</div>
+            </div>
         }
 
-        <h4>Destination</h4>
-        <div class="row g-2 mb-3">
-            <div class="col-md-8">
-                <label class="form-label" for="pn-sub">Subscription</label>
-                @if (data.Subscriptions.Count > 0 && !_typeSubscription)
-                {
-                    <select id="pn-sub" class="form-select" value="@p.Destination.SubscriptionId" @onchange="e => PickSubscription(data, e.Value?.ToString())">
-                        <option value="">Choose…</option>
-                        @foreach (var s in data.Subscriptions)
+        <div class="ads-card">
+            <div class="ads-card-header"><span class="ads-stepper-num-sm">2</span><h2>Destination</h2></div>
+            <div class="ads-form-grid">
+                <div class="ads-span-8">
+                    <label class="form-label" for="pn-sub">
+                        Subscription
+                        @if (data.Subscriptions.Count > 0 && !_typeSubscription)
                         {
-                            <option value="@s.Id">@s.Name (@s.Id)@(s.IsDefault ? " — default" : "")</option>
+                            <button class="btn btn-link btn-sm ms-auto p-0" @onclick="() => _typeSubscription = true">Type an ID instead</button>
                         }
-                    </select>
-                    <button class="btn btn-sm btn-link px-0" @onclick="() => _typeSubscription = true">Type an ID instead</button>
-                }
-                else
-                {
-                    <input id="pn-sub" class="form-control" placeholder="subscription GUID" @bind="p.Destination.SubscriptionId" />
-                }
-            </div>
-            <div class="col-md-4">
-                <label class="form-label" for="pn-tenant">Tenant ID</label>
-                <input id="pn-tenant" class="form-control" placeholder="(az login tenant)" @bind="p.Destination.TenantId" />
-            </div>
-            <div class="col-md-4">
-                <label class="form-label" for="pn-loc">Region</label>
-                <input id="pn-loc" class="form-control" placeholder="eastus2" @bind="p.Destination.Location" />
-            </div>
-            <div class="col-md-4">
-                <label class="form-label" for="pn-rg">Resource group</label>
-                <input id="pn-rg" class="form-control" @bind="p.Destination.ResourceGroup" />
-            </div>
-            <div class="col-md-4">
-                <label class="form-label" for="pn-env">Environment</label>
-                <input id="pn-env" class="form-control" @bind="p.Environment" />
+                    </label>
+                    @if (data.Subscriptions.Count > 0 && !_typeSubscription)
+                    {
+                        <select id="pn-sub" class="form-select" value="@p.Destination.SubscriptionId" @onchange="e => PickSubscription(data, e.Value?.ToString())">
+                            <option value="">Choose…</option>
+                            @foreach (var s in data.Subscriptions)
+                            {
+                                <option value="@s.Id">@s.Name (@s.Id)@(s.IsDefault ? " — default" : "")</option>
+                            }
+                        </select>
+                    }
+                    else
+                    {
+                        <input id="pn-sub" class="form-control ads-mono-input" placeholder="subscription GUID" @bind="p.Destination.SubscriptionId" />
+                    }
+                </div>
+                <div class="ads-span-4">
+                    <label class="form-label" for="pn-tenant">Tenant ID</label>
+                    <input id="pn-tenant" class="form-control ads-mono-input" placeholder="(az login tenant)" @bind="p.Destination.TenantId" />
+                </div>
+                <div class="ads-span-4">
+                    <label class="form-label" for="pn-loc">Region</label>
+                    <input id="pn-loc" class="form-control ads-mono-input" placeholder="eastus2" @bind="p.Destination.Location" />
+                </div>
+                <div class="ads-span-4">
+                    <label class="form-label" for="pn-rg">Resource group</label>
+                    <input id="pn-rg" class="form-control ads-mono-input" @bind="p.Destination.ResourceGroup" />
+                </div>
+                <div class="ads-span-4">
+                    <label class="form-label" for="pn-env">Environment</label>
+                    <input id="pn-env" class="form-control" @bind="p.Environment" />
+                </div>
             </div>
         </div>
 
-        <h4>Parameters</h4>
-        @if (data.Draft.ToAsk.Count == 0)
-        {
-            <p class="text-muted">This AppHost needs no parameter values.</p>
-        }
-        @foreach (var param in data.Draft.ToAsk)
-        {
-            var supplied = _appHostSupplies.Contains(param.Name);
-            <div class="mb-3">
-                <label class="form-label" for="pn-p-@param.Name"><code>@param.Name</code> <span class="small text-muted">@param.ConfigKey@(param.Secret ? ", secret" : "")</span></label>
-                @if (param.Secret)
+        <div class="ads-card">
+            <div class="ads-card-header"><span class="ads-stepper-num-sm">3</span><h2>Parameters</h2></div>
+            @if (data.Draft.ToAsk.Count == 0)
+            {
+                <p class="ads-muted">This AppHost needs no parameter values.</p>
+            }
+            <div class="ads-stack">
+                @foreach (var param in data.Draft.ToAsk)
                 {
-                    <SecretInput Id="@($"pn-p-{param.Name}")" Value="@_values.GetValueOrDefault(param.Name)" ValueChanged="v => _values[param.Name] = v" Disabled="@supplied" />
+                    var supplied = _appHostSupplies.Contains(param.Name);
+                    <div>
+                        <label class="form-label" for="pn-p-@param.Name">
+                            <code>@param.Name</code>
+                            <span class="ads-label-hint">@param.ConfigKey@(param.Secret ? " · secret" : "")</span>
+                        </label>
+                        @if (param.Secret)
+                        {
+                            <SecretInput Id="@($"pn-p-{param.Name}")" Value="@_values.GetValueOrDefault(param.Name)" ValueChanged="v => _values[param.Name] = v" Disabled="@supplied" />
+                        }
+                        else
+                        {
+                            <input id="pn-p-@param.Name" class="form-control ads-mono-input" value="@_values.GetValueOrDefault(param.Name)" disabled="@supplied"
+                                   @onchange="e => _values[param.Name] = e.Value?.ToString()" />
+                        }
+                        <div class="form-check mt-2">
+                            <input id="pn-s-@param.Name" class="form-check-input" type="checkbox" checked="@supplied"
+                                   @onchange="e => Toggle(param.Name, (bool)e.Value!)" />
+                            <label class="form-check-label ads-small" for="pn-s-@param.Name">Leave empty (the AppHost's own configuration supplies it)</label>
+                        </div>
+                    </div>
+                }
+            </div>
+            @if (data.Draft.Optional.Count > 0)
+            {
+                <p class="ads-small ads-subtle mt-3 mb-0">
+                    Not asked, because they have a default or are generated: @string.Join(", ", data.Draft.Optional.Select(o => o.Name)).
+                    You can override them later on the profile page.
+                </p>
+            }
+
+            <div class="ads-card-footer">
+                @if (_saveError is { } se)
+                {
+                    <div class="ads-callout ads-callout-error w-100">
+                        <Icon Name="x-circle" Size="17" />
+                        <div class="ads-callout-body ads-pre-line">@se</div>
+                    </div>
+                }
+                @if (_savedName is { } saved)
+                {
+                    <div class="ads-banner ads-banner-success w-100 mb-0">
+                        <span class="ads-banner-icon"><Icon Name="check-circle" Size="18" /></span>
+                        <div class="ads-banner-body">
+                            <span class="ads-banner-title">Profile @saved saved.</span>
+                            <span class="ads-muted"> <a href="deploy/@saved">Deploy it</a> or <a href="profiles/@saved">review it</a>.</span>
+                        </div>
+                    </div>
                 }
                 else
                 {
-                    <input id="pn-p-@param.Name" class="form-control" value="@_values.GetValueOrDefault(param.Name)" disabled="@supplied"
-                           @onchange="e => _values[param.Name] = e.Value?.ToString()" />
+                    <span class="ads-spacer"></span>
+                    <button class="btn btn-primary" @onclick="() => SaveAsync(data)"><Icon Name="check" Size="15" /> Save profile</button>
                 }
-                <div class="form-check">
-                    <input id="pn-s-@param.Name" class="form-check-input" type="checkbox" checked="@supplied"
-                           @onchange="e => Toggle(param.Name, (bool)e.Value!)" />
-                    <label class="form-check-label small" for="pn-s-@param.Name">Leave empty (the AppHost's own configuration supplies it)</label>
-                </div>
             </div>
-        }
-        @if (data.Draft.Optional.Count > 0)
-        {
-            <p class="small text-muted">
-                Not asked, because they have a default or are generated: @string.Join(", ", data.Draft.Optional.Select(o => o.Name)).
-                You can override them later on the profile page.
-            </p>
-        }
-
-        @if (_saveError is { } se)
-        {
-            <div class="alert alert-danger ads-pre-line">@se</div>
-        }
-        @if (_savedName is { } saved)
-        {
-            <div class="alert alert-success">Profile <strong>@saved</strong> saved. <a href="deploy/@saved">Deploy it</a> or <a href="profiles/@saved">review it</a>.</div>
-        }
-        else
-        {
-            <button class="btn btn-primary" @onclick="() => SaveAsync(data)">Save profile</button>
-        }
+        </div>
     </div>
 }
 
@@ -151,6 +214,8 @@
     private string? _savedName;
 
     private bool Busy => _run?.IsRunning == true;
+
+    private static string StepClass(int step, int stage) => stage > step ? "is-done" : stage == step || (stage == 2 && step == 3) ? "is-active" : "";
 
     protected override void OnInitialized()
     {

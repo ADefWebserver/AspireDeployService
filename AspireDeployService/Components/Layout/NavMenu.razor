@@ -1,53 +1,78 @@
 ﻿@implements IDisposable
 @inject RunCoordinator Runs
+@inject IJSRuntime JS
 
-<div class="top-row ps-3 navbar navbar-dark">
-    <div class="container-fluid">
-        <a class="navbar-brand" href="">Aspire Deploy</a>
-    </div>
-</div>
+@* The horizontal top app bar (docs/mockups): brand, page tabs, theme toggle. No sidebar. *@
+<header class="ads-topbar">
+    <a class="ads-brand" href="">
+        <span class="ads-brand-mark"><Icon Name="logo" Size="20" StrokeWidth="1.6" /></span>
+        <span class="ads-brand-name">Aspire Deploy</span>
+    </a>
 
-<input type="checkbox" title="Navigation menu" class="navbar-toggler" />
-
-<div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
-    <nav class="nav flex-column">
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
-                <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Home
-            </NavLink>
-        </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="doctor">
-                <span class="bi bi-heart-pulse-nav-menu" aria-hidden="true"></span> Doctor @Spinner("doctor")
-            </NavLink>
-        </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="discover">
-                <span class="bi bi-search-nav-menu" aria-hidden="true"></span> Discover @Spinner("discover")
-            </NavLink>
-        </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="profiles">
-                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Profiles @Spinner("deploy", "profile")
-            </NavLink>
-        </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="settings">
-                <span class="bi bi-gear-nav-menu" aria-hidden="true"></span> Settings
-            </NavLink>
-        </div>
+    <nav class="ads-tabs" aria-label="Pages">
+        <NavLink class="ads-tab" href="" Match="NavLinkMatch.All">Home</NavLink>
+        <NavLink class="ads-tab" href="doctor">Doctor @Running("doctor")</NavLink>
+        <NavLink class="ads-tab" href="discover">Discover @Running("discover")</NavLink>
+        <NavLink class="ads-tab" href="profiles">Profiles @Running("deploy", "profile")</NavLink>
+        <NavLink class="ads-tab" href="settings">Settings</NavLink>
     </nav>
-</div>
+
+    <div class="ads-topbar-end">
+        @if (ActiveCount > 0)
+        {
+            <span class="ads-activity" title="Background tasks running">
+                <span class="ads-spinner ads-spinner-sm"></span>
+                @ActiveCount running
+            </span>
+        }
+        <button type="button" class="btn btn-ghost btn-icon" title="@(_theme == "dark" ? "Switch to light theme" : "Switch to dark theme")"
+                aria-label="Toggle theme" @onclick="ToggleThemeAsync">
+            <Icon Name="@(_theme == "dark" ? "moon" : "sun")" Size="18" />
+        </button>
+        <a class="btn btn-ghost btn-icon" href="settings" title="Settings" aria-label="Settings"><Icon Name="sliders" Size="18" /></a>
+    </div>
+</header>
 
 @code {
+    private string _theme = "dark";
+
+    private int ActiveCount => Runs.Active.Count(r => !r.Key.StartsWith("debug:", StringComparison.Ordinal));
+
     protected override void OnInitialized() => Runs.RunsChanged += OnRunsChanged;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+            return;
+        try
+        {
+            _theme = await JS.InvokeAsync<string>("adsTheme.get");
+            StateHasChanged();
+        }
+        catch (JSException)
+        {
+            // The theme is cosmetic; keep the default.
+        }
+    }
+
+    private async Task ToggleThemeAsync()
+    {
+        var next = _theme == "dark" ? "light" : "dark";
+        try
+        {
+            _theme = await JS.InvokeAsync<string>("adsTheme.set", next);
+        }
+        catch (JSException)
+        {
+        }
+    }
 
     private void OnRunsChanged() => _ = InvokeAsync(StateHasChanged);
 
-    /// <summary>Plan §6.1: a spinner next to pages that have an active run.</summary>
-    private RenderFragment? Spinner(params string[] prefixes) =>
+    /// <summary>Plan §6.1: a live indicator next to pages that have an active run.</summary>
+    private RenderFragment? Running(params string[] prefixes) =>
         Runs.Active.Any(r => prefixes.Any(p => r.Key.StartsWith(p + ":", StringComparison.Ordinal)))
-            ? @<span class="spinner-border spinner-border-sm ms-2" role="status" aria-label="running"></span>
+            ? @<span class="ads-tab-live" role="status" aria-label="running"></span>
             : null;
 
     public void Dispose() => Runs.RunsChanged -= OnRunsChanged;

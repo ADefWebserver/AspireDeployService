@@ -4,43 +4,79 @@
 @inject IDeployService Deployer
 @inject RunCoordinator Runs
 
-<h1>Deploy @Name</h1>
+<header class="ads-page-header">
+    <div class="ads-page-text">
+        <div class="ads-eyebrow"><a href="profiles" class="ads-eyebrow-link"><Icon Name="arrow-left" Size="12" /> Profiles</a></div>
+        <h1>Deploy @Name</h1>
+        <p class="ads-lead">Runs <span class="ads-code">aspire deploy</span> with this profile and your <span class="ads-code">az login</span>. You confirm the target before anything is created.</p>
+    </div>
+    @if (_profile is not null)
+    {
+        <div class="ads-page-actions">
+            <a class="btn btn-outline-secondary" href="profiles/@Name"><Icon Name="pencil" Size="14" /> Edit profile</a>
+        </div>
+    }
+</header>
 
 @if (_error is { } e)
 {
-    <div class="alert alert-danger">@e</div>
+    <div class="ads-callout ads-callout-error mb-3">
+        <Icon Name="x-circle" Size="17" />
+        <div class="ads-callout-body">@e</div>
+    </div>
 }
 
 @if (_profile is { } p)
 {
-    <dl class="row" style="max-width: 56rem">
-        <dt class="col-sm-3">Source</dt><dd class="col-sm-9">@p.ToSourceSpec().Display</dd>
-        <dt class="col-sm-3">Subscription</dt><dd class="col-sm-9"><code>@p.Destination.SubscriptionId</code></dd>
-        <dt class="col-sm-3">Resource group</dt><dd class="col-sm-9">@p.Destination.ResourceGroup in @p.Destination.Location</dd>
-        <dt class="col-sm-3">Environment</dt><dd class="col-sm-9">@p.EnvironmentName</dd>
-        <dt class="col-sm-3">Last deployed with</dt><dd class="col-sm-9">Aspire @(p.LastDeployedAspireVersion ?? "(never deployed)")</dd>
-    </dl>
-
-    <div class="row g-2 align-items-end mb-3" style="max-width: 56rem">
-        @if (p.Source.Kind == SourceKind.GitHub)
-        {
-            <div class="col-md-4">
-                <label class="form-label" for="dp-ref">Ref for this run</label>
-                <input id="dp-ref" class="form-control" placeholder="@(p.Source.Ref ?? "default branch")" @bind="_ref" disabled="@Busy" />
-            </div>
-        }
-        <div class="col-auto">
-            <div class="form-check">
-                <input id="dp-dry" class="form-check-input" type="checkbox" @bind="_dryRun" disabled="@Busy" />
-                <label class="form-check-label" for="dp-dry">Dry run (list the steps only)</label>
-            </div>
-            <div class="form-check">
-                <input id="dp-clear" class="form-check-input" type="checkbox" @bind="_clearCache" disabled="@Busy" />
-                <label class="form-check-label" for="dp-clear">Clear Aspire's deploy cache</label>
-            </div>
+    <div class="ads-card mb-3">
+        <div class="ads-card-header">
+            <Icon Name="shield-check" Size="18" />
+            <h2>Flight check</h2>
+            <span class="ads-spacer"></span>
+            <span class="ads-chip">@p.Source.Kind</span>
         </div>
-        <div class="col-auto">
-            <button class="btn btn-primary" disabled="@Busy" @onclick="Start">@(_dryRun ? "List steps" : "Deploy")</button>
+        <dl class="ads-defs ads-defs-4">
+            <div><dt>Source</dt><dd class="ads-mono">@p.ToSourceSpec().Display</dd></div>
+            <div><dt>Subscription</dt><dd class="ads-mono">@p.Destination.SubscriptionId</dd></div>
+            <div>
+                <dt>Resource group</dt>
+                <dd class="ads-mono">@p.Destination.ResourceGroup <span class="ads-chip ads-chip-azure ms-1">@p.Destination.Location</span></dd>
+            </div>
+            <div>
+                <dt>Environment</dt>
+                <dd>@p.EnvironmentName<span class="ads-def-caption">Last deployed with Aspire @(p.LastDeployedAspireVersion ?? "(never deployed)")</span></dd>
+            </div>
+        </dl>
+
+        <div class="ads-card-footer">
+            @if (p.Source.Kind == SourceKind.GitHub)
+            {
+                <div style="min-width: 14rem">
+                    <label class="form-label" for="dp-ref">Ref for this run</label>
+                    <input id="dp-ref" class="form-control ads-mono-input" placeholder="@(p.Source.Ref ?? "default branch")" @bind="_ref" disabled="@Busy" />
+                </div>
+            }
+            <div class="ads-stack gap-2">
+                <div class="form-check form-switch mb-0">
+                    <input id="dp-dry" class="form-check-input" type="checkbox" role="switch" @bind="_dryRun" disabled="@Busy" />
+                    <label class="form-check-label" for="dp-dry">Dry run (list the steps only)</label>
+                </div>
+                <div class="form-check form-switch mb-0">
+                    <input id="dp-clear" class="form-check-input" type="checkbox" role="switch" @bind="_clearCache" disabled="@Busy" />
+                    <label class="form-check-label" for="dp-clear">Clear Aspire's deploy cache</label>
+                </div>
+            </div>
+            <span class="ads-spacer"></span>
+            <button class="btn btn-primary btn-lg" disabled="@Busy" @onclick="Start">
+                @if (Busy)
+                {
+                    <span class="ads-spinner ads-spinner-sm"></span> <span>@(_run!.Title) running…</span>
+                }
+                else
+                {
+                    <Icon Name="@(_dryRun ? "list" : "rocket")" Size="16" /> <span>@(_dryRun ? "List steps" : "Deploy")</span>
+                }
+            </button>
         </div>
     </div>
 
