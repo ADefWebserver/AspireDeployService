@@ -1,4 +1,5 @@
 // Copied from <ref>/src/BlazorDataOrchestrator.Core/Services/AIErrorTranslator.cs (Blazor-Data-Orchestrator). Re-sync changes from there.
+// Changes: OpenAI, Anthropic and Google AI get their own messages, since the Foundry wording named an empty host.
 using System.ClientModel;
 using System.Text.RegularExpressions;
 using AspireDeployService.Core.AI.Models;
@@ -22,7 +23,24 @@ public static partial class AIErrorTranslator
 
         var status = ExtractStatus(ex);
         var body = ex.Message ?? "";
-        var url = resolution?.OperationUrl ?? settings?.Endpoint ?? "the AI endpoint";
+
+        // Fixed-host providers have no endpoint or deployment, so the Foundry wording below does not fit them.
+        if (settings?.ServiceType is AIServiceType.OpenAI or AIServiceType.Anthropic or AIServiceType.GoogleAI)
+        {
+            var name = AIServiceTypes.ToDisplayName(settings.ServiceType);
+            var model2 = string.IsNullOrWhiteSpace(settings.AIModel) ? "(none)" : settings.AIModel;
+            return Prefix + " " + status switch
+            {
+                401 => $"{name} rejected the API key. Check or replace the key in Settings.",
+                403 => $"The {name} key is valid but has no access to model '{model2}'.",
+                404 => $"{name} does not know the model '{model2}'. Pick another model in Settings.",
+                429 => $"Rate limit or quota exceeded at {name} for '{model2}'. Wait and retry, or check your plan.",
+                not null => $"HTTP {status} from {name}: {Truncate(body)}",
+                _ => $"{Truncate(body)} (provider: {name}, model: {model2})"
+            };
+        }
+
+        var url = resolution?.OperationUrl ?? (string.IsNullOrWhiteSpace(settings?.Endpoint) ? "the AI endpoint" : settings.Endpoint);
         var host = TryGetHost(url);
         var protocol = FoundryEndpointResolver.Describe(resolution?.Protocol ?? FoundryApiProtocol.ChatCompletions);
         var model = string.IsNullOrWhiteSpace(settings?.AIModel) ? "(none)" : settings!.AIModel;

@@ -49,6 +49,7 @@ public class AIChatServiceTests : IDisposable
         var session = await _service.StartAsync(Context("token gh-global-token leaked"), CancellationToken.None);
         Assert.DoesNotContain("gh-global-token", session.ContextText);
         Assert.True(session.ToolsEnabled);
+        Assert.Contains("- File tools: can read files under the source folder", session.ContextText);
 
         _client.Script.Enqueue(FakeChatClient.Text("Hel", "lo"));
         var updates = await Collect(_service.SendAsync(session, "my key is openai-secret-key", CancellationToken.None));
@@ -105,6 +106,7 @@ public class AIChatServiceTests : IDisposable
         var session = await _service.StartAsync(Context(), CancellationToken.None);
         Assert.False(session.ToolsEnabled);
         Assert.Contains(reasonPart, session.ToolsUnavailableReason);
+        Assert.Contains("- File tools: none.", session.ContextText);
 
         await Collect(_service.SendAsync(session, "hi", CancellationToken.None));
         Assert.Equal(0, _client.Calls[^1].ToolCount);
@@ -182,6 +184,15 @@ public class AIChatServiceTests : IDisposable
         var ex = await Assert.ThrowsAsync<AIChatException>(() => Collect(_service.SendAsync(session, "hi", CancellationToken.None)));
         Assert.DoesNotContain("openai-secret-key", ex.Message);
         Assert.True(session.Turns[^1].Failed);
+    }
+
+    [Fact]
+    public void Fixed_host_providers_get_plain_error_messages()
+    {
+        var openAi = new AIProviderSettings { ServiceType = AIServiceType.OpenAI, ApiKey = "k", AIModel = "gpt-4o" };
+        var message = AIErrorTranslator.Translate(new HttpRequestException("no", null, HttpStatusCode.Unauthorized), null, openAi);
+        Assert.Contains("OpenAI rejected the API key", message);
+        Assert.DoesNotContain("Foundry", message);
     }
 
     [Fact]

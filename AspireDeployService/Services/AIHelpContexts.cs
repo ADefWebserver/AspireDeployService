@@ -65,7 +65,7 @@ public static class AIHelpContexts
         }
         if (run.SourceRoot is { } root)
             facts.Add(new("Source", root));
-        facts.Add(new("File tools", run.SourceRoot is null ? "run log only" : "available (root is the source folder)"));
+        // The "File tools" fact is added by AIChatService, which knows whether the provider can use them.
         return facts;
     }
 

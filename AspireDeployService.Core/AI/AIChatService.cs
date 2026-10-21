@@ -102,6 +102,8 @@ public sealed class AIChatService(IAISettingsService settings, AIPromptScrubber 
         The first user message is context captured from the app: what failed or what the user is looking at, with
         facts and the end of the run log. Later messages are the developer's questions.
         Be concrete and short. When a file must change, name the file and quote the line to change.
+        Write plain text. Use fenced code blocks for code and `backticks` for file names, commands and settings; the
+        app shows no other Markdown, so do not use bold, italics, headings or tables.
         Say clearly when the cause is in the user's own project (package versions, AppHost code, Azure permissions)
         rather than in Aspire Deploy.
         Never ask for passwords, keys or tokens. Values shown as [REDACTED] were hidden on purpose; do not guess them.
@@ -116,10 +118,18 @@ public sealed class AIChatService(IAISettingsService settings, AIPromptScrubber 
             throw new AIConfigurationException(active.MissingForChat ?? "AI Help is not set up.");
         var options = await settings.GetOptionsAsync(ct);
         var redactor = await scrubber.CreateAsync(ct);
-        var session = new AIChatSession(context, redactor.Scrub(AIContextFormatter.Format(context, options.MaxLogTailLines)));
+        var reason = ToolsUnavailableReason(active, EffectiveProtocol(active), options, context);
+        var withTools = context with { Facts = [.. context.Facts, new("File tools", ToolsFact(reason, context))] };
+        var session = new AIChatSession(context, redactor.Scrub(AIContextFormatter.Format(withTools, options.MaxLogTailLines)));
         Describe(session, active, options);
         return session;
     }
+
+    /// <summary>Tells the model what it can read, so it never claims to have looked at a file it cannot open.</summary>
+    internal static string ToolsFact(string? unavailableReason, AIHelpContext context) =>
+        unavailableReason is not null ? "none. " + unavailableReason
+        : context.SourceRoot is null ? "can read this run's log"
+        : "can read files under the source folder" + (context.LogFile is null ? "" : " and this run's log");
 
     public async IAsyncEnumerable<AIChatUpdate> SendAsync(AIChatSession session, string userText,
         [EnumeratorCancellation] CancellationToken ct)
