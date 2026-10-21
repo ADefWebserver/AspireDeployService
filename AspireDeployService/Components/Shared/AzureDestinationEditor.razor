@@ -1,0 +1,345 @@
+@using AspireDeployService.Core.Azure
+@inject IAzureAccountService Azure
+
+@*
+    The Destination card's fields as pickers, read from the developer's own az login (modelled on
+    BlazorDataDeploymentWebsite's installation wizard): subscription → tenant, regions and resource groups cascade from
+    it; a resource group is either an existing one or a new name. Every list falls back to typing when az cannot list it.
+*@
+<div class="ads-form-grid">
+    <div class="ads-span-8">
+        <label class="form-label" for="@($"{IdPrefix}-sub")">
+            Subscription
+            @if (_subsLoading)
+            {
+                <span class="ads-spinner ads-spinner-sm ms-2"></span>
+            }
+            <span class="ms-auto d-inline-flex gap-2">
+                @if (_subs.Count > 0)
+                {
+                    <button type="button" class="btn btn-link btn-sm p-0" @onclick="() => _typeSub = !_typeSub">@(_typeSub ? "Pick from the list" : "Type an ID instead")</button>
+                }
+                <button type="button" class="btn btn-link btn-sm p-0" title="Reload subscriptions, regions and resource groups" disabled="@Busy" @onclick="RefreshAllAsync"><Icon Name="refresh" Size="12" /> Refresh</button>
+            </span>
+        </label>
+        @if (_subs.Count > 0 && !_typeSub)
+        {
+            <SearchSelect Id="@($"{IdPrefix}-sub")" Items="SubscriptionItems" Value="@D.SubscriptionId" ValueChanged="PickSubscriptionAsync"
+                          Placeholder="Choose a subscription…" />
+        }
+        else
+        {
+            <input id="@($"{IdPrefix}-sub")" class="form-control ads-mono-input" placeholder="subscription GUID" value="@D.SubscriptionId"
+                   @onchange="e => PickSubscriptionAsync(e.Value?.ToString())" />
+        }
+        @if (_subsError is { } se)
+        {
+            <div class="form-text text-warning">@se <button type="button" class="btn btn-link btn-sm p-0 align-baseline" @onclick="RefreshAllAsync">Retry</button></div>
+        }
+        else if (CurrentSub is { IsUsable: false } bad)
+        {
+            <div class="form-text text-warning">This subscription is @bad.State; deployments to it will fail.</div>
+        }
+        else if (!_subsLoading && _subs.Count > 0 && Guid.TryParse(D.SubscriptionId, out _) && CurrentSub is null)
+        {
+            <div class="form-text text-warning">Your az login does not see this subscription.</div>
+        }
+    </div>
+    <div class="ads-span-4">
+        <label class="form-label" for="@($"{IdPrefix}-tenant")">Tenant <span class="ads-label-hint">from the subscription</span></label>
+        @if (CurrentSub is { } cs && !_typeSub)
+        {
+            <div class="ads-path" id="@($"{IdPrefix}-tenant")" title="@cs.TenantId"><span>@cs.TenantId</span></div>
+        }
+        else
+        {
+            <input id="@($"{IdPrefix}-tenant")" class="form-control ads-mono-input" placeholder="(az login tenant)" @bind="D.TenantId" />
+        }
+    </div>
+
+    <div class="ads-span-4">
+        <label class="form-label" for="@($"{IdPrefix}-loc")">
+            Region
+            @if (_locLoading)
+            {
+                <span class="ads-spinner ads-spinner-sm ms-2"></span>
+            }
+        </label>
+        @if (_locations.Count > 0)
+        {
+            <SearchSelect Id="@($"{IdPrefix}-loc")" Items="LocationItems" Value="@D.Location" ValueChanged="v => D.Location = v" Placeholder="Choose a region…" />
+            @if (CurrentLocation is { SupportsContainerApps: false } l)
+            {
+                <div class="form-text text-warning">Azure Container Apps is not offered in @l.DisplayName.</div>
+            }
+        }
+        else
+        {
+            <input id="@($"{IdPrefix}-loc")" class="form-control ads-mono-input" placeholder="eastus2" @bind="D.Location" />
+        }
+        @if (_locError is { } le)
+        {
+            <div class="form-text text-warning">Could not list regions: @le</div>
+        }
+    </div>
+
+    <div class="ads-span-8">
+        <label class="form-label" for="@($"{IdPrefix}-rg")">
+            Resource group
+            @if (_groupsLoading)
+            {
+                <span class="ads-spinner ads-spinner-sm ms-2"></span>
+            }
+            @if (_groupsLoaded)
+            {
+                <span class="ads-seg ms-auto" role="radiogroup" aria-label="Resource group">
+                    <button type="button" role="radio" aria-checked="@(!_newGroup)" class="@(!_newGroup ? "is-on" : "")" disabled="@(_groups.Count == 0)" @onclick="() => SetNewGroup(false)">Use existing</button>
+                    <button type="button" role="radio" aria-checked="@_newGroup" class="@(_newGroup ? "is-on" : "")" @onclick="() => SetNewGroup(true)">Create new</button>
+                </span>
+            }
+        </label>
+        @if (_groupsLoaded && !_newGroup)
+        {
+            <SearchSelect Id="@($"{IdPrefix}-rg")" Items="GroupItems" Value="@D.ResourceGroup" ValueChanged="PickGroup" Placeholder="Choose a resource group…" Mono="true" />
+            @if (CurrentGroup is { } g && !string.IsNullOrEmpty(D.Location) && !string.Equals(g.Location, D.Location, StringComparison.OrdinalIgnoreCase))
+            {
+                <div class="form-text">The group is in @g.Location; the app's resources go to @D.Location.</div>
+            }
+        }
+        else
+        {
+            <div class="input-group">
+                <input id="@($"{IdPrefix}-rg")" class="form-control ads-mono-input" placeholder="@Suggestion" @bind="D.ResourceGroup" @bind:event="oninput" />
+                @if (string.IsNullOrWhiteSpace(D.ResourceGroup) && Suggestion is { } suggestion)
+                {
+                    <button type="button" class="btn btn-outline-secondary" @onclick="() => D.ResourceGroup = suggestion">Use @suggestion</button>
+                }
+            </div>
+            @if (GroupNameProblem is { } problem)
+            {
+                <div class="form-text text-warning">@problem</div>
+            }
+            else if (_groupsLoaded)
+            {
+                <div class="form-text">Created on the first deploy.</div>
+            }
+        }
+        @if (_groupsError is { } ge)
+        {
+            <div class="form-text text-warning">Could not list resource groups: @ge</div>
+        }
+    </div>
+
+    <div class="ads-span-4">
+        <label class="form-label" for="@($"{IdPrefix}-cred")">Credential source</label>
+        <select id="@($"{IdPrefix}-cred")" class="form-select" value="@(D.CredentialSource ?? "")" @onchange="e => D.CredentialSource = NullIfEmpty(e.Value?.ToString())">
+            <option value="">Azure CLI (default)</option>
+            @foreach (var (value, text) in CredentialSources)
+            {
+                <option value="@value">@text</option>
+            }
+            @if (D.CredentialSource is { Length: > 0 } custom && CredentialSources.All(c => c.Value != custom))
+            {
+                <option value="@custom">@custom</option>
+            }
+        </select>
+    </div>
+    <div class="ads-span-4">
+        <label class="form-label" for="@($"{IdPrefix}-env")">Environment</label>
+        <input id="@($"{IdPrefix}-env")" class="form-control" list="@($"{IdPrefix}-env-list")" placeholder="Production" @bind="Profile.Environment" />
+        <datalist id="@($"{IdPrefix}-env-list")">
+            <option value="Production"></option>
+            <option value="Staging"></option>
+            <option value="Development"></option>
+        </datalist>
+    </div>
+    <div class="ads-span-4">
+        <label class="form-label" for="@($"{IdPrefix}-rt")">Container runtime</label>
+        <select id="@($"{IdPrefix}-rt")" class="form-select" @bind="Profile.ContainerRuntime">
+            <option value="">(default)</option>
+            <option value="docker">docker</option>
+            <option value="podman">podman</option>
+        </select>
+    </div>
+    @if (!_newGroup)
+    {
+        <div class="ads-span-12">
+            <div class="form-check form-switch mb-0">
+                <input id="@($"{IdPrefix}-create")" class="form-check-input" type="checkbox" role="switch" checked="@(D.AllowResourceGroupCreation ?? true)"
+                       @onchange="e => D.AllowResourceGroupCreation = (bool)e.Value! ? null : false" />
+                <label class="form-check-label" for="@($"{IdPrefix}-create")">Create the resource group again if it no longer exists</label>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    /// <summary>The profile being edited; the editor changes its Destination, Environment and ContainerRuntime in place.</summary>
+    [Parameter, EditorRequired] public DeployProfile Profile { get; set; } = default!;
+
+    /// <summary>Used for the suggested new resource group name, rg-&lt;name&gt;.</summary>
+    [Parameter] public string? ProfileName { get; set; }
+
+    [Parameter] public string IdPrefix { get; set; } = "dest";
+
+    /// <summary>Choose the az default subscription when the profile has none yet (the new-profile wizard).</summary>
+    [Parameter] public bool PickDefaultSubscription { get; set; }
+
+    // Values Aspire accepts for Azure:CredentialSource, besides the default AzureCli.
+    private static readonly (string Value, string Text)[] CredentialSources =
+    [
+        ("AzureDeveloperCli", "Azure Developer CLI (azd)"),
+        ("AzurePowerShell", "Azure PowerShell"),
+        ("VisualStudio", "Visual Studio"),
+        ("InteractiveBrowser", "Interactive browser sign-in"),
+        ("Default", "DefaultAzureCredential chain")
+    ];
+
+    private IReadOnlyList<AzureSubscription> _subs = [];
+    private IReadOnlyList<AzureLocation> _locations = [];
+    private IReadOnlyList<AzureResourceGroup> _groups = [];
+    private bool _subsLoading, _locLoading, _groupsLoading, _groupsLoaded;
+    private string? _subsError, _locError, _groupsError;
+    private bool _typeSub;
+    private bool _newGroup;
+    private string? _loadedFor;
+
+    private ProfileDestination D => Profile.Destination;
+    private bool Busy => _subsLoading || _locLoading || _groupsLoading;
+    private AzureSubscription? CurrentSub => _subs.FirstOrDefault(s => string.Equals(s.Id, D.SubscriptionId, StringComparison.OrdinalIgnoreCase));
+    private AzureLocation? CurrentLocation => _locations.FirstOrDefault(l => l.Name == D.Location);
+    private AzureResourceGroup? CurrentGroup => _groups.FirstOrDefault(g => string.Equals(g.Name, D.ResourceGroup, StringComparison.OrdinalIgnoreCase));
+    private string? Suggestion => ProfileName is { Length: > 0 } n ? "rg-" + n : null;
+
+    private IReadOnlyList<SelectItem> SubscriptionItems => _subs
+        .Select(s => new SelectItem(s.Id, s.Name, s.Id + (s.IsDefault ? " · az default" : ""), !s.IsUsable, "Tenant " + s.TenantId,
+            s.IsUsable ? null : s.State))
+        .OrderBy(i => i.Group, StringComparer.Ordinal).ToList();
+
+    private IReadOnlyList<SelectItem> LocationItems => _locations
+        .Select(l => new SelectItem(l.Name, l.DisplayName, l.Name, false, l.Geography ?? "Other",
+            l.SupportsContainerApps == false ? "No Container Apps" : null))
+        .OrderBy(i => i.Group, StringComparer.OrdinalIgnoreCase).ThenBy(i => i.Text, StringComparer.OrdinalIgnoreCase).ToList();
+
+    private IReadOnlyList<SelectItem> GroupItems => _groups.Select(g => new SelectItem(g.Name, g.Name, g.Location)).ToList();
+
+    private string? GroupNameProblem =>
+        string.IsNullOrWhiteSpace(D.ResourceGroup) ? null
+        : !ProfileRules.IsValidResourceGroup(D.ResourceGroup) ? "1 to 90 letters, digits, '-', '_', '.', '(' or ')', not ending with '.'."
+        : CurrentGroup is not null ? "A resource group with this name already exists; choose Use existing to deploy into it."
+        : null;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadSubscriptionsAsync(refresh: false);
+        await LoadForSubscriptionAsync(refresh: false);
+    }
+
+    private async Task RefreshAllAsync()
+    {
+        await LoadSubscriptionsAsync(refresh: true);
+        _loadedFor = null;
+        await LoadForSubscriptionAsync(refresh: true);
+    }
+
+    private async Task LoadSubscriptionsAsync(bool refresh)
+    {
+        _subsLoading = true;
+        _subsError = null;
+        StateHasChanged();
+        try
+        {
+            _subs = await Task.Run(() => Azure.ListSubscriptionsAsync(NullRunObserver.Instance, CancellationToken.None, refresh));
+            if (PickDefaultSubscription && string.IsNullOrEmpty(D.SubscriptionId) && _subs.FirstOrDefault(s => s.IsDefault && s.IsUsable) is { } def)
+                (D.SubscriptionId, D.TenantId) = (def.Id, def.TenantId);
+            // The tenant always follows the subscription when az knows it.
+            if (CurrentSub is { } s && !string.Equals(D.TenantId, s.TenantId, StringComparison.OrdinalIgnoreCase))
+                D.TenantId = s.TenantId;
+        }
+        catch (DeployerException ex)
+        {
+            (_subs, _subsError) = ([], ex.Message);
+        }
+        finally
+        {
+            _subsLoading = false;
+        }
+    }
+
+    private async Task PickSubscriptionAsync(string? id)
+    {
+        D.SubscriptionId = NullIfEmpty(id?.Trim());
+        if (CurrentSub is { } s)
+            D.TenantId = s.TenantId;
+        await LoadForSubscriptionAsync(refresh: false);
+    }
+
+    /// <summary>Regions and resource groups for the chosen subscription; both reload when it changes.</summary>
+    private async Task LoadForSubscriptionAsync(bool refresh)
+    {
+        var sub = D.SubscriptionId;
+        if (!Guid.TryParse(sub, out _))
+        {
+            (_locations, _groups, _groupsLoaded, _loadedFor) = ([], [], false, null);
+            _newGroup = true;
+            return;
+        }
+        if (_loadedFor == sub && !refresh)
+            return;
+        _loadedFor = sub;
+        (_locLoading, _groupsLoading, _locError, _groupsError) = (true, true, null, null);
+        StateHasChanged();
+
+        var locations = Task.Run(() => Azure.ListLocationsAsync(sub, NullRunObserver.Instance, CancellationToken.None, refresh));
+        var groups = Task.Run(() => Azure.ListResourceGroupsAsync(sub, NullRunObserver.Instance, CancellationToken.None, refresh));
+        try
+        {
+            _locations = await locations;
+        }
+        catch (DeployerException ex)
+        {
+            (_locations, _locError) = ([], ex.Message);
+        }
+        try
+        {
+            _groups = await groups;
+            _groupsLoaded = true;
+            // An existing group is picked from the list; a name Azure does not have yet is a new one.
+            _newGroup = string.IsNullOrWhiteSpace(D.ResourceGroup) ? _groups.Count == 0 : CurrentGroup is null;
+            if (CurrentGroup is { } g)
+                D.ResourceGroup = g.Name; // Azure's spelling
+        }
+        catch (DeployerException ex)
+        {
+            (_groups, _groupsLoaded, _groupsError, _newGroup) = ([], false, ex.Message, true);
+        }
+        if (_loadedFor == sub)
+            (_locLoading, _groupsLoading) = (false, false);
+    }
+
+    private void SetNewGroup(bool isNew)
+    {
+        if (_newGroup == isNew)
+            return;
+        _newGroup = isNew;
+        if (isNew)
+        {
+            D.ResourceGroup = null;
+            D.AllowResourceGroupCreation = null;
+        }
+        else if (CurrentGroup is null)
+        {
+            D.ResourceGroup = null;
+        }
+    }
+
+    private void PickGroup(string? name)
+    {
+        D.ResourceGroup = name;
+        // Like the reference wizard: an empty region takes the group's region.
+        if (string.IsNullOrEmpty(D.Location) && CurrentGroup is { } g)
+            D.Location = g.Location;
+    }
+
+    private static string? NullIfEmpty(string? value) => string.IsNullOrWhiteSpace(value) ? null : value;
+}

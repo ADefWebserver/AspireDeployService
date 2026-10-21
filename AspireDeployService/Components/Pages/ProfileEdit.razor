@@ -84,47 +84,7 @@
 
         <div class="ads-card">
             <div class="ads-card-header"><Icon Name="cloud" Size="18" /><h2>Destination</h2></div>
-            <div class="ads-form-grid">
-                <div class="ads-span-6">
-                    <label class="form-label" for="pe-sub">Subscription ID</label>
-                    <input id="pe-sub" class="form-control ads-mono-input" @bind="p.Destination.SubscriptionId" />
-                </div>
-                <div class="ads-span-6">
-                    <label class="form-label" for="pe-tenant">Tenant ID <span class="ads-label-hint">optional</span></label>
-                    <input id="pe-tenant" class="form-control ads-mono-input" @bind="p.Destination.TenantId" />
-                </div>
-                <div class="ads-span-4">
-                    <label class="form-label" for="pe-loc">Region</label>
-                    <input id="pe-loc" class="form-control ads-mono-input" placeholder="eastus2" @bind="p.Destination.Location" />
-                </div>
-                <div class="ads-span-4">
-                    <label class="form-label" for="pe-rg">Resource group</label>
-                    <input id="pe-rg" class="form-control ads-mono-input" @bind="p.Destination.ResourceGroup" />
-                </div>
-                <div class="ads-span-4">
-                    <label class="form-label" for="pe-cred">Credential source</label>
-                    <input id="pe-cred" class="form-control" placeholder="AzureCli" @bind="p.Destination.CredentialSource" />
-                </div>
-                <div class="ads-span-4">
-                    <label class="form-label" for="pe-env">Environment</label>
-                    <input id="pe-env" class="form-control" placeholder="Production" @bind="p.Environment" />
-                </div>
-                <div class="ads-span-4">
-                    <label class="form-label" for="pe-rt">Container runtime</label>
-                    <select id="pe-rt" class="form-select" @bind="p.ContainerRuntime">
-                        <option value="">(default)</option>
-                        <option value="docker">docker</option>
-                        <option value="podman">podman</option>
-                    </select>
-                </div>
-                <div class="ads-span-4 d-flex align-items-end">
-                    <div class="form-check form-switch mb-2">
-                        <input id="pe-create" class="form-check-input" type="checkbox" role="switch" checked="@(p.Destination.AllowResourceGroupCreation ?? true)"
-                               @onchange="e => p.Destination.AllowResourceGroupCreation = (bool)e.Value! ? null : false" />
-                        <label class="form-check-label" for="pe-create">Allow creating the resource group</label>
-                    </div>
-                </div>
-            </div>
+            <AzureDestinationEditor @key="s" Profile="p" ProfileName="@Name" IdPrefix="pe" />
         </div>
 
         <div class="ads-card">

@@ -78,47 +78,7 @@
 
         <div class="ads-card">
             <div class="ads-card-header"><span class="ads-stepper-num-sm">2</span><h2>Destination</h2></div>
-            <div class="ads-form-grid">
-                <div class="ads-span-8">
-                    <label class="form-label" for="pn-sub">
-                        Subscription
-                        @if (data.Subscriptions.Count > 0 && !_typeSubscription)
-                        {
-                            <button class="btn btn-link btn-sm ms-auto p-0" @onclick="() => _typeSubscription = true">Type an ID instead</button>
-                        }
-                    </label>
-                    @if (data.Subscriptions.Count > 0 && !_typeSubscription)
-                    {
-                        <select id="pn-sub" class="form-select" value="@p.Destination.SubscriptionId" @onchange="e => PickSubscription(data, e.Value?.ToString())">
-                            <option value="">Choose…</option>
-                            @foreach (var s in data.Subscriptions)
-                            {
-                                <option value="@s.Id">@s.Name (@s.Id)@(s.IsDefault ? " — default" : "")</option>
-                            }
-                        </select>
-                    }
-                    else
-                    {
-                        <input id="pn-sub" class="form-control ads-mono-input" placeholder="subscription GUID" @bind="p.Destination.SubscriptionId" />
-                    }
-                </div>
-                <div class="ads-span-4">
-                    <label class="form-label" for="pn-tenant">Tenant ID</label>
-                    <input id="pn-tenant" class="form-control ads-mono-input" placeholder="(az login tenant)" @bind="p.Destination.TenantId" />
-                </div>
-                <div class="ads-span-4">
-                    <label class="form-label" for="pn-loc">Region</label>
-                    <input id="pn-loc" class="form-control ads-mono-input" placeholder="eastus2" @bind="p.Destination.Location" />
-                </div>
-                <div class="ads-span-4">
-                    <label class="form-label" for="pn-rg">Resource group</label>
-                    <input id="pn-rg" class="form-control ads-mono-input" @bind="p.Destination.ResourceGroup" />
-                </div>
-                <div class="ads-span-4">
-                    <label class="form-label" for="pn-env">Environment</label>
-                    <input id="pn-env" class="form-control" @bind="p.Environment" />
-                </div>
-            </div>
+            <AzureDestinationEditor @key="p" Profile="p" ProfileName="@data.Name" IdPrefix="pn" PickDefaultSubscription="true" />
         </div>
 
         <div class="ads-card">
@@ -206,7 +166,6 @@
     private string? _ref;
     private string? _appHost;
     private bool _overwrite;
-    private bool _typeSubscription;
     private ActiveRun? _run;
     private DeployProfile? _form;
     private WizardData? _formFor;
@@ -276,16 +235,8 @@
         _form = data.Draft.Profile.Clone();
         _values.Clear();
         _appHostSupplies.Clear();
-        _typeSubscription = data.Subscriptions.Count == 0;
         if (data.Subscriptions.FirstOrDefault(s => s.IsDefault) is { } def)
             (_form.Destination.SubscriptionId, _form.Destination.TenantId) = (def.Id, def.TenantId);
-    }
-
-    private void PickSubscription(WizardData data, string? id)
-    {
-        _form!.Destination.SubscriptionId = id;
-        if (data.Subscriptions.FirstOrDefault(s => s.Id == id) is { } s)
-            _form.Destination.TenantId = s.TenantId;
     }
 
     private void Toggle(string name, bool supplied)

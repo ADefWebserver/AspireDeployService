@@ -1,0 +1,146 @@
+@* A dropdown with a filter box, for long Azure lists (subscriptions, regions, resource groups). *@
+<div class="ads-select @(_open ? "is-open" : "")">
+    <button type="button" id="@Id" class="form-select ads-select-btn @(Mono ? "ads-mono-input" : "")" disabled="@Disabled"
+            aria-haspopup="listbox" aria-expanded="@_open" @onclick="Toggle">
+        @if (Selected is { } s)
+        {
+            <span class="ads-select-text">@s.Text</span>
+            @if (s.Detail is { Length: > 0 })
+            {
+                <span class="ads-select-detail">@s.Detail</span>
+            }
+        }
+        else if (!string.IsNullOrEmpty(Value))
+        {
+            <span class="ads-select-text">@Value</span>
+        }
+        else
+        {
+            <span class="ads-select-placeholder">@Placeholder</span>
+        }
+    </button>
+    @if (_open)
+    {
+        <div class="ads-select-backdrop" @onclick="Close"></div>
+        <div class="ads-select-pop" @onkeydown="OnKeyDown">
+            <input @ref="_filterRef" class="form-control form-control-sm" placeholder="Type to filter…" aria-label="Filter"
+                   @bind="_filter" @bind:event="oninput" @bind:after="() => _active = 0" />
+            <ul class="ads-select-list" role="listbox">
+                @{
+                    var shown = Filtered();
+                    string? group = null;
+                }
+                @if (shown.Count == 0)
+                {
+                    <li class="ads-select-empty">No matches.</li>
+                }
+                @for (var i = 0; i < shown.Count; i++)
+                {
+                    var item = shown[i];
+                    var index = i;
+                    @if (item.Group is { } g && g != group)
+                    {
+                        group = g;
+                        <li class="ads-select-group" role="presentation">@g</li>
+                    }
+                    <li role="option" aria-selected="@(item.Value == Value)" aria-disabled="@item.Disabled"
+                        class="ads-select-option @(index == _active ? "is-active" : "") @(item.Value == Value ? "is-selected" : "") @(item.Disabled ? "is-disabled" : "")"
+                        @onclick="() => Pick(item)" @onmousemove="() => _active = index">
+                        <span class="ads-select-text">@item.Text</span>
+                        @if (item.Detail is { Length: > 0 })
+                        {
+                            <span class="ads-select-detail">@item.Detail</span>
+                        }
+                        @if (item.Badge is { Length: > 0 })
+                        {
+                            <span class="ads-pill ads-pill-warn ads-select-badge">@item.Badge</span>
+                        }
+                    </li>
+                }
+            </ul>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public IReadOnlyList<SelectItem> Items { get; set; } = [];
+    [Parameter] public string? Value { get; set; }
+    [Parameter] public EventCallback<string?> ValueChanged { get; set; }
+    [Parameter] public string? Id { get; set; }
+    [Parameter] public string Placeholder { get; set; } = "Choose…";
+    [Parameter] public bool Disabled { get; set; }
+    [Parameter] public bool Mono { get; set; }
+
+    private bool _open;
+    private string? _filter;
+    private int _active;
+    private bool _focusFilter;
+    private ElementReference _filterRef;
+
+    private SelectItem? Selected => Items.FirstOrDefault(i => i.Value == Value);
+
+    private List<SelectItem> Filtered()
+    {
+        if (string.IsNullOrWhiteSpace(_filter))
+            return Items.ToList();
+        var words = _filter.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        return Items.Where(i => words.All(w =>
+            i.Text.Contains(w, StringComparison.OrdinalIgnoreCase)
+            || (i.Detail?.Contains(w, StringComparison.OrdinalIgnoreCase) ?? false)
+            || (i.Group?.Contains(w, StringComparison.OrdinalIgnoreCase) ?? false))).ToList();
+    }
+
+    private void Toggle()
+    {
+        if (_open)
+        {
+            Close();
+            return;
+        }
+        _open = true;
+        _filter = null;
+        var shown = Filtered();
+        _active = Math.Max(0, shown.FindIndex(i => i.Value == Value));
+        _focusFilter = true;
+    }
+
+    private void Close() => _open = false;
+
+    private async Task Pick(SelectItem item)
+    {
+        if (item.Disabled)
+            return;
+        _open = false;
+        if (item.Value != Value)
+            await ValueChanged.InvokeAsync(item.Value);
+    }
+
+    private async Task OnKeyDown(KeyboardEventArgs e)
+    {
+        var shown = Filtered();
+        switch (e.Key)
+        {
+            case "ArrowDown":
+                _active = Math.Min(shown.Count - 1, _active + 1);
+                break;
+            case "ArrowUp":
+                _active = Math.Max(0, _active - 1);
+                break;
+            case "Enter" when _active < shown.Count:
+                await Pick(shown[_active]);
+                break;
+            case "Escape":
+                Close();
+                break;
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_focusFilter && _open)
+        {
+            _focusFilter = false;
+            await _filterRef.FocusAsync();
+        }
+    }
+}
