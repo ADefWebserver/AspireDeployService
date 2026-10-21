@@ -1,4 +1,5 @@
 ﻿@page "/"
+@implements IDisposable
 @inject IProfileService Profiles
 @inject RunCoordinator Runs
 
@@ -171,6 +172,8 @@
 
     protected override async Task OnInitializedAsync()
     {
+        // The step and deploy indicators follow runs that start or end while Home is open.
+        Runs.RunsChanged += OnRunsChanged;
         _location = Profiles.Location;
         if (_location.ParseError is null)
             _profiles = await Profiles.ListAsync(CancellationToken.None);
@@ -190,4 +193,8 @@
         { Result: not null } => @<span class="ads-pill ads-pill-fail">Failed</span>,
         _ => null
     };
+
+    private void OnRunsChanged() => _ = InvokeAsync(StateHasChanged);
+
+    public void Dispose() => Runs.RunsChanged -= OnRunsChanged;
 }

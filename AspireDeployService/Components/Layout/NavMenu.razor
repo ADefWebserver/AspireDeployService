@@ -4,7 +4,8 @@
 
 @* The horizontal top app bar (docs/mockups): brand, page tabs, theme toggle. No sidebar. *@
 <header class="ads-topbar">
-    <a class="ads-brand" href="">
+    @* aria-label keeps the link named when the narrow layout hides the brand text. *@
+    <a class="ads-brand" href="" aria-label="Aspire Deploy home">
         <span class="ads-brand-mark"><Icon Name="logo" Size="20" StrokeWidth="1.6" /></span>
         <span class="ads-brand-name">Aspire Deploy</span>
     </a>

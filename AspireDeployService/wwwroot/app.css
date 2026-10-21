@@ -15,7 +15,7 @@
     --ads-row-line: #1f1f23;
     --ads-text: #e4e4e7;
     --ads-muted: #a1a1aa;
-    --ads-subtle: #71717a;
+    --ads-subtle: #8b8b95; /* 4.87:1 or better on every dark surface (WCAG AA) */
     --ads-primary: #512bd4;
     --ads-primary-hover: #5d33e3;
     --ads-primary-pressed: #4322b3;
@@ -59,7 +59,7 @@
     --ads-row-line: #eef2f6;
     --ads-text: #0f172a;
     --ads-muted: #475569;
-    --ads-subtle: #64748b;
+    --ads-subtle: #576678; /* 5.2:1 or better on every light surface (WCAG AA) */
     --ads-primary-text: #512bd4;
     --ads-primary-tint: rgba(81, 43, 212, 0.08);
     --ads-azure-text: #0067b8;
@@ -1407,9 +1407,10 @@ table, .ads-num {
     border-radius: 4px;
 }
 
+    /* The console stays dark in both themes, so these colours are fixed: 5.8:1 on #0c0c0e (WCAG AA). */
     .ads-log-line .ads-log-time {
         flex: none;
-        color: #52525b;
+        color: #8b8b95;
         user-select: none;
     }
 
@@ -1444,7 +1445,7 @@ table, .ads-num {
 }
 
 .ads-log-empty {
-    color: #52525b;
+    color: #8b8b95;
     margin: auto;
 }
 
@@ -1712,7 +1713,6 @@ fieldset {
         background-color: transparent;
         font-family: var(--ads-mono);
         font-size: 12.5px;
-        box-shadow: none;
         background-position: right 4px center;
     }
 
