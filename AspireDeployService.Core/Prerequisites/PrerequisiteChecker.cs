@@ -8,7 +8,11 @@ namespace AspireDeployService.Core.Prerequisites;
 
 public enum CheckState { Pass, Warn, Fail }
 
-public sealed record PrerequisiteCheck(string Name, CheckState State, string Detail, string? Fix = null);
+public sealed record PrerequisiteCheck(string Name, CheckState State, string Detail, string? Fix = null)
+{
+    /// <summary>For the container runtime check: the runtime found running ("docker" or "podman").</summary>
+    public string? DetectedRuntime { get; init; }
+}
 
 /// <summary>The checks of source plan §6.6. Each method returns a result instead of throwing.</summary>
 public sealed class PrerequisiteChecker
@@ -56,16 +60,29 @@ public sealed class PrerequisiteChecker
             : new("Azure CLI sign-in", CheckState.Fail, $"Subscription {subscriptionId} is not visible to the signed-in account.", $"Run: {login}");
     }
 
-    /// <param name="runtime">"docker", "podman" or null (then ASPIRE_CONTAINER_RUNTIME, then docker).</param>
+    /// <param name="runtime">"docker", "podman" or null (then ASPIRE_CONTAINER_RUNTIME, then docker, then podman).</param>
     public async Task<PrerequisiteCheck> ContainerRuntimeAsync(RunContext run, string? runtime, bool required, CancellationToken ct)
     {
-        runtime ??= Environment.GetEnvironmentVariable("ASPIRE_CONTAINER_RUNTIME") is { Length: > 0 } env ? env : "docker";
-        var (ok, _) = await TryRunAsync(run, runtime, ["info"], ct);
-        if (ok)
-            return new("Container runtime", CheckState.Pass, $"{runtime} is running.");
+        if (string.IsNullOrWhiteSpace(runtime))
+            runtime = Environment.GetEnvironmentVariable("ASPIRE_CONTAINER_RUNTIME") is { Length: > 0 } env ? env : null;
+        string[] candidates = runtime is null ? ["docker", "podman"] : [runtime];
+
+        foreach (var candidate in candidates)
+        {
+            var (ok, _) = await TryRunAsync(run, candidate, ["info"], ct);
+            if (ok)
+                return new("Container runtime", CheckState.Pass, $"{candidate} is running.") { DetectedRuntime = candidate };
+        }
+
+        var detail = runtime is null ? "Neither docker nor podman is installed and running." : $"{runtime} is not installed or not running.";
+        var fix = runtime switch
+        {
+            null => "Start Docker Desktop, or start Podman (podman machine start).",
+            "podman" => "Start Podman (podman machine start).",
+            _ => "Start Docker Desktop."
+        };
         return new("Container runtime", required ? CheckState.Fail : CheckState.Warn,
-            $"{runtime} is not installed or not running." + (required ? " This AppHost builds container images." : ""),
-            $"Start {(runtime == "podman" ? "Podman" : "Docker Desktop")}.");
+            detail + (required ? " This AppHost builds container images." : ""), fix);
     }
 
     /// <summary>Node 20.19+, 22.13+ or 24+, for TypeScript AppHosts.</summary>

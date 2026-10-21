@@ -104,10 +104,15 @@ public sealed class DeployService(
 
         if (!SkipPrerequisites)
         {
+            var runtime = await checker.ContainerRuntimeAsync(run, profile.ContainerRuntime, required: true, ct);
+            // No runtime configured and only Podman is running: tell aspire deploy to use it.
+            if (runtime.DetectedRuntime is { } detected && string.IsNullOrWhiteSpace(profile.ContainerRuntime)
+                && string.IsNullOrWhiteSpace(ParentEnvironment("ASPIRE_CONTAINER_RUNTIME")))
+                profile.ContainerRuntime = detected;
             var failed = new List<PrerequisiteCheck>
             {
                 await checker.AzureSignInAsync(run, profile.Destination.SubscriptionId, profile.Destination.TenantId, ct),
-                await checker.ContainerRuntimeAsync(run, profile.ContainerRuntime, required: true, ct)
+                runtime
             };
             if (appHost.Kind == AppHostKind.TypeScript)
                 failed.Add(await checker.NodeAsync(run, required: true, ct));

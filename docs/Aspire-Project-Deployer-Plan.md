@@ -385,7 +385,7 @@ Sample `bdn discover --json` output (shortened):
 |---|---|---|
 | A .NET SDK of at least 10.0 that satisfies the source's `global.json`, if it has one | `dotnet --list-sdks` | Exit 3 |
 | Azure CLI signed in, with the profile's subscription visible | `az account show --output json`, then `az account list` | Exit 3, printing `az login --tenant <tenant>` |
-| A container runtime, when any resource has `NeedsContainerRuntime` | `docker info`, or `podman info` when `ContainerRuntime` or `ASPIRE_CONTAINER_RUNTIME` says podman | Exit 3 |
+| A container runtime, when any resource has `NeedsContainerRuntime` | `docker info`, or `podman info` when `ContainerRuntime` or `ASPIRE_CONTAINER_RUNTIME` says podman; when neither is set, `docker info` then `podman info` (a detected Podman is passed to `aspire deploy` as `ASPIRE_CONTAINER_RUNTIME=podman`) | Exit 3 |
 | Node 20.19+, 22.13+ or 24+, for TypeScript AppHosts | `node --version` | Exit 3 |
 | The Aspire CLI at the AppHost's version | D9 (installs it if missing) | The install error, then exit 3 |
 | `gh`, only when a private repo needs a token and none is configured | `gh auth token` | Exit 3 with "add `AspireDeploy:GitHub:Token`" |
