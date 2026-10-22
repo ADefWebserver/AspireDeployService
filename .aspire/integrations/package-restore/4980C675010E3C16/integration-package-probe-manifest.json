@@ -1,0 +1,830 @@
+{
+  "managedAssemblies": [
+    {
+      "name": "Aspire.Hosting",
+      "packageId": "Aspire.Hosting",
+      "packageVersion": "13.6.3",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\aspire.hosting\\13.6.3\\lib\\net8.0\\Aspire.Hosting.dll"
+    },
+    {
+      "name": "Aspire.Hosting.CodeGeneration.TypeScript",
+      "packageId": "Aspire.Hosting.CodeGeneration.TypeScript",
+      "packageVersion": "13.6.3",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\aspire.hosting.codegeneration.typescript\\13.6.3\\lib\\net8.0\\Aspire.Hosting.CodeGeneration.TypeScript.dll"
+    },
+    {
+      "name": "Aspire.Hosting.resources",
+      "culture": "cs",
+      "packageId": "Aspire.Hosting",
+      "packageVersion": "13.6.3",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\aspire.hosting\\13.6.3\\lib\\net8.0\\cs\\Aspire.Hosting.resources.dll"
+    },
+    {
+      "name": "Aspire.Hosting.resources",
+      "culture": "de",
+      "packageId": "Aspire.Hosting",
+      "packageVersion": "13.6.3",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\aspire.hosting\\13.6.3\\lib\\net8.0\\de\\Aspire.Hosting.resources.dll"
+    },
+    {
+      "name": "Aspire.Hosting.resources",
+      "culture": "es",
+      "packageId": "Aspire.Hosting",
+      "packageVersion": "13.6.3",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\aspire.hosting\\13.6.3\\lib\\net8.0\\es\\Aspire.Hosting.resources.dll"
+    },
+    {
+      "name": "Aspire.Hosting.resources",
+      "culture": "fr",
+      "packageId": "Aspire.Hosting",
+      "packageVersion": "13.6.3",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\aspire.hosting\\13.6.3\\lib\\net8.0\\fr\\Aspire.Hosting.resources.dll"
+    },
+    {
+      "name": "Aspire.Hosting.resources",
+      "culture": "it",
+      "packageId": "Aspire.Hosting",
+      "packageVersion": "13.6.3",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\aspire.hosting\\13.6.3\\lib\\net8.0\\it\\Aspire.Hosting.resources.dll"
+    },
+    {
+      "name": "Aspire.Hosting.resources",
+      "culture": "ja",
+      "packageId": "Aspire.Hosting",
+      "packageVersion": "13.6.3",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\aspire.hosting\\13.6.3\\lib\\net8.0\\ja\\Aspire.Hosting.resources.dll"
+    },
+    {
+      "name": "Aspire.Hosting.resources",
+      "culture": "ko",
+      "packageId": "Aspire.Hosting",
+      "packageVersion": "13.6.3",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\aspire.hosting\\13.6.3\\lib\\net8.0\\ko\\Aspire.Hosting.resources.dll"
+    },
+    {
+      "name": "Aspire.Hosting.resources",
+      "culture": "pl",
+      "packageId": "Aspire.Hosting",
+      "packageVersion": "13.6.3",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\aspire.hosting\\13.6.3\\lib\\net8.0\\pl\\Aspire.Hosting.resources.dll"
+    },
+    {
+      "name": "Aspire.Hosting.resources",
+      "culture": "pt-BR",
+      "packageId": "Aspire.Hosting",
+      "packageVersion": "13.6.3",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\aspire.hosting\\13.6.3\\lib\\net8.0\\pt-BR\\Aspire.Hosting.resources.dll"
+    },
+    {
+      "name": "Aspire.Hosting.resources",
+      "culture": "ru",
+      "packageId": "Aspire.Hosting",
+      "packageVersion": "13.6.3",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\aspire.hosting\\13.6.3\\lib\\net8.0\\ru\\Aspire.Hosting.resources.dll"
+    },
+    {
+      "name": "Aspire.Hosting.resources",
+      "culture": "tr",
+      "packageId": "Aspire.Hosting",
+      "packageVersion": "13.6.3",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\aspire.hosting\\13.6.3\\lib\\net8.0\\tr\\Aspire.Hosting.resources.dll"
+    },
+    {
+      "name": "Aspire.Hosting.resources",
+      "culture": "zh-Hans",
+      "packageId": "Aspire.Hosting",
+      "packageVersion": "13.6.3",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\aspire.hosting\\13.6.3\\lib\\net8.0\\zh-Hans\\Aspire.Hosting.resources.dll"
+    },
+    {
+      "name": "Aspire.Hosting.resources",
+      "culture": "zh-Hant",
+      "packageId": "Aspire.Hosting",
+      "packageVersion": "13.6.3",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\aspire.hosting\\13.6.3\\lib\\net8.0\\zh-Hant\\Aspire.Hosting.resources.dll"
+    },
+    {
+      "name": "Aspire.TypeSystem",
+      "packageId": "Aspire.TypeSystem",
+      "packageVersion": "13.6.3",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\aspire.typesystem\\13.6.3\\lib\\net8.0\\Aspire.TypeSystem.dll"
+    },
+    {
+      "name": "Fractions",
+      "packageId": "Fractions",
+      "packageVersion": "7.3.0",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\fractions\\7.3.0\\lib\\netstandard2.1\\Fractions.dll"
+    },
+    {
+      "name": "Google.Protobuf",
+      "packageId": "Google.Protobuf",
+      "packageVersion": "3.36.1",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\google.protobuf\\3.36.1\\lib\\net8.0\\Google.Protobuf.dll"
+    },
+    {
+      "name": "Grpc.AspNetCore.Server",
+      "packageId": "Grpc.AspNetCore.Server",
+      "packageVersion": "2.83.0",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\grpc.aspnetcore.server\\2.83.0\\lib\\net10.0\\Grpc.AspNetCore.Server.dll"
+    },
+    {
+      "name": "Grpc.AspNetCore.Server.ClientFactory",
+      "packageId": "Grpc.AspNetCore.Server.ClientFactory",
+      "packageVersion": "2.83.0",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\grpc.aspnetcore.server.clientfactory\\2.83.0\\lib\\net10.0\\Grpc.AspNetCore.Server.ClientFactory.dll"
+    },
+    {
+      "name": "Grpc.Core.Api",
+      "packageId": "Grpc.Core.Api",
+      "packageVersion": "2.83.0",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\grpc.core.api\\2.83.0\\lib\\netstandard2.1\\Grpc.Core.Api.dll"
+    },
+    {
+      "name": "Grpc.Net.Client",
+      "packageId": "Grpc.Net.Client",
+      "packageVersion": "2.83.0",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\grpc.net.client\\2.83.0\\lib\\net10.0\\Grpc.Net.Client.dll"
+    },
+    {
+      "name": "Grpc.Net.ClientFactory",
+      "packageId": "Grpc.Net.ClientFactory",
+      "packageVersion": "2.83.0",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\grpc.net.clientfactory\\2.83.0\\lib\\net10.0\\Grpc.Net.ClientFactory.dll"
+    },
+    {
+      "name": "Grpc.Net.Common",
+      "packageId": "Grpc.Net.Common",
+      "packageVersion": "2.83.0",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\grpc.net.common\\2.83.0\\lib\\net10.0\\Grpc.Net.Common.dll"
+    },
+    {
+      "name": "HealthChecks.Uris",
+      "packageId": "AspNetCore.HealthChecks.Uris",
+      "packageVersion": "9.0.0",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\aspnetcore.healthchecks.uris\\9.0.0\\lib\\net8.0\\HealthChecks.Uris.dll"
+    },
+    {
+      "name": "Hex1b",
+      "packageId": "Hex1b",
+      "packageVersion": "0.168.0",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\hex1b\\0.168.0\\lib\\net8.0\\Hex1b.dll"
+    },
+    {
+      "name": "KubernetesClient",
+      "packageId": "KubernetesClient",
+      "packageVersion": "19.0.2",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\kubernetesclient\\19.0.2\\lib\\net10.0\\KubernetesClient.dll"
+    },
+    {
+      "name": "MessagePack",
+      "packageId": "MessagePack",
+      "packageVersion": "2.5.307",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\messagepack\\2.5.307\\lib\\net6.0\\MessagePack.dll"
+    },
+    {
+      "name": "MessagePack.Annotations",
+      "packageId": "MessagePack.Annotations",
+      "packageVersion": "2.5.307",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\messagepack.annotations\\2.5.307\\lib\\netstandard2.0\\MessagePack.Annotations.dll"
+    },
+    {
+      "name": "Microsoft.Extensions.AI.Abstractions",
+      "packageId": "Microsoft.Extensions.AI.Abstractions",
+      "packageVersion": "10.5.2",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\microsoft.extensions.ai.abstractions\\10.5.2\\lib\\net10.0\\Microsoft.Extensions.AI.Abstractions.dll"
+    },
+    {
+      "name": "Microsoft.Extensions.Caching.Abstractions",
+      "packageId": "Microsoft.Extensions.Caching.Abstractions",
+      "packageVersion": "10.0.7",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\microsoft.extensions.caching.abstractions\\10.0.7\\lib\\net10.0\\Microsoft.Extensions.Caching.Abstractions.dll"
+    },
+    {
+      "name": "Microsoft.Extensions.Configuration",
+      "packageId": "Microsoft.Extensions.Configuration",
+      "packageVersion": "10.0.12",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\microsoft.extensions.configuration\\10.0.12\\lib\\net10.0\\Microsoft.Extensions.Configuration.dll"
+    },
+    {
+      "name": "Microsoft.Extensions.Configuration.Abstractions",
+      "packageId": "Microsoft.Extensions.Configuration.Abstractions",
+      "packageVersion": "10.0.12",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\microsoft.extensions.configuration.abstractions\\10.0.12\\lib\\net10.0\\Microsoft.Extensions.Configuration.Abstractions.dll"
+    },
+    {
+      "name": "Microsoft.Extensions.Configuration.Binder",
+      "packageId": "Microsoft.Extensions.Configuration.Binder",
+      "packageVersion": "10.0.12",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\microsoft.extensions.configuration.binder\\10.0.12\\lib\\net10.0\\Microsoft.Extensions.Configuration.Binder.dll"
+    },
+    {
+      "name": "Microsoft.Extensions.Configuration.CommandLine",
+      "packageId": "Microsoft.Extensions.Configuration.CommandLine",
+      "packageVersion": "10.0.12",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\microsoft.extensions.configuration.commandline\\10.0.12\\lib\\net10.0\\Microsoft.Extensions.Configuration.CommandLine.dll"
+    },
+    {
+      "name": "Microsoft.Extensions.Configuration.EnvironmentVariables",
+      "packageId": "Microsoft.Extensions.Configuration.EnvironmentVariables",
+      "packageVersion": "10.0.12",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\microsoft.extensions.configuration.environmentvariables\\10.0.12\\lib\\net10.0\\Microsoft.Extensions.Configuration.EnvironmentVariables.dll"
+    },
+    {
+      "name": "Microsoft.Extensions.Configuration.FileExtensions",
+      "packageId": "Microsoft.Extensions.Configuration.FileExtensions",
+      "packageVersion": "10.0.12",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\microsoft.extensions.configuration.fileextensions\\10.0.12\\lib\\net10.0\\Microsoft.Extensions.Configuration.FileExtensions.dll"
+    },
+    {
+      "name": "Microsoft.Extensions.Configuration.Json",
+      "packageId": "Microsoft.Extensions.Configuration.Json",
+      "packageVersion": "10.0.12",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\microsoft.extensions.configuration.json\\10.0.12\\lib\\net10.0\\Microsoft.Extensions.Configuration.Json.dll"
+    },
+    {
+      "name": "Microsoft.Extensions.Configuration.UserSecrets",
+      "packageId": "Microsoft.Extensions.Configuration.UserSecrets",
+      "packageVersion": "10.0.12",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\microsoft.extensions.configuration.usersecrets\\10.0.12\\lib\\net10.0\\Microsoft.Extensions.Configuration.UserSecrets.dll"
+    },
+    {
+      "name": "Microsoft.Extensions.DependencyInjection",
+      "packageId": "Microsoft.Extensions.DependencyInjection",
+      "packageVersion": "10.0.12",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\microsoft.extensions.dependencyinjection\\10.0.12\\lib\\net10.0\\Microsoft.Extensions.DependencyInjection.dll"
+    },
+    {
+      "name": "Microsoft.Extensions.DependencyInjection.Abstractions",
+      "packageId": "Microsoft.Extensions.DependencyInjection.Abstractions",
+      "packageVersion": "10.0.12",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\microsoft.extensions.dependencyinjection.abstractions\\10.0.12\\lib\\net10.0\\Microsoft.Extensions.DependencyInjection.Abstractions.dll"
+    },
+    {
+      "name": "Microsoft.Extensions.Diagnostics",
+      "packageId": "Microsoft.Extensions.Diagnostics",
+      "packageVersion": "10.0.12",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\microsoft.extensions.diagnostics\\10.0.12\\lib\\net10.0\\Microsoft.Extensions.Diagnostics.dll"
+    },
+    {
+      "name": "Microsoft.Extensions.Diagnostics.Abstractions",
+      "packageId": "Microsoft.Extensions.Diagnostics.Abstractions",
+      "packageVersion": "10.0.12",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\microsoft.extensions.diagnostics.abstractions\\10.0.12\\lib\\net10.0\\Microsoft.Extensions.Diagnostics.Abstractions.dll"
+    },
+    {
+      "name": "Microsoft.Extensions.Diagnostics.HealthChecks",
+      "packageId": "Microsoft.Extensions.Diagnostics.HealthChecks",
+      "packageVersion": "8.0.31",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\microsoft.extensions.diagnostics.healthchecks\\8.0.31\\lib\\net8.0\\Microsoft.Extensions.Diagnostics.HealthChecks.dll"
+    },
+    {
+      "name": "Microsoft.Extensions.Diagnostics.HealthChecks.Abstractions",
+      "packageId": "Microsoft.Extensions.Diagnostics.HealthChecks.Abstractions",
+      "packageVersion": "8.0.31",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\microsoft.extensions.diagnostics.healthchecks.abstractions\\8.0.31\\lib\\net8.0\\Microsoft.Extensions.Diagnostics.HealthChecks.Abstractions.dll"
+    },
+    {
+      "name": "Microsoft.Extensions.FileProviders.Abstractions",
+      "packageId": "Microsoft.Extensions.FileProviders.Abstractions",
+      "packageVersion": "10.0.12",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\microsoft.extensions.fileproviders.abstractions\\10.0.12\\lib\\net10.0\\Microsoft.Extensions.FileProviders.Abstractions.dll"
+    },
+    {
+      "name": "Microsoft.Extensions.FileProviders.Physical",
+      "packageId": "Microsoft.Extensions.FileProviders.Physical",
+      "packageVersion": "10.0.12",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\microsoft.extensions.fileproviders.physical\\10.0.12\\lib\\net10.0\\Microsoft.Extensions.FileProviders.Physical.dll"
+    },
+    {
+      "name": "Microsoft.Extensions.FileSystemGlobbing",
+      "packageId": "Microsoft.Extensions.FileSystemGlobbing",
+      "packageVersion": "10.0.12",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\microsoft.extensions.filesystemglobbing\\10.0.12\\lib\\net10.0\\Microsoft.Extensions.FileSystemGlobbing.dll"
+    },
+    {
+      "name": "Microsoft.Extensions.Hosting",
+      "packageId": "Microsoft.Extensions.Hosting",
+      "packageVersion": "10.0.12",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\microsoft.extensions.hosting\\10.0.12\\lib\\net10.0\\Microsoft.Extensions.Hosting.dll"
+    },
+    {
+      "name": "Microsoft.Extensions.Hosting.Abstractions",
+      "packageId": "Microsoft.Extensions.Hosting.Abstractions",
+      "packageVersion": "10.0.12",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\microsoft.extensions.hosting.abstractions\\10.0.12\\lib\\net10.0\\Microsoft.Extensions.Hosting.Abstractions.dll"
+    },
+    {
+      "name": "Microsoft.Extensions.Http",
+      "packageId": "Microsoft.Extensions.Http",
+      "packageVersion": "10.0.12",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\microsoft.extensions.http\\10.0.12\\lib\\net10.0\\Microsoft.Extensions.Http.dll"
+    },
+    {
+      "name": "Microsoft.Extensions.Logging",
+      "packageId": "Microsoft.Extensions.Logging",
+      "packageVersion": "10.0.12",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\microsoft.extensions.logging\\10.0.12\\lib\\net10.0\\Microsoft.Extensions.Logging.dll"
+    },
+    {
+      "name": "Microsoft.Extensions.Logging.Abstractions",
+      "packageId": "Microsoft.Extensions.Logging.Abstractions",
+      "packageVersion": "10.0.12",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\microsoft.extensions.logging.abstractions\\10.0.12\\lib\\net10.0\\Microsoft.Extensions.Logging.Abstractions.dll"
+    },
+    {
+      "name": "Microsoft.Extensions.Logging.Configuration",
+      "packageId": "Microsoft.Extensions.Logging.Configuration",
+      "packageVersion": "10.0.12",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\microsoft.extensions.logging.configuration\\10.0.12\\lib\\net10.0\\Microsoft.Extensions.Logging.Configuration.dll"
+    },
+    {
+      "name": "Microsoft.Extensions.Logging.Console",
+      "packageId": "Microsoft.Extensions.Logging.Console",
+      "packageVersion": "10.0.12",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\microsoft.extensions.logging.console\\10.0.12\\lib\\net10.0\\Microsoft.Extensions.Logging.Console.dll"
+    },
+    {
+      "name": "Microsoft.Extensions.Logging.Debug",
+      "packageId": "Microsoft.Extensions.Logging.Debug",
+      "packageVersion": "10.0.12",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\microsoft.extensions.logging.debug\\10.0.12\\lib\\net10.0\\Microsoft.Extensions.Logging.Debug.dll"
+    },
+    {
+      "name": "Microsoft.Extensions.Logging.EventLog",
+      "packageId": "Microsoft.Extensions.Logging.EventLog",
+      "packageVersion": "10.0.12",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\microsoft.extensions.logging.eventlog\\10.0.12\\lib\\net10.0\\Microsoft.Extensions.Logging.EventLog.dll"
+    },
+    {
+      "name": "Microsoft.Extensions.Logging.EventSource",
+      "packageId": "Microsoft.Extensions.Logging.EventSource",
+      "packageVersion": "10.0.12",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\microsoft.extensions.logging.eventsource\\10.0.12\\lib\\net10.0\\Microsoft.Extensions.Logging.EventSource.dll"
+    },
+    {
+      "name": "Microsoft.Extensions.Options",
+      "packageId": "Microsoft.Extensions.Options",
+      "packageVersion": "10.0.12",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\microsoft.extensions.options\\10.0.12\\lib\\net10.0\\Microsoft.Extensions.Options.dll"
+    },
+    {
+      "name": "Microsoft.Extensions.Options.ConfigurationExtensions",
+      "packageId": "Microsoft.Extensions.Options.ConfigurationExtensions",
+      "packageVersion": "10.0.12",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\microsoft.extensions.options.configurationextensions\\10.0.12\\lib\\net10.0\\Microsoft.Extensions.Options.ConfigurationExtensions.dll"
+    },
+    {
+      "name": "Microsoft.Extensions.Primitives",
+      "packageId": "Microsoft.Extensions.Primitives",
+      "packageVersion": "10.0.12",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\microsoft.extensions.primitives\\10.0.12\\lib\\net10.0\\Microsoft.Extensions.Primitives.dll"
+    },
+    {
+      "name": "Microsoft.NET.StringTools",
+      "packageId": "Microsoft.NET.StringTools",
+      "packageVersion": "18.4.0",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\microsoft.net.stringtools\\18.4.0\\lib\\net10.0\\Microsoft.NET.StringTools.dll"
+    },
+    {
+      "name": "Microsoft.VisualStudio.Threading",
+      "packageId": "Microsoft.VisualStudio.Threading.Only",
+      "packageVersion": "17.14.15",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\microsoft.visualstudio.threading.only\\17.14.15\\lib\\net8.0\\Microsoft.VisualStudio.Threading.dll"
+    },
+    {
+      "name": "Microsoft.VisualStudio.Threading.resources",
+      "culture": "cs",
+      "packageId": "Microsoft.VisualStudio.Threading.Only",
+      "packageVersion": "17.14.15",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\microsoft.visualstudio.threading.only\\17.14.15\\lib\\net8.0\\cs\\Microsoft.VisualStudio.Threading.resources.dll"
+    },
+    {
+      "name": "Microsoft.VisualStudio.Threading.resources",
+      "culture": "de",
+      "packageId": "Microsoft.VisualStudio.Threading.Only",
+      "packageVersion": "17.14.15",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\microsoft.visualstudio.threading.only\\17.14.15\\lib\\net8.0\\de\\Microsoft.VisualStudio.Threading.resources.dll"
+    },
+    {
+      "name": "Microsoft.VisualStudio.Threading.resources",
+      "culture": "es",
+      "packageId": "Microsoft.VisualStudio.Threading.Only",
+      "packageVersion": "17.14.15",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\microsoft.visualstudio.threading.only\\17.14.15\\lib\\net8.0\\es\\Microsoft.VisualStudio.Threading.resources.dll"
+    },
+    {
+      "name": "Microsoft.VisualStudio.Threading.resources",
+      "culture": "fr",
+      "packageId": "Microsoft.VisualStudio.Threading.Only",
+      "packageVersion": "17.14.15",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\microsoft.visualstudio.threading.only\\17.14.15\\lib\\net8.0\\fr\\Microsoft.VisualStudio.Threading.resources.dll"
+    },
+    {
+      "name": "Microsoft.VisualStudio.Threading.resources",
+      "culture": "it",
+      "packageId": "Microsoft.VisualStudio.Threading.Only",
+      "packageVersion": "17.14.15",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\microsoft.visualstudio.threading.only\\17.14.15\\lib\\net8.0\\it\\Microsoft.VisualStudio.Threading.resources.dll"
+    },
+    {
+      "name": "Microsoft.VisualStudio.Threading.resources",
+      "culture": "ja",
+      "packageId": "Microsoft.VisualStudio.Threading.Only",
+      "packageVersion": "17.14.15",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\microsoft.visualstudio.threading.only\\17.14.15\\lib\\net8.0\\ja\\Microsoft.VisualStudio.Threading.resources.dll"
+    },
+    {
+      "name": "Microsoft.VisualStudio.Threading.resources",
+      "culture": "ko",
+      "packageId": "Microsoft.VisualStudio.Threading.Only",
+      "packageVersion": "17.14.15",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\microsoft.visualstudio.threading.only\\17.14.15\\lib\\net8.0\\ko\\Microsoft.VisualStudio.Threading.resources.dll"
+    },
+    {
+      "name": "Microsoft.VisualStudio.Threading.resources",
+      "culture": "pl",
+      "packageId": "Microsoft.VisualStudio.Threading.Only",
+      "packageVersion": "17.14.15",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\microsoft.visualstudio.threading.only\\17.14.15\\lib\\net8.0\\pl\\Microsoft.VisualStudio.Threading.resources.dll"
+    },
+    {
+      "name": "Microsoft.VisualStudio.Threading.resources",
+      "culture": "pt-BR",
+      "packageId": "Microsoft.VisualStudio.Threading.Only",
+      "packageVersion": "17.14.15",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\microsoft.visualstudio.threading.only\\17.14.15\\lib\\net8.0\\pt-BR\\Microsoft.VisualStudio.Threading.resources.dll"
+    },
+    {
+      "name": "Microsoft.VisualStudio.Threading.resources",
+      "culture": "ru",
+      "packageId": "Microsoft.VisualStudio.Threading.Only",
+      "packageVersion": "17.14.15",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\microsoft.visualstudio.threading.only\\17.14.15\\lib\\net8.0\\ru\\Microsoft.VisualStudio.Threading.resources.dll"
+    },
+    {
+      "name": "Microsoft.VisualStudio.Threading.resources",
+      "culture": "tr",
+      "packageId": "Microsoft.VisualStudio.Threading.Only",
+      "packageVersion": "17.14.15",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\microsoft.visualstudio.threading.only\\17.14.15\\lib\\net8.0\\tr\\Microsoft.VisualStudio.Threading.resources.dll"
+    },
+    {
+      "name": "Microsoft.VisualStudio.Threading.resources",
+      "culture": "zh-Hans",
+      "packageId": "Microsoft.VisualStudio.Threading.Only",
+      "packageVersion": "17.14.15",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\microsoft.visualstudio.threading.only\\17.14.15\\lib\\net8.0\\zh-Hans\\Microsoft.VisualStudio.Threading.resources.dll"
+    },
+    {
+      "name": "Microsoft.VisualStudio.Threading.resources",
+      "culture": "zh-Hant",
+      "packageId": "Microsoft.VisualStudio.Threading.Only",
+      "packageVersion": "17.14.15",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\microsoft.visualstudio.threading.only\\17.14.15\\lib\\net8.0\\zh-Hant\\Microsoft.VisualStudio.Threading.resources.dll"
+    },
+    {
+      "name": "Microsoft.VisualStudio.Validation",
+      "packageId": "Microsoft.VisualStudio.Validation",
+      "packageVersion": "17.13.22",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\microsoft.visualstudio.validation\\17.13.22\\lib\\net8.0\\Microsoft.VisualStudio.Validation.dll"
+    },
+    {
+      "name": "Microsoft.VisualStudio.Validation.resources",
+      "culture": "cs",
+      "packageId": "Microsoft.VisualStudio.Validation",
+      "packageVersion": "17.13.22",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\microsoft.visualstudio.validation\\17.13.22\\lib\\net8.0\\cs\\Microsoft.VisualStudio.Validation.resources.dll"
+    },
+    {
+      "name": "Microsoft.VisualStudio.Validation.resources",
+      "culture": "de",
+      "packageId": "Microsoft.VisualStudio.Validation",
+      "packageVersion": "17.13.22",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\microsoft.visualstudio.validation\\17.13.22\\lib\\net8.0\\de\\Microsoft.VisualStudio.Validation.resources.dll"
+    },
+    {
+      "name": "Microsoft.VisualStudio.Validation.resources",
+      "culture": "es",
+      "packageId": "Microsoft.VisualStudio.Validation",
+      "packageVersion": "17.13.22",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\microsoft.visualstudio.validation\\17.13.22\\lib\\net8.0\\es\\Microsoft.VisualStudio.Validation.resources.dll"
+    },
+    {
+      "name": "Microsoft.VisualStudio.Validation.resources",
+      "culture": "fr",
+      "packageId": "Microsoft.VisualStudio.Validation",
+      "packageVersion": "17.13.22",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\microsoft.visualstudio.validation\\17.13.22\\lib\\net8.0\\fr\\Microsoft.VisualStudio.Validation.resources.dll"
+    },
+    {
+      "name": "Microsoft.VisualStudio.Validation.resources",
+      "culture": "it",
+      "packageId": "Microsoft.VisualStudio.Validation",
+      "packageVersion": "17.13.22",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\microsoft.visualstudio.validation\\17.13.22\\lib\\net8.0\\it\\Microsoft.VisualStudio.Validation.resources.dll"
+    },
+    {
+      "name": "Microsoft.VisualStudio.Validation.resources",
+      "culture": "ja",
+      "packageId": "Microsoft.VisualStudio.Validation",
+      "packageVersion": "17.13.22",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\microsoft.visualstudio.validation\\17.13.22\\lib\\net8.0\\ja\\Microsoft.VisualStudio.Validation.resources.dll"
+    },
+    {
+      "name": "Microsoft.VisualStudio.Validation.resources",
+      "culture": "ko",
+      "packageId": "Microsoft.VisualStudio.Validation",
+      "packageVersion": "17.13.22",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\microsoft.visualstudio.validation\\17.13.22\\lib\\net8.0\\ko\\Microsoft.VisualStudio.Validation.resources.dll"
+    },
+    {
+      "name": "Microsoft.VisualStudio.Validation.resources",
+      "culture": "pl",
+      "packageId": "Microsoft.VisualStudio.Validation",
+      "packageVersion": "17.13.22",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\microsoft.visualstudio.validation\\17.13.22\\lib\\net8.0\\pl\\Microsoft.VisualStudio.Validation.resources.dll"
+    },
+    {
+      "name": "Microsoft.VisualStudio.Validation.resources",
+      "culture": "pt-BR",
+      "packageId": "Microsoft.VisualStudio.Validation",
+      "packageVersion": "17.13.22",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\microsoft.visualstudio.validation\\17.13.22\\lib\\net8.0\\pt-BR\\Microsoft.VisualStudio.Validation.resources.dll"
+    },
+    {
+      "name": "Microsoft.VisualStudio.Validation.resources",
+      "culture": "ru",
+      "packageId": "Microsoft.VisualStudio.Validation",
+      "packageVersion": "17.13.22",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\microsoft.visualstudio.validation\\17.13.22\\lib\\net8.0\\ru\\Microsoft.VisualStudio.Validation.resources.dll"
+    },
+    {
+      "name": "Microsoft.VisualStudio.Validation.resources",
+      "culture": "tr",
+      "packageId": "Microsoft.VisualStudio.Validation",
+      "packageVersion": "17.13.22",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\microsoft.visualstudio.validation\\17.13.22\\lib\\net8.0\\tr\\Microsoft.VisualStudio.Validation.resources.dll"
+    },
+    {
+      "name": "Microsoft.VisualStudio.Validation.resources",
+      "culture": "zh-Hans",
+      "packageId": "Microsoft.VisualStudio.Validation",
+      "packageVersion": "17.13.22",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\microsoft.visualstudio.validation\\17.13.22\\lib\\net8.0\\zh-Hans\\Microsoft.VisualStudio.Validation.resources.dll"
+    },
+    {
+      "name": "Microsoft.VisualStudio.Validation.resources",
+      "culture": "zh-Hant",
+      "packageId": "Microsoft.VisualStudio.Validation",
+      "packageVersion": "17.13.22",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\microsoft.visualstudio.validation\\17.13.22\\lib\\net8.0\\zh-Hant\\Microsoft.VisualStudio.Validation.resources.dll"
+    },
+    {
+      "name": "Microsoft.Win32.SystemEvents",
+      "packageId": "Microsoft.Win32.SystemEvents",
+      "packageVersion": "6.0.0",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\microsoft.win32.systemevents\\6.0.0\\runtimes\\win\\lib\\net6.0\\Microsoft.Win32.SystemEvents.dll"
+    },
+    {
+      "name": "ModelContextProtocol",
+      "packageId": "ModelContextProtocol",
+      "packageVersion": "1.4.1",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\modelcontextprotocol\\1.4.1\\lib\\net10.0\\ModelContextProtocol.dll"
+    },
+    {
+      "name": "ModelContextProtocol.Core",
+      "packageId": "ModelContextProtocol.Core",
+      "packageVersion": "1.4.1",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\modelcontextprotocol.core\\1.4.1\\lib\\net10.0\\ModelContextProtocol.Core.dll"
+    },
+    {
+      "name": "Nerdbank.MessagePack",
+      "packageId": "Nerdbank.MessagePack",
+      "packageVersion": "1.2.4",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\nerdbank.messagepack\\1.2.4\\lib\\net9.0\\Nerdbank.MessagePack.dll"
+    },
+    {
+      "name": "Nerdbank.Streams",
+      "packageId": "Nerdbank.Streams",
+      "packageVersion": "2.13.16",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\nerdbank.streams\\2.13.16\\lib\\net8.0\\Nerdbank.Streams.dll"
+    },
+    {
+      "name": "Newtonsoft.Json",
+      "packageId": "Newtonsoft.Json",
+      "packageVersion": "13.0.4",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\newtonsoft.json\\13.0.4\\lib\\net6.0\\Newtonsoft.Json.dll"
+    },
+    {
+      "name": "OpenTelemetry",
+      "packageId": "OpenTelemetry",
+      "packageVersion": "1.17.0",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\opentelemetry\\1.17.0\\lib\\net10.0\\OpenTelemetry.dll"
+    },
+    {
+      "name": "OpenTelemetry.Api",
+      "packageId": "OpenTelemetry.Api",
+      "packageVersion": "1.17.0",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\opentelemetry.api\\1.17.0\\lib\\net10.0\\OpenTelemetry.Api.dll"
+    },
+    {
+      "name": "OpenTelemetry.Api.ProviderBuilderExtensions",
+      "packageId": "OpenTelemetry.Api.ProviderBuilderExtensions",
+      "packageVersion": "1.17.0",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\opentelemetry.api.providerbuilderextensions\\1.17.0\\lib\\net10.0\\OpenTelemetry.Api.ProviderBuilderExtensions.dll"
+    },
+    {
+      "name": "OpenTelemetry.Exporter.OpenTelemetryProtocol",
+      "packageId": "OpenTelemetry.Exporter.OpenTelemetryProtocol",
+      "packageVersion": "1.17.0",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\opentelemetry.exporter.opentelemetryprotocol\\1.17.0\\lib\\net10.0\\OpenTelemetry.Exporter.OpenTelemetryProtocol.dll"
+    },
+    {
+      "name": "OpenTelemetry.Extensions.Hosting",
+      "packageId": "OpenTelemetry.Extensions.Hosting",
+      "packageVersion": "1.17.0",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\opentelemetry.extensions.hosting\\1.17.0\\lib\\net10.0\\OpenTelemetry.Extensions.Hosting.dll"
+    },
+    {
+      "name": "Polly.Core",
+      "packageId": "Polly.Core",
+      "packageVersion": "8.7.0",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\polly.core\\8.7.0\\lib\\net8.0\\Polly.Core.dll"
+    },
+    {
+      "name": "PolyType",
+      "packageId": "PolyType",
+      "packageVersion": "1.3.1",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\polytype\\1.3.1\\lib\\net10.0\\PolyType.dll"
+    },
+    {
+      "name": "QRCoder",
+      "packageId": "QRCoder",
+      "packageVersion": "1.7.0",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\qrcoder\\1.7.0\\lib\\net6.0\\QRCoder.dll"
+    },
+    {
+      "name": "Semver",
+      "packageId": "Semver",
+      "packageVersion": "3.0.0",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\semver\\3.0.0\\lib\\net5.0\\Semver.dll"
+    },
+    {
+      "name": "StreamJsonRpc",
+      "packageId": "StreamJsonRpc",
+      "packageVersion": "2.25.29",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\streamjsonrpc\\2.25.29\\lib\\net9.0\\StreamJsonRpc.dll"
+    },
+    {
+      "name": "StreamJsonRpc.resources",
+      "culture": "cs",
+      "packageId": "StreamJsonRpc",
+      "packageVersion": "2.25.29",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\streamjsonrpc\\2.25.29\\lib\\net9.0\\cs\\StreamJsonRpc.resources.dll"
+    },
+    {
+      "name": "StreamJsonRpc.resources",
+      "culture": "de",
+      "packageId": "StreamJsonRpc",
+      "packageVersion": "2.25.29",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\streamjsonrpc\\2.25.29\\lib\\net9.0\\de\\StreamJsonRpc.resources.dll"
+    },
+    {
+      "name": "StreamJsonRpc.resources",
+      "culture": "es",
+      "packageId": "StreamJsonRpc",
+      "packageVersion": "2.25.29",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\streamjsonrpc\\2.25.29\\lib\\net9.0\\es\\StreamJsonRpc.resources.dll"
+    },
+    {
+      "name": "StreamJsonRpc.resources",
+      "culture": "fr",
+      "packageId": "StreamJsonRpc",
+      "packageVersion": "2.25.29",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\streamjsonrpc\\2.25.29\\lib\\net9.0\\fr\\StreamJsonRpc.resources.dll"
+    },
+    {
+      "name": "StreamJsonRpc.resources",
+      "culture": "it",
+      "packageId": "StreamJsonRpc",
+      "packageVersion": "2.25.29",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\streamjsonrpc\\2.25.29\\lib\\net9.0\\it\\StreamJsonRpc.resources.dll"
+    },
+    {
+      "name": "StreamJsonRpc.resources",
+      "culture": "ja",
+      "packageId": "StreamJsonRpc",
+      "packageVersion": "2.25.29",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\streamjsonrpc\\2.25.29\\lib\\net9.0\\ja\\StreamJsonRpc.resources.dll"
+    },
+    {
+      "name": "StreamJsonRpc.resources",
+      "culture": "ko",
+      "packageId": "StreamJsonRpc",
+      "packageVersion": "2.25.29",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\streamjsonrpc\\2.25.29\\lib\\net9.0\\ko\\StreamJsonRpc.resources.dll"
+    },
+    {
+      "name": "StreamJsonRpc.resources",
+      "culture": "pl",
+      "packageId": "StreamJsonRpc",
+      "packageVersion": "2.25.29",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\streamjsonrpc\\2.25.29\\lib\\net9.0\\pl\\StreamJsonRpc.resources.dll"
+    },
+    {
+      "name": "StreamJsonRpc.resources",
+      "culture": "pt-BR",
+      "packageId": "StreamJsonRpc",
+      "packageVersion": "2.25.29",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\streamjsonrpc\\2.25.29\\lib\\net9.0\\pt-BR\\StreamJsonRpc.resources.dll"
+    },
+    {
+      "name": "StreamJsonRpc.resources",
+      "culture": "ru",
+      "packageId": "StreamJsonRpc",
+      "packageVersion": "2.25.29",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\streamjsonrpc\\2.25.29\\lib\\net9.0\\ru\\StreamJsonRpc.resources.dll"
+    },
+    {
+      "name": "StreamJsonRpc.resources",
+      "culture": "tr",
+      "packageId": "StreamJsonRpc",
+      "packageVersion": "2.25.29",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\streamjsonrpc\\2.25.29\\lib\\net9.0\\tr\\StreamJsonRpc.resources.dll"
+    },
+    {
+      "name": "StreamJsonRpc.resources",
+      "culture": "zh-Hans",
+      "packageId": "StreamJsonRpc",
+      "packageVersion": "2.25.29",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\streamjsonrpc\\2.25.29\\lib\\net9.0\\zh-Hans\\StreamJsonRpc.resources.dll"
+    },
+    {
+      "name": "StreamJsonRpc.resources",
+      "culture": "zh-Hant",
+      "packageId": "StreamJsonRpc",
+      "packageVersion": "2.25.29",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\streamjsonrpc\\2.25.29\\lib\\net9.0\\zh-Hant\\StreamJsonRpc.resources.dll"
+    },
+    {
+      "name": "System.Diagnostics.EventLog",
+      "packageId": "System.Diagnostics.EventLog",
+      "packageVersion": "10.0.12",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\system.diagnostics.eventlog\\10.0.12\\runtimes\\win\\lib\\net10.0\\System.Diagnostics.EventLog.dll"
+    },
+    {
+      "name": "System.Diagnostics.EventLog.Messages",
+      "packageId": "System.Diagnostics.EventLog",
+      "packageVersion": "10.0.12",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\system.diagnostics.eventlog\\10.0.12\\runtimes\\win\\lib\\net10.0\\System.Diagnostics.EventLog.Messages.dll"
+    },
+    {
+      "name": "System.Drawing.Common",
+      "packageId": "System.Drawing.Common",
+      "packageVersion": "6.0.0",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\system.drawing.common\\6.0.0\\runtimes\\win\\lib\\net6.0\\System.Drawing.Common.dll"
+    },
+    {
+      "name": "System.IO.Hashing",
+      "packageId": "System.IO.Hashing",
+      "packageVersion": "10.0.12",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\system.io.hashing\\10.0.12\\lib\\net10.0\\System.IO.Hashing.dll"
+    },
+    {
+      "name": "System.IO.Pipelines",
+      "packageId": "System.IO.Pipelines",
+      "packageVersion": "8.0.0",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\system.io.pipelines\\8.0.0\\lib\\net8.0\\System.IO.Pipelines.dll"
+    },
+    {
+      "name": "System.Text.Json",
+      "packageId": "System.Text.Json",
+      "packageVersion": "10.0.12",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\system.text.json\\10.0.12\\lib\\net10.0\\System.Text.Json.dll"
+    },
+    {
+      "name": "YamlDotNet",
+      "packageId": "YamlDotNet",
+      "packageVersion": "18.1.0",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\yamldotnet\\18.1.0\\lib\\net10.0\\YamlDotNet.dll"
+    }
+  ],
+  "nativeLibraries": [
+    {
+      "fileName": "conpty.dll",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\hex1b\\0.168.0\\runtimes\\win-x64\\native\\conpty.dll"
+    },
+    {
+      "fileName": "hex1bpty.exe",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\hex1b\\0.168.0\\runtimes\\win-x64\\native\\hex1bpty.exe"
+    },
+    {
+      "fileName": "OpenConsole.exe",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\hex1b\\0.168.0\\runtimes\\win-x64\\native\\arm64\\OpenConsole.exe"
+    },
+    {
+      "fileName": "OpenConsole.exe",
+      "path": "C:\\Users\\webma\\.nuget\\packages\\hex1b\\0.168.0\\runtimes\\win-x64\\native\\x64\\OpenConsole.exe"
+    }
+  ]
+}

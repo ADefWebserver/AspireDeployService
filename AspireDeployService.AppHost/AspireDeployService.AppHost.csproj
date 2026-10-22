@@ -1,4 +1,4 @@
-<Project Sdk="Aspire.AppHost.Sdk/13.6.2">
+<Project Sdk="Aspire.AppHost.Sdk/13.6.3">
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
@@ -11,7 +11,7 @@
 
   <ItemGroup>
     <!-- The MAUI app is Windows-only; Aspire's MAUI integration builds and launches it as a Windows device. -->
-    <PackageReference Include="Aspire.Hosting.Maui" Version="13.6.2-preview.1.26519.11" />
+    <PackageReference Include="Aspire.Hosting.Maui" Version="13.6.3-preview.1.26521.2" />
     <!-- Lifts the transitive MessagePack 2.5.302 past GHSA-qhrr-8q5h-9q3h (fixed in 2.5.303). -->
     <PackageReference Include="MessagePack" Version="2.5.307" />
   </ItemGroup>

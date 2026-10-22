@@ -1,5 +1,6 @@
 {
   "appHost": {
-    "path": "AspireDeployService.AppHost/AspireDeployService.AppHost.csproj"
+    "path": "AspireDeployService.AppHost/AspireDeployService.AppHost.csproj",
+    "language": "typescript/nodejs"
   }
 }
