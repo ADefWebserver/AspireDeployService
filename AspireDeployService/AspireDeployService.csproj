@@ -64,8 +64,10 @@
     </ItemGroup>
 
     <ItemGroup>
-        <!-- Placeholder sample only; the real appsettings.Local.json is git-ignored and never copied to output. -->
-        <None Update="appsettings.Local.example.json" CopyToOutputDirectory="Never" />
+        <!-- Placeholder sample only; the real appsettings.Local.json is git-ignored and never copied to output.
+             The Razor SDK includes *.json as Content, so both are removed from Content, not None. -->
+        <Content Remove="appsettings.Local.json;appsettings.Local.example.json" />
+        <None Include="appsettings.Local.example.json" CopyToOutputDirectory="Never" CopyToPublishDirectory="Never" />
     </ItemGroup>
 
 </Project>
