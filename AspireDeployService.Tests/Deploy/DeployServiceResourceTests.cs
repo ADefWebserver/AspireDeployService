@@ -111,7 +111,7 @@ public class DeployServiceResourceTests : IDisposable
 
         var (_, message) = Assert.Single(_h.Interaction.Asked);
         Assert.Contains("  registry: crshared01 in rg-shared (existing)\n", message);
-        Assert.Contains("  environment: cae-shared in rg-shared (existing)\n", message);
+        Assert.Contains("  apps environment: cae-shared in rg-shared (existing)\n", message);
         Assert.Contains("  container apps: apiservice (new), cache (new), webfrontend (new)", message);
         Assert.Contains("  resource group: rg-shop in eastus2\n", message);
     }
@@ -190,7 +190,7 @@ public class DeployServiceResourceTests : IDisposable
         Assert.True(order.FindIndex(c => c.StartsWith("containerapp env create", StringComparison.Ordinal))
             < order.FindIndex(c => c.StartsWith("deploy ", StringComparison.Ordinal)));
         var (_, message) = Assert.Single(_h.Interaction.Asked);
-        Assert.Contains("environment: cae-new in rg-shop (create, logs: log-analytics)", message);
+        Assert.Contains("apps environment: cae-new in rg-shop (create, logs: log-analytics)", message);
         Assert.Contains("Creating the environment can take 30 minutes or more.", message);
         Assert.Equal(ResourceMode.Existing, (await _h.Profiles.GetAsync("shop", CancellationToken.None))!.Destination.ContainerAppEnvironment!.Mode);
     }
