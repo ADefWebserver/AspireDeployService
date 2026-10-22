@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using AspireDeployService.Core.Azure;
 using AspireDeployService.Core.Outcomes;
 using AspireDeployService.Core.Sources;
 
@@ -56,8 +57,77 @@ public static partial class ProfileRules
         }
         if (p.ContainerRuntime is { Length: > 0 } rt && rt is not ("docker" or "podman"))
             errors.Add("ContainerRuntime: must be docker, podman or empty.");
+        foreach (var name in p.Parameters.Keys.Concat(p.ParameterConfigKeys.Keys).Distinct(StringComparer.Ordinal))
+        {
+            if (IsReservedParameterName(name))
+                errors.Add($"Parameters:{name}: names starting with adsExisting or adsOverlay are reserved by Aspire Deploy.");
+        }
+        ValidateResources(p.Destination, errors);
         return errors;
     }
+
+    /// <summary>Resource pickers plan D12: the overlay's own parameters.</summary>
+    public static bool IsReservedParameterName(string name) =>
+        name.StartsWith("adsExisting", StringComparison.OrdinalIgnoreCase) || name.StartsWith("adsOverlay", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>Resource pickers plan §6.1 rules for the registry, environment and pull-identity sections.</summary>
+    private static void ValidateResources(ProfileDestination d, List<string> errors)
+    {
+        const string reg = "Destination:ContainerRegistry";
+        const string env = "Destination:ContainerAppEnvironment";
+        const string id = "Destination:AcrPullIdentity";
+
+        if (d.ContainerRegistry is { } r && r.EffectiveMode != ResourceMode.AspireDefault)
+        {
+            if (string.IsNullOrWhiteSpace(r.Name))
+                errors.Add($"{reg}:Name: choose or enter a registry.");
+            else if (AzureNameRules.Problem(AzureResourceKind.ContainerRegistry, r.Name) is { } problem)
+                errors.Add($"{reg}:Name: {problem}");
+            if (r.EffectiveMode == ResourceMode.Existing && r.ResourceGroup is { Length: > 0 } rg && !IsValidResourceGroup(rg))
+                errors.Add($"{reg}:ResourceGroup: {AzureNameRules.ResourceGroupRule}");
+            if (r.EffectiveMode == ResourceMode.New && r.Sku is { Length: > 0 } sku && !ResourceChoice.Skus.Contains(sku, StringComparer.Ordinal))
+                errors.Add($"{reg}:Sku: Basic, Standard or Premium.");
+        }
+
+        if (d.ContainerAppEnvironment is { } e)
+        {
+            if (e.AppHostResource is { Length: > 0 } res && !AppHostResourcePattern().IsMatch(res))
+                errors.Add($"{env}:AppHostResource: 1 to 64 letters, digits or dashes.");
+            if (e.EffectiveMode != ResourceMode.AspireDefault)
+            {
+                if (string.IsNullOrWhiteSpace(e.Name))
+                    errors.Add($"{env}:Name: choose or enter an environment.");
+                else if (AzureNameRules.Problem(AzureResourceKind.ContainerAppEnvironment, e.Name) is { } problem)
+                    errors.Add($"{env}:Name: {problem}");
+                if (e.EffectiveMode == ResourceMode.Existing && e.ResourceGroup is { Length: > 0 } rg && !IsValidResourceGroup(rg))
+                    errors.Add($"{env}:ResourceGroup: {AzureNameRules.ResourceGroupRule}");
+            }
+            if (e.EffectiveMode == ResourceMode.New)
+            {
+                if (e.LogsDestination is { Length: > 0 } dest && !ResourceChoice.LogsDestinations.Contains(dest, StringComparer.Ordinal))
+                    errors.Add($"{env}:LogsDestination: log-analytics, existing-workspace or none.");
+                else if (e.EffectiveLogsDestination == ResourceChoice.LogsExistingWorkspace
+                         && (string.IsNullOrWhiteSpace(e.LogsWorkspace?.Name) || !IsValidResourceGroup(e.LogsWorkspace?.ResourceGroup)))
+                    errors.Add($"{env}:LogsWorkspace: choose a Log Analytics workspace.");
+            }
+        }
+
+        if (d.AcrPullIdentity is { } i && i.EffectiveMode != ResourceMode.AspireDefault)
+        {
+            if (i.EffectiveMode == ResourceMode.New)
+            {
+                errors.Add($"{id}:Mode: only an existing identity can be used.");
+                return;
+            }
+            if (string.IsNullOrWhiteSpace(i.Name) || !IsValidResourceGroup(i.ResourceGroup))
+                errors.Add($"{id}:Name: choose an identity.");
+            if (d.RegistryMode != ResourceMode.Existing)
+                errors.Add($"{id}: an existing pull identity needs an existing registry that it can already pull from.");
+        }
+    }
+
+    [GeneratedRegex("^[A-Za-z0-9-]{1,64}$")]
+    internal static partial Regex AppHostResourcePattern();
 
     public static bool IsValidResourceGroup(string? name) =>
         name is not null && ResourceGroupPattern().IsMatch(name) && !name.EndsWith('.');
@@ -112,11 +182,47 @@ public static partial class ProfileRules
                 };
                 break;
             case "Environment": p.Environment = NullIfEmpty(value); break;
+            case "Destination:ContainerRegistry:Mode": Choice(p, Section.Registry).Mode = ParseMode(key, value); break;
+            case "Destination:ContainerRegistry:Name": Choice(p, Section.Registry).Name = NullIfEmpty(value); break;
+            case "Destination:ContainerRegistry:ResourceGroup": Choice(p, Section.Registry).ResourceGroup = NullIfEmpty(value); break;
+            case "Destination:ContainerRegistry:Sku": Choice(p, Section.Registry).Sku = NullIfEmpty(value); break;
+            case "Destination:ContainerAppEnvironment:Mode": Choice(p, Section.Environment).Mode = ParseMode(key, value); break;
+            case "Destination:ContainerAppEnvironment:Name": Choice(p, Section.Environment).Name = NullIfEmpty(value); break;
+            case "Destination:ContainerAppEnvironment:ResourceGroup": Choice(p, Section.Environment).ResourceGroup = NullIfEmpty(value); break;
+            case "Destination:ContainerAppEnvironment:LogsDestination": Choice(p, Section.Environment).LogsDestination = NullIfEmpty(value); break;
+            case "Destination:ContainerAppEnvironment:AppHostResource": Choice(p, Section.Environment).AppHostResource = NullIfEmpty(value); break;
+            case "Destination:ContainerAppEnvironment:LogsWorkspace:Name":
+                (Choice(p, Section.Environment).LogsWorkspace ??= new()).Name = NullIfEmpty(value);
+                break;
+            case "Destination:ContainerAppEnvironment:LogsWorkspace:ResourceGroup":
+                (Choice(p, Section.Environment).LogsWorkspace ??= new()).ResourceGroup = NullIfEmpty(value);
+                break;
+            case "Destination:AcrPullIdentity:Mode": Choice(p, Section.Identity).Mode = ParseMode(key, value); break;
+            case "Destination:AcrPullIdentity:Name": Choice(p, Section.Identity).Name = NullIfEmpty(value); break;
+            case "Destination:AcrPullIdentity:ResourceGroup": Choice(p, Section.Identity).ResourceGroup = NullIfEmpty(value); break;
             case "ContainerRuntime": p.ContainerRuntime = NullIfEmpty(value); break;
             default:
                 throw new DeployerException(OutcomeCode.InvalidInput, $"'{key}' is not a key that can be set.");
         }
     }
+
+    private enum Section { Registry, Environment, Identity }
+
+    private static ResourceChoice Choice(DeployProfile p, Section section) => section switch
+    {
+        Section.Registry => p.Destination.ContainerRegistry ??= new(),
+        Section.Environment => p.Destination.ContainerAppEnvironment ??= new(),
+        _ => p.Destination.AcrPullIdentity ??= new()
+    };
+
+    /// <summary>The three enum names, case-insensitively; AspireDefault and "" both store nothing.</summary>
+    private static ResourceMode? ParseMode(string key, string? value) => value switch
+    {
+        null or "" => null,
+        _ when !int.TryParse(value, out _) && Enum.TryParse<ResourceMode>(value, ignoreCase: true, out var mode) =>
+            mode == ResourceMode.AspireDefault ? null : mode,
+        _ => throw new DeployerException(OutcomeCode.InvalidInput, $"{key} must be AspireDefault, Existing or New.")
+    };
 
     private static void RequireName(string key, string name)
     {

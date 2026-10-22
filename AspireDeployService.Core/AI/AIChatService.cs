@@ -107,9 +107,22 @@ public sealed class AIChatService(IAISettingsService settings, AIPromptScrubber 
         Say clearly when the cause is in the user's own project (package versions, AppHost code, Azure permissions)
         rather than in Aspire Deploy.
         Never ask for passwords, keys or tokens. Values shown as [REDACTED] were hidden on purpose; do not guess them.
-        If you have tools, you can only read files under the run's source folder and the run log. You cannot change
-        files, run commands or call Azure; tell the developer what to do instead.
+        If you have tools, you can only read files under the run's source folder, the run log and the user guide. You
+        cannot change files, run commands or call Azure; tell the developer what to do instead.
         """;
+
+    public const int MaxTroubleshootingChars = 6_000;
+
+    private static readonly Lazy<string> _fullSystemPrompt = new(() =>
+        SystemPrompt + "\n" + GuidePrompt(UserGuide.SectionList()));
+
+    /// <summary>The system prompt plus the guide's section list (resource pickers plan §6.8), built once.</summary>
+    internal static string FullSystemPrompt => _fullSystemPrompt.Value;
+
+    internal static string GuidePrompt(string sectionList) =>
+        "Aspire Deploy has a user guide. Sections:\n" + sectionList + "\n"
+        + "When the developer asks how to do something in the app, use read_guide if you have it, and point them to "
+        + "Guide > <title> in the app.";
 
     public async Task<AIChatSession> StartAsync(AIHelpContext context, CancellationToken ct)
     {
@@ -119,7 +132,12 @@ public sealed class AIChatService(IAISettingsService settings, AIPromptScrubber 
         var options = await settings.GetOptionsAsync(ct);
         var redactor = await scrubber.CreateAsync(ct);
         var reason = ToolsUnavailableReason(active, EffectiveProtocol(active), options, context);
-        var withTools = context with { Facts = [.. context.Facts, new("File tools", ToolsFact(reason, context))] };
+        List<KeyValuePair<string, string>> facts = [.. context.Facts, new("File tools", ToolsFact(reason, context))];
+        // D16: without tools the model cannot call read_guide, so the guide's Troubleshooting section goes in the context.
+        // It is part of the head, so AIContextFormatter trims the log tail first.
+        if (reason is not null && TroubleshootingFact() is { } trouble)
+            facts.Add(new("From the user guide: Troubleshooting", trouble));
+        var withTools = context with { Facts = facts };
         var session = new AIChatSession(context, redactor.Scrub(AIContextFormatter.Format(withTools, options.MaxLogTailLines)));
         Describe(session, active, options);
         return session;
@@ -128,8 +146,17 @@ public sealed class AIChatService(IAISettingsService settings, AIPromptScrubber 
     /// <summary>Tells the model what it can read, so it never claims to have looked at a file it cannot open.</summary>
     internal static string ToolsFact(string? unavailableReason, AIHelpContext context) =>
         unavailableReason is not null ? "none. " + unavailableReason
-        : context.SourceRoot is null ? "can read this run's log"
-        : "can read files under the source folder" + (context.LogFile is null ? "" : " and this run's log");
+        : context.SourceRoot is null
+            ? (context.LogFile is null ? "can read the user guide" : "can read this run's log and the user guide")
+        : "can read files under the source folder" + (context.LogFile is null ? "" : " and this run's log") + ", and the user guide";
+
+    internal static string? TroubleshootingFact()
+    {
+        if (UserGuide.Find("trouble") is not { } section)
+            return null;
+        var text = "\n" + section.Text;
+        return text.Length <= MaxTroubleshootingChars ? text : text[..MaxTroubleshootingChars] + "\n(cut)";
+    }
 
     public async IAsyncEnumerable<AIChatUpdate> SendAsync(AIChatSession session, string userText,
         [EnumeratorCancellation] CancellationToken ct)
@@ -197,7 +224,7 @@ public sealed class AIChatService(IAISettingsService settings, AIPromptScrubber 
                 if (session.ToolsEnabled)
                 {
                     var tools = new AIFileTools(session.Context.SourceRoot, session.Context.LogFile, DeniedPaths(), redactor);
-                    options.Tools = tools.AsTools();
+                    options.Tools = [.. tools.AsTools(), .. new AIGuideTools(redactor).AsTools()];
                     client = new ChatClientBuilder(client)
                         .UseFunctionInvocation(configure: f => f.MaximumIterationsPerRequest = MaxToolIterations)
                         .Build();
@@ -273,7 +300,7 @@ public sealed class AIChatService(IAISettingsService settings, AIPromptScrubber 
     {
         var messages = new List<ChatMessage>
         {
-            new(ChatRole.System, SystemPrompt),
+            new(ChatRole.System, FullSystemPrompt),
             new(ChatRole.User, session.ContextText)
         };
         foreach (var turn in session.Turns.Where(t => !t.Failed).TakeLast(MaxHistoryTurns))
@@ -306,8 +333,7 @@ public sealed class AIChatService(IAISettingsService settings, AIPromptScrubber 
             return "File tools aren't available with the Anthropic Messages protocol.";
         if (!ModelCapabilities.SupportsTools(active.AIModel, protocol))
             return $"File tools aren't available with the model {active.AIModel}.";
-        if (string.IsNullOrEmpty(context.SourceRoot) && string.IsNullOrEmpty(context.LogFile))
-            return "There is no source folder or run log to read for this topic.";
+        // D16: the guide can always be read, so a context with no source folder or log still gets tools.
         return null;
     }
 

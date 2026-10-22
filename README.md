@@ -13,13 +13,15 @@ Design: [docs/AspireDeployService-Implementation-Plan.md](docs/AspireDeployServi
 
 ## Quick start
 
+New here? Read the **[user guide](docs/User-Guide.md)** (also the **Guide** tab in the app). It covers profiles, picking or creating the registry and Container Apps environment, and troubleshooting.
+
 1. Install the prerequisites below, then run `az login`.
 2. Start the app: open `AspireDeployService.slnx` in Visual Studio and run the **Windows Machine** profile, or run `aspire run` and start the `aspiredeployservice-windows` resource from the dashboard.
 3. **Setup**: run the general checks.
 4. **Profiles → New profile**: name it, pick the solution folder (or `<owner>/<repo>`), click **Discover**, fill in the region and the parameters, and save.
 5. **Deploy**: tick **Dry run** first to list the steps, then deploy for real. Every deploy shows the tenant, subscription and resource group and asks before it starts.
 
-To remove a deployment, delete its resource group in Azure. Deleting a profile never touches Azure.
+To remove a deployment, delete its resource group in Azure. Deleting a profile never touches Azure. Existing resources a profile picked from **other** resource groups (registry, environment, pull identity, logs workspace) are never deleted by the app and are not in that group; but an existing resource that lives in the profile's own group goes with it.
 
 ## Prerequisites
 
@@ -73,6 +75,8 @@ The values live under `AspireDeploy:AI` in `appsettings.Local.json` (see the exa
 
 The app itself never writes into your source, but the Aspire tooling it runs does: `bin/` and `obj/` from the build, and for TypeScript AppHosts `.aspire/modules/` and `node_modules/`, and possibly `aspire.config.json`. Deploy output goes to the work folder, not your source.
 
+When a profile uses an existing or new registry, environment or pull identity, a **file-based C# or TypeScript AppHost** gets a temporary `.ads-deploy` folder next to its entry file, holding a patched copy (`.ads-deploy/apphost.cs`, `.ads-deploy/apphost.mts`) whose first line says it was written by Aspire Deploy. It is removed after the deploy, and after a crash by the next deploy, Discover or app start. Do not commit it (`*.ads-deploy*` / `.ads-deploy/` in `.gitignore` is fine). A project AppHost gets its patched copy in the work folder instead, so nothing is written into the source.
+
 ## Shared code
 
 These files are copied, not referenced, from the BlazorDataDeploymentWebsite repository (plan D2). Each one starts with a comment naming its origin. Review them when the originals change:
@@ -121,3 +125,13 @@ Run this before a release. Rows marked **(Azure)** create real resources; delete
 | 20 | Open AI Help, then start a GitHub discover that asks for trust | The trust dialog takes focus over the panel. |
 | 21 | AI Help on a failing Setup row, a Discover warning, an error callout and the log toolbar | Each opens with the right title; **Context sent** shows no profile secret, GitHub token or AI key (search for each value). |
 | 22 | With Anthropic or Google AI active | Chat works; the panel says file tools are not available. |
+| 23 | Profile page: registry and environment sections, each in **Let Aspire create**, **Use existing** and **Create new** | Lists load (and refresh); a typed name is checked after a short pause; an environment in another region shows **Other region** and cannot be picked; the pull-identity section is disabled until the registry is Use existing; `existing-workspace` shows a workspace picker. |
+| 24 | Profile page with `az` signed out | Each section shows the error with **Retry** and a box to type the name. |
+| 25 | New profile for an AppHost that already calls `PublishAsExisting` on its environment | The environment section is locked with the reason and a guide link. |
+| 26 | Guide tab, in light and dark themes and with the window under 900 px wide | Every section, diagrams switch to the stacked drawing; the help link on a profile section lands on **Choose Azure resources**. |
+| 27 | AI Help from a plain error callout: "How do I use an existing registry?" | The panel shows "Read the guide: 2. Choose Azure resources" and the reply follows the guide. |
+| 28 | **(Azure)** Starter AppHost with an existing registry and a **Create new** environment | The confirmation lists the create and each app as new; deploy succeeds; the profile page then shows the environment as **Use existing**. |
+| 29 | **(Azure)** Deploy it again | Every app shows **update**; nothing is created; `git status` in the source folder is clean. |
+| 30 | **(Azure)** Existing registry plus an existing identity with `AcrPull` | Deploy succeeds; the registry's access control shows no new role assignment. |
+| 31 | **(Azure)** New environment with logs to an existing workspace | Logs arrive in that workspace's `ContainerAppConsoleLogs` table. |
+| 32 | **(Azure)** File-based C# and TypeScript AppHosts with an existing environment and registry; also kill the app mid-deploy and restart it | Deploy succeeds; no `.ads-deploy` folder remains afterwards. |

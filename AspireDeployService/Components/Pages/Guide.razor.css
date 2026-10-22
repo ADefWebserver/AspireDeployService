@@ -1,0 +1,131 @@
+.ads-guide {
+    display: grid;
+    grid-template-columns: 220px minmax(0, 1fr);
+    gap: 24px;
+    align-items: start;
+}
+
+@media (max-width: 900px) {
+    .ads-guide {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+.ads-guide-toc {
+    position: sticky;
+    top: 76px;
+    padding: 16px;
+    font-size: 13px;
+}
+
+@media (max-width: 900px) {
+    .ads-guide-toc {
+        position: static;
+    }
+}
+
+.ads-guide-toc-title {
+    font-size: 11.5px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--ads-subtle);
+    margin-bottom: 8px;
+}
+
+.ads-guide-toc ol {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.ads-guide-toc li {
+    margin: 6px 0;
+}
+
+.ads-guide-toc a {
+    color: var(--ads-muted);
+    text-decoration: none;
+}
+
+    .ads-guide-toc a:hover {
+        color: var(--ads-primary-text);
+    }
+
+.ads-guide-body {
+    min-width: 0;
+    font-size: 14px;
+    line-height: 1.65;
+    color: var(--ads-text);
+}
+
+.ads-guide-section {
+    padding: 4px 0 20px;
+    border-bottom: 1px solid var(--ads-border);
+    margin-bottom: 20px;
+    scroll-margin-top: 76px;
+}
+
+    .ads-guide-section:last-child {
+        border-bottom: none;
+    }
+
+    .ads-guide-section h2 {
+        font-size: 19px;
+        font-weight: 600;
+        margin: 0 0 10px;
+    }
+
+    .ads-guide-section h3 {
+        font-size: 15px;
+        font-weight: 600;
+        margin: 20px 0 6px;
+    }
+
+    .ads-guide-section a {
+        color: var(--ads-primary-text);
+    }
+
+.ads-guide-pre {
+    font-family: var(--ads-mono);
+    font-size: 12.5px;
+    background: var(--ads-well);
+    border: 1px solid var(--ads-border);
+    border-radius: 8px;
+    padding: 12px 14px;
+    overflow-x: auto;
+    white-space: pre;
+}
+
+.ads-guide-table {
+    overflow-x: auto;
+    margin: 10px 0 14px;
+}
+
+    .ads-guide-table table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+    }
+
+    .ads-guide-table th,
+    .ads-guide-table td {
+        text-align: left;
+        vertical-align: top;
+        padding: 8px 10px;
+        border-bottom: 1px solid var(--ads-row-line);
+    }
+
+    .ads-guide-table th {
+        color: var(--ads-subtle);
+        font-weight: 600;
+        border-bottom-color: var(--ads-border);
+    }
+
+    .ads-guide-table ::deep .ads-code {
+        white-space: normal;
+    }
+
+.ads-guide-body .ads-callout {
+    margin: 12px 0;
+}

@@ -58,6 +58,8 @@ public sealed class DiscoveryPipeline(
 
         var identity = await Task.Run(() => provider.MaterializeAsync(source, workKeyDir, run.Services, ct), ct);
         run.Observer.OnSourceReady(identity.RootFolder);
+        foreach (var leftover in await Task.Run(() => Deploy.SiblingOverlay.CleanupLeftovers(identity.RootFolder), ct))
+            await run.Log.InfoAsync($"Removed a leftover temporary file from an earlier deploy: {leftover}", ct);
         var scan = await Task.Run(() => AppHostScanner.Scan(identity.RootFolder, source.AppHostPath, options), ct);
         await run.Log.InfoAsync($"AppHost: {scan.AppHost.AppHostPath} ({scan.AppHost.Kind}, Aspire {scan.AppHost.AspireSdkVersion}).", ct);
         foreach (var warning in scan.Warnings)
@@ -81,8 +83,34 @@ public sealed class DiscoveryPipeline(
         if (stop == Stop.AfterCli)
             return new PipelineResult(identity, scan, cli, null);
 
-        var manifest = await ManifestRunner.RunAsync(cli, identity.RootFolder, scan.AppHost.AppHostPath, workKeyDir,
-            environmentName, TimeSpan.FromMinutes(options.DiscoveryTimeoutMinutes), run, ct);
+        ManifestContents manifest;
+        await using (await AcquireAppHostLockAsync(options.WorkRoot, Path.Combine(identity.RootFolder, scan.AppHost.AppHostPath), ct))
+        {
+            manifest = await ManifestRunner.RunAsync(cli, identity.RootFolder, scan.AppHost.AppHostPath, workKeyDir,
+                environmentName, TimeSpan.FromMinutes(options.DiscoveryTimeoutMinutes), run, ct);
+        }
         return new PipelineResult(identity, scan, cli, manifest);
+    }
+
+    internal static TimeSpan AppHostLockTimeout { get; set; } = TimeSpan.FromSeconds(10);
+
+    /// <summary><c>&lt;WorkRoot&gt;/locks/apphost-&lt;first 12 hex of SHA-256 of the full path, lowercased&gt;.lock</c> (resource pickers plan §6.4).</summary>
+    public static string AppHostLockPath(string workRoot, string appHostFullPath)
+    {
+        var key = Path.GetFullPath(appHostFullPath).ToLowerInvariant();
+        var hash = Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(key)))[..12];
+        return Path.Combine(workRoot, "locks", $"apphost-{hash}.lock");
+    }
+
+    private static async Task<FileLock> AcquireAppHostLockAsync(string workRoot, string appHostFullPath, CancellationToken ct)
+    {
+        try
+        {
+            return await FileLock.AcquireAsync(AppHostLockPath(workRoot, appHostFullPath), AppHostLockTimeout, ct);
+        }
+        catch (IOException ex)
+        {
+            throw new DeployerException(OutcomeCode.InvalidInput, "Another run is building this AppHost. Wait for it to finish.", inner: ex);
+        }
     }
 }

@@ -1,0 +1,17 @@
+.ads-preview {
+    border-top: 1px solid var(--ads-border);
+    padding-top: 10px;
+}
+
+.ads-res-head-preview {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+    font-size: 13px;
+}
+
+.ads-preview-table td, .ads-preview-table th {
+    vertical-align: middle;
+    font-size: 12.5px;
+}

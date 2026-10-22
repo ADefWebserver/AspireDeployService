@@ -88,6 +88,16 @@ else
                         <span class="ads-meta-sep">·</span>
                         <span><Icon Name="cloud" Size="13" /> @rg</span>
                     }
+                    @if (p.RegistryName is { Length: > 0 } registry)
+                    {
+                        <span class="ads-meta-sep">·</span>
+                        <span title="Container registry"><Icon Name="server" Size="13" /> @registry</span>
+                    }
+                    @if (p.EnvironmentName is { Length: > 0 } environment)
+                    {
+                        <span class="ads-meta-sep">·</span>
+                        <span title="Container Apps environment"><Icon Name="cloud" Size="13" /> @environment</span>
+                    }
                 </div>
             </div>
             <div class="ads-profile-actions">

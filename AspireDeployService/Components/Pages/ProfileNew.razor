@@ -78,7 +78,14 @@
 
         <div class="ads-card">
             <div class="ads-card-header"><span class="ads-stepper-num-sm">2</span><h2>Destination</h2></div>
-            <AzureDestinationEditor @key="p" Profile="p" ProfileName="@data.Name" IdPrefix="pn" PickDefaultSubscription="true" />
+            <AzureDestinationEditor @key="p" Profile="p" ProfileName="@data.Name" IdPrefix="pn" PickDefaultSubscription="true"
+                                    Discovery="data.Discovery" ResourcesChanged="StateHasChanged" />
+            @if (data.Discovery.AppHost.DeclaredTargets.Contains(DeploymentTarget.AzureContainerApps))
+            {
+                <div class="mt-3">
+                    <ContainerAppPreview Profile="p" Resources="data.Discovery.Resources" />
+                </div>
+            }
         </div>
 
         <div class="ads-card">

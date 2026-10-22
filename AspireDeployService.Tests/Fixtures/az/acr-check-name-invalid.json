@@ -1,0 +1,6 @@
+{
+  "availableLoginServerName": null,
+  "message": "Resource names may contain alpha numeric characters only and must be between 5 and 50 characters.",
+  "nameAvailable": false,
+  "reason": "Invalid"
+}

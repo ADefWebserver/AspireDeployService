@@ -26,6 +26,8 @@ public class ProcessRunnerStripListTests
     [InlineData("AspireDeploy__WorkRoot")]
     [InlineData("MSBuildSDKsPath")]
     [InlineData("DOTNET_HOST_PATH")]
+    [InlineData("CustomAfterMicrosoftCommonTargets")]
+    [InlineData("CustomBeforeMicrosoftCommonTargets")]
     public async Task Inherited_variable_is_stripped(string name)
     {
         Environment.SetEnvironmentVariable(name, "inherited-value");

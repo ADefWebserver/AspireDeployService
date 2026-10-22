@@ -73,7 +73,9 @@ public sealed class ProcessRunner(ISecretRedactor redactor, ILogger<ProcessRunne
         "GITHUB_TOKEN", "GH_TOKEN",
         "IDENTITY_", "MSI_", "AZURE_TOKEN_CREDENTIALS", "AZURE_CLIENT_SECRET", "AZURE_CLIENT_CERTIFICATE",
         "AZURE_FEDERATED_TOKEN", "AZURE_OIDC_", "OTEL_", "APPLICATIONINSIGHTS_", "ASPIRE_", "DCP_",
-        "MSBuildSDKsPath", "MSBuildExtensionsPath", "MSBUILD_EXE_PATH", "DOTNET_HOST_PATH"
+        "MSBuildSDKsPath", "MSBuildExtensionsPath", "MSBUILD_EXE_PATH", "DOTNET_HOST_PATH",
+        // Resource pickers plan §6.4: only the deploy's own overlay may hook into the build.
+        "CustomAfterMicrosoftCommonTargets", "CustomBeforeMicrosoftCommonTargets"
     ];
 
     public async Task<ProcessResult> RunAsync(ProcessSpec spec, IDeploymentLogSink log, CancellationToken ct)

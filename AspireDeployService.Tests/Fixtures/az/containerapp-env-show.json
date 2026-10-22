@@ -1,0 +1,11 @@
+{
+  "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-shared/providers/Microsoft.App/managedEnvironments/cae-shared",
+  "name": "cae-shared",
+  "location": "East US 2",
+  "resourceGroup": "rg-shared",
+  "properties": {
+    "provisioningState": "Succeeded",
+    "defaultDomain": "x.eastus2.azurecontainerapps.io"
+  },
+  "type": "Microsoft.App/managedEnvironments"
+}

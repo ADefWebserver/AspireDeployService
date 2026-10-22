@@ -1,0 +1,10 @@
+[
+  {
+    "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourcegroups/rg-shared/providers/Microsoft.ManagedIdentity/userAssignedIdentities/id-pull",
+    "name": "id-pull",
+    "resourceGroup": "rg-shared",
+    "principalId": "99999999-0000-0000-0000-000000000009",
+    "clientId": "x",
+    "location": "eastus2"
+  }
+]

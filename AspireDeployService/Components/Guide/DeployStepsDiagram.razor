@@ -1,0 +1,57 @@
+@* Resource pickers plan §6.7: prepare, confirm, create, overlay, aspire deploy, result. *@
+@* <!text> stops Razor from reading the SVG <text> element as its own <text> tag inside code blocks. *@
+<figure class="ads-diagram">
+    <svg class="ads-diagram-wide" viewBox="0 0 760 110" role="img" aria-labelledby="dsd-title dsd-desc">
+        <title id="dsd-title">The steps of a deploy</title>
+        <desc id="dsd-desc">Prepare, then confirm, then create the chosen Azure resources, then apply the overlay, then run aspire deploy, then show the result.</desc>
+        <defs>
+            <marker id="dsd-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                <path d="M0 0 10 5 0 10z" fill="currentColor" />
+            </marker>
+        </defs>
+        @for (var i = 0; i < Steps.Length; i++)
+        {
+            var x = 10 + i * 126;
+            <rect class="ads-diagram-box @(i == 4 ? "ads-diagram-primary" : "")" x="@x" y="20" width="104" height="66" rx="8" />
+            <!text class="ads-diagram-text" x="@(x + 52)" y="48">@Steps[i].Name</!text>
+            <!text class="ads-diagram-note" x="@(x + 52)" y="68">@Steps[i].Note</!text>
+            @if (i < Steps.Length - 1)
+            {
+                <path class="ads-diagram-line" d="M@(x + 104) 53h20" marker-end="url(#dsd-arrow)" />
+            }
+        }
+    </svg>
+
+    <svg class="ads-diagram-stacked" viewBox="0 0 340 400" role="img" aria-labelledby="dsd-s-title dsd-s-desc">
+        <title id="dsd-s-title">The steps of a deploy</title>
+        <desc id="dsd-s-desc">Prepare, confirm, create, overlay, aspire deploy, result, one below the other.</desc>
+        <defs>
+            <marker id="dsd-s-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                <path d="M0 0 10 5 0 10z" fill="currentColor" />
+            </marker>
+        </defs>
+        @for (var i = 0; i < Steps.Length; i++)
+        {
+            var y = 6 + i * 66;
+            <rect class="ads-diagram-box @(i == 4 ? "ads-diagram-primary" : "")" x="40" y="@y" width="260" height="44" rx="8" />
+            <!text class="ads-diagram-text" x="170" y="@(y + 20)">@Steps[i].Name</!text>
+            <!text class="ads-diagram-note" x="170" y="@(y + 36)">@Steps[i].Note</!text>
+            @if (i < Steps.Length - 1)
+            {
+                <path class="ads-diagram-line" d="M170 @(y + 44)v20" marker-end="url(#dsd-s-arrow)" />
+            }
+        }
+    </svg>
+</figure>
+
+@code {
+    private static readonly (string Name, string Note)[] Steps =
+    [
+        ("Prepare", "scan, checks"),
+        ("Confirm", "creates, apps"),
+        ("Create", "az, if asked"),
+        ("Overlay", "marks existing"),
+        ("aspire deploy", "build, push"),
+        ("Result", "banner, log"),
+    ];
+}

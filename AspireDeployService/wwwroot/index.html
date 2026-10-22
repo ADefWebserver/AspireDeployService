@@ -68,6 +68,14 @@
                 });
             }
         };
+        // Guide page: fragment links (guide#azure-resources) do not scroll by themselves in the Blazor WebView.
+        window.adsGuide = {
+            scrollTo: function (id) {
+                var el = id && document.getElementById(id);
+                if (el) el.scrollIntoView({ block: 'start' });
+                return !!el;
+            }
+        };
         // Tab must not leave an open dialog: the default move is cancelled while one is shown.
         document.addEventListener('keydown', function (e) {
             if (e.key === 'Tab' && document.querySelector('.ads-dialog')) e.preventDefault();

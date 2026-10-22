@@ -1,0 +1,6 @@
+{
+  "availableLoginServerName": null,
+  "message": "The registry crshared01 is already in use.",
+  "nameAvailable": false,
+  "reason": "AlreadyExists"
+}

@@ -1,0 +1,132 @@
+@using AspireDeployService.Core.Azure
+@using AspireDeployService.Core.Deploy
+@implements IDisposable
+@inject IAzureResourceProvisioner Provisioner
+
+@*
+    Resource pickers plan F3, §6.6: each compute resource of the AppHost as a new or an updated container app, compared
+    with the apps already in Azure. Names come from the AppHost (D7). A Conflict blocks the deploy.
+*@
+<div class="ads-preview">
+    <div class="ads-res-head-preview">
+        <span class="fw-semibold">Container apps</span>
+        @if (_loading)
+        {
+            <span class="ads-spinner ads-spinner-sm"></span>
+        }
+        <button type="button" class="btn btn-link btn-sm p-0 ms-auto" disabled="@_loading" @onclick="LoadAsync"><Icon Name="refresh" Size="12" /> Check again</button>
+    </div>
+    @if (_error is { } err)
+    {
+        <div class="form-text text-warning">Could not check the existing apps: @err</div>
+    }
+    else if (_rows.Count == 0 && !_loading)
+    {
+        <div class="form-text">The AppHost has no compute resources to deploy.</div>
+    }
+    else
+    {
+        <table class="table table-sm mb-0 ads-preview-table">
+            <thead>
+                <tr><th>Resource</th><th>Container app</th><th>Action</th><th></th></tr>
+            </thead>
+            <tbody>
+                @foreach (var row in _rows)
+                {
+                    <tr>
+                        <td><code>@row.Resource</code></td>
+                        <td><code>@row.AppName</code></td>
+                        <td>
+                            <span class="ads-pill @PillClass(row.Action)">@Label(row.Action)</span>
+                        </td>
+                        <td class="@(row.Action == AppPlanAction.Conflict ? "text-danger" : "ads-muted") ads-small">@row.Note</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public DeployProfile Profile { get; set; } = default!;
+    [Parameter, EditorRequired] public IReadOnlyList<DiscoveredResource> Resources { get; set; } = [];
+
+    private IReadOnlyList<AppPlanRow> _rows = [];
+    private bool _loading;
+    private string? _error;
+    private string? _loadedFor;
+    private int _generation;
+    private readonly CancellationTokenSource _disposed = new();
+
+    /// <summary>What the preview depends on: subscription, group and the environment choice.</summary>
+    private string Key
+    {
+        get
+        {
+            var d = Profile.Destination;
+            return $"{d.SubscriptionId}|{d.ResourceGroup}|{d.EnvironmentMode}|{d.ContainerAppEnvironment?.Name}|{d.ContainerAppEnvironment?.ResourceGroup}";
+        }
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (Key != _loadedFor)
+            await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        var d = Profile.Destination;
+        _loadedFor = Key;
+        if (!Guid.TryParse(d.SubscriptionId, out _) || !ProfileRules.IsValidResourceGroup(d.ResourceGroup))
+        {
+            _rows = ContainerAppPlanner.Plan(Resources, new AppPlanInput(d.ResourceGroup ?? "", null, null, null));
+            return;
+        }
+        var generation = ++_generation;
+        (_loading, _error) = (true, null);
+        StateHasChanged();
+        try
+        {
+            var copy = Profile.Clone();
+            var rows = await Task.Run(() => Provisioner.PreviewAsync(copy, Resources, NullRunObserver.Instance, _disposed.Token), _disposed.Token);
+            if (generation == _generation)
+                _rows = rows;
+        }
+        catch (DeployerException ex)
+        {
+            if (generation == _generation)
+                _error = ex.Message;
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        finally
+        {
+            if (generation == _generation)
+                _loading = false;
+        }
+    }
+
+    private static string Label(AppPlanAction action) => action switch
+    {
+        AppPlanAction.New => "New",
+        AppPlanAction.Update => "Updates existing",
+        AppPlanAction.Conflict => "Conflict",
+        _ => "Could not check"
+    };
+
+    private static string PillClass(AppPlanAction action) => action switch
+    {
+        AppPlanAction.Conflict => "ads-pill-fail",
+        AppPlanAction.Update => "ads-pill-warn",
+        AppPlanAction.New => "ads-pill-pass",
+        _ => ""
+    };
+
+    public void Dispose()
+    {
+        _disposed.Cancel();
+        _disposed.Dispose();
+    }
+}

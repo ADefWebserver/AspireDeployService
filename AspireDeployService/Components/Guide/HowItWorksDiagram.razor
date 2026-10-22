@@ -1,0 +1,69 @@
+@* Resource pickers plan §6.7: the developer machine and the Azure resource group. Matches the Mermaid diagram in docs/User-Guide.md. *@
+<figure class="ads-diagram">
+    <svg class="ads-diagram-wide" viewBox="0 0 760 250" role="img" aria-labelledby="hiw-title hiw-desc">
+        <title id="hiw-title">How Aspire Deploy works</title>
+        <desc id="hiw-desc">On your machine, Aspire Deploy runs the az CLI and aspire deploy, and aspire deploy runs your AppHost. In the Azure resource group, the images go to the container registry and the container apps run in the Container Apps environment.</desc>
+        <defs>
+            <marker id="hiw-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                <path d="M0 0 10 5 0 10z" fill="currentColor" />
+            </marker>
+        </defs>
+        <rect class="ads-diagram-group" x="10" y="20" width="330" height="210" rx="12" />
+        <text class="ads-diagram-group-label" x="26" y="44">Your machine</text>
+        <rect class="ads-diagram-box ads-diagram-primary" x="30" y="60" width="130" height="44" rx="8" />
+        <text class="ads-diagram-text" x="95" y="87">Aspire Deploy</text>
+        <rect class="ads-diagram-box" x="190" y="60" width="130" height="44" rx="8" />
+        <text class="ads-diagram-text" x="255" y="87">az CLI</text>
+        <rect class="ads-diagram-box" x="30" y="160" width="130" height="44" rx="8" />
+        <text class="ads-diagram-text" x="95" y="187">aspire deploy</text>
+        <rect class="ads-diagram-box" x="190" y="160" width="130" height="44" rx="8" />
+        <text class="ads-diagram-text" x="255" y="187">Your AppHost</text>
+        <path class="ads-diagram-line" d="M160 82h28" marker-end="url(#hiw-arrow)" />
+        <path class="ads-diagram-line" d="M95 104v54" marker-end="url(#hiw-arrow)" />
+        <path class="ads-diagram-line" d="M160 182h28" marker-end="url(#hiw-arrow)" />
+
+        <rect class="ads-diagram-group ads-diagram-azure" x="420" y="20" width="330" height="210" rx="12" />
+        <text class="ads-diagram-group-label" x="436" y="44">Azure resource group</text>
+        <rect class="ads-diagram-box" x="440" y="60" width="150" height="44" rx="8" />
+        <text class="ads-diagram-text" x="515" y="87">Container registry</text>
+        <rect class="ads-diagram-box" x="440" y="160" width="290" height="50" rx="8" />
+        <text class="ads-diagram-text" x="585" y="180">Container Apps environment</text>
+        <text class="ads-diagram-note" x="585" y="199">one container app per compute resource</text>
+        <path class="ads-diagram-line" d="M320 82h118" marker-end="url(#hiw-arrow)" />
+        <text class="ads-diagram-note" x="380" y="74">reads, creates</text>
+        <path class="ads-diagram-line" d="M95 204v16h320v-34h23" marker-end="url(#hiw-arrow)" />
+        <text class="ads-diagram-note" x="300" y="216">deploys</text>
+        <path class="ads-diagram-line ads-diagram-dashed" d="M515 104v54" marker-end="url(#hiw-arrow)" />
+        <text class="ads-diagram-note" x="550" y="136">images</text>
+    </svg>
+
+    <svg class="ads-diagram-stacked" viewBox="0 0 340 470" role="img" aria-labelledby="hiw-s-title hiw-s-desc">
+        <title id="hiw-s-title">How Aspire Deploy works</title>
+        <desc id="hiw-s-desc">Aspire Deploy on your machine runs az and aspire deploy, which work with the container registry and the Container Apps environment in your Azure resource group.</desc>
+        <defs>
+            <marker id="hiw-s-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                <path d="M0 0 10 5 0 10z" fill="currentColor" />
+            </marker>
+        </defs>
+        <rect class="ads-diagram-group" x="10" y="10" width="320" height="200" rx="12" />
+        <text class="ads-diagram-group-label" x="26" y="34">Your machine</text>
+        <rect class="ads-diagram-box ads-diagram-primary" x="95" y="48" width="150" height="40" rx="8" />
+        <text class="ads-diagram-text" x="170" y="73">Aspire Deploy</text>
+        <rect class="ads-diagram-box" x="25" y="140" width="130" height="40" rx="8" />
+        <text class="ads-diagram-text" x="90" y="165">az CLI</text>
+        <rect class="ads-diagram-box" x="185" y="140" width="130" height="40" rx="8" />
+        <text class="ads-diagram-text" x="250" y="165">aspire deploy</text>
+        <path class="ads-diagram-line" d="M140 88 100 138" marker-end="url(#hiw-s-arrow)" />
+        <path class="ads-diagram-line" d="M200 88 240 138" marker-end="url(#hiw-s-arrow)" />
+        <rect class="ads-diagram-group ads-diagram-azure" x="10" y="260" width="320" height="200" rx="12" />
+        <text class="ads-diagram-group-label" x="26" y="284">Azure resource group</text>
+        <rect class="ads-diagram-box" x="25" y="300" width="290" height="40" rx="8" />
+        <text class="ads-diagram-text" x="170" y="325">Container registry</text>
+        <rect class="ads-diagram-box" x="25" y="390" width="290" height="50" rx="8" />
+        <text class="ads-diagram-text" x="170" y="410">Container Apps environment</text>
+        <text class="ads-diagram-note" x="170" y="429">container apps</text>
+        <path class="ads-diagram-line" d="M90 180v118" marker-end="url(#hiw-s-arrow)" />
+        <path class="ads-diagram-line" d="M290 180v208" marker-end="url(#hiw-s-arrow)" />
+        <path class="ads-diagram-line ads-diagram-dashed" d="M170 340v48" marker-end="url(#hiw-s-arrow)" />
+    </svg>
+</figure>

@@ -1,0 +1,52 @@
+@page "/bot"
+@rendermode InteractiveServer
+@inject BotApiClient BotApi
+
+<PageTitle>Bot</PageTitle>
+
+<h1>Bot</h1>
+
+<p>This page calls the <code>apiservice</code> container's <code>/bot</code> endpoint.</p>
+
+<div class="mb-3">
+    @foreach (var (who, text) in messages)
+    {
+        <div class="@(who == "you" ? "text-end" : "")"><strong>@who:</strong> @text</div>
+    }
+</div>
+
+<form @onsubmit="SendAsync">
+    <div class="input-group">
+        <input class="form-control" @bind="draft" placeholder="Ask about the time, the weather, or where I run" />
+        <button class="btn btn-primary" type="submit" disabled="@busy">Send</button>
+    </div>
+</form>
+
+@code {
+    private readonly List<(string Who, string Text)> messages = [];
+    private string draft = "";
+    private bool busy;
+
+    private async Task SendAsync()
+    {
+        if (string.IsNullOrWhiteSpace(draft) || busy)
+            return;
+        var text = draft;
+        draft = "";
+        messages.Add(("you", text));
+        busy = true;
+        try
+        {
+            var reply = await BotApi.AskAsync(text);
+            messages.Add(("bot", reply.Reply));
+        }
+        catch (Exception ex)
+        {
+            messages.Add(("bot", "Error: " + ex.Message));
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+}

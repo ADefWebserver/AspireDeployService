@@ -37,8 +37,11 @@ public static class DeployEnvironment
     /// </summary>
     public static bool IsReserved(string environmentVariable) =>
         ReservedNames.Contains(environmentVariable, StringComparer.OrdinalIgnoreCase)
-        || ReservedPrefixes.Concat(StrippedButNotParameters)
+        || ReservedPrefixes.Concat(StrippedButNotParameters).Concat(OverlayPrefixes)
             .Any(p => environmentVariable.StartsWith(p, StringComparison.OrdinalIgnoreCase));
+
+    // Resource pickers plan §6.4 "Reserved names": the overlay's own parameters (D12).
+    private static readonly string[] OverlayPrefixes = ["Parameters__adsExisting", "Parameters__adsOverlay"];
 
     // Whatever ProcessRunner strips from the inherited environment (credentials, managed identity, MSBuild paths)
     // must not come back through a parameter either. Parameters__ and ConnectionStrings__ are what parameters are for.

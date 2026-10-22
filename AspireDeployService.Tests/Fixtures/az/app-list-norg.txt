@@ -1,0 +1,1 @@
+ERROR: (ResourceGroupNotFound) Resource group 'nosuch-rg-xyz' could not be found.

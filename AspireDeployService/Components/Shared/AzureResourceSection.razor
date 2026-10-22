@@ -1,0 +1,517 @@
+@using AspireDeployService.Core.Azure
+@implements IDisposable
+@inject IAzureAccountService Azure
+
+@*
+    One registry, Container Apps environment or ACR pull identity section of the Destination card (resource pickers
+    plan §5.2, flow §7.1): Let Aspire create, Use existing (picked from az) or Create new (a name the deploy creates).
+    The pull identity has no Create new (D13). Lists are read with the developer's az login and fall back to typing.
+*@
+<div class="ads-res-section @(Locked is not null || DisabledReason is not null ? "is-locked" : "")">
+    <div class="ads-res-head">
+        <span class="ads-res-title">@Title</span>
+        @if (_loading)
+        {
+            <span class="ads-spinner ads-spinner-sm"></span>
+        }
+        <a class="ads-res-help" href="guide#azure-resources" title="How these choices work"><Icon Name="info" Size="12" /> Help</a>
+        <span class="ads-seg ms-auto" role="radiogroup" aria-label="@Title">
+            <button type="button" role="radio" aria-checked="@(Mode == ResourceMode.AspireDefault)" class="@(Mode == ResourceMode.AspireDefault ? "is-on" : "")"
+                    disabled="@Disabled" @onclick="() => SetMode(ResourceMode.AspireDefault)">Let Aspire create</button>
+            <button type="button" role="radio" aria-checked="@(Mode == ResourceMode.Existing)" class="@(Mode == ResourceMode.Existing ? "is-on" : "")"
+                    disabled="@(Disabled || NoSubscription)" @onclick="() => SetMode(ResourceMode.Existing)">Use existing</button>
+            @if (Kind != AzureResourceKind.ManagedIdentity)
+            {
+                <button type="button" role="radio" aria-checked="@(Mode == ResourceMode.New)" class="@(Mode == ResourceMode.New ? "is-on" : "")"
+                        disabled="@Disabled" @onclick="() => SetMode(ResourceMode.New)">Create new</button>
+            }
+        </span>
+    </div>
+
+    @if (Locked is { } locked)
+    {
+        <div class="form-text">@locked <a href="guide#azure-resources">Why?</a></div>
+    }
+    else if (DisabledReason is { } reason)
+    {
+        <div class="form-text">@reason</div>
+    }
+    else if (Mode == ResourceMode.AspireDefault)
+    {
+        <div class="form-text">@DefaultHint</div>
+    }
+    else if (Mode == ResourceMode.Existing)
+    {
+        @if (_items.Count > 0 && !_typeExisting)
+        {
+            <SearchSelect Id="@Id" Items="Items" Value="@SelectedValue" ValueChanged="PickExisting" Placeholder="@($"Choose a {Noun}…")" Mono="true" />
+        }
+        else
+        {
+            <div class="ads-res-typed">
+                <input id="@Id" class="form-control ads-mono-input" placeholder="@($"{Noun} name")" value="@C?.Name"
+                       @onchange="e => SetTyped(e.Value?.ToString(), C?.ResourceGroup)" />
+                <input class="form-control ads-mono-input" placeholder="resource group" value="@C?.ResourceGroup" aria-label="Resource group"
+                       @onchange="e => SetTyped(C?.Name, e.Value?.ToString())" />
+            </div>
+        }
+        <div class="form-text d-flex gap-2">
+            @if (_items.Count > 0)
+            {
+                <button type="button" class="btn btn-link btn-sm p-0" @onclick="() => _typeExisting = !_typeExisting">@(_typeExisting ? "Pick from the list" : "Type the name instead")</button>
+            }
+            <button type="button" class="btn btn-link btn-sm p-0" disabled="@_loading" @onclick="() => LoadAsync(refresh: true)"><Icon Name="refresh" Size="12" /> Refresh</button>
+        </div>
+        @if (SelectedOtherRegion is { } other)
+        {
+            <div class="form-text text-warning">@other.Name is in @other.Location, but the profile deploys to @Location.</div>
+        }
+        @if (SharesProfileGroup)
+        {
+            <div class="form-text text-warning">Deleting the resource group @ProfileResourceGroup later would also delete @C!.Name.</div>
+        }
+    }
+    else
+    {
+        <div class="input-group">
+            <input id="@Id" class="form-control ads-mono-input" placeholder="@Suggested" value="@C?.Name" @oninput="e => OnNameInput(e.Value?.ToString())" />
+            @if (string.IsNullOrWhiteSpace(C?.Name))
+            {
+                <button type="button" class="btn btn-outline-secondary" @onclick="UseSuggestionAsync">Use @Suggested</button>
+            }
+            @if (Kind == AzureResourceKind.ContainerRegistry)
+            {
+                <select class="form-select ads-res-sku" aria-label="SKU" value="@(C?.Sku ?? "Basic")" @onchange="e => SetSku(e.Value?.ToString())">
+                    @foreach (var sku in ResourceChoice.Skus)
+                    {
+                        <option value="@sku">@sku</option>
+                    }
+                </select>
+            }
+        </div>
+        @if (NameProblem is { } problem)
+        {
+            <div class="form-text text-warning">@problem</div>
+        }
+        else if (_checking)
+        {
+            <div class="form-text"><span class="ads-spinner ads-spinner-sm me-1"></span>Checking the name…</div>
+        }
+        else if (_nameTaken is { } taken)
+        {
+            <div class="form-text text-warning">@taken</div>
+        }
+        else
+        {
+            <div class="form-text">Created in @(ProfileResourceGroup ?? "the profile's resource group") (@Location) when you deploy, then the profile switches to Use existing.</div>
+        }
+
+        @if (Kind == AzureResourceKind.ContainerAppEnvironment)
+        {
+            <div class="ads-res-logs">
+                <label class="form-label mb-1" for="@($"{Id}-logs")">Logs</label>
+                <select id="@($"{Id}-logs")" class="form-select" value="@(C?.EffectiveLogsDestination)" @onchange="e => SetLogsAsync(e.Value?.ToString())">
+                    <option value="@ResourceChoice.LogsLogAnalytics">New Log Analytics workspace</option>
+                    <option value="@ResourceChoice.LogsExistingWorkspace">Existing Log Analytics workspace</option>
+                    <option value="@ResourceChoice.LogsNone">No stored logs</option>
+                </select>
+                @if (C?.EffectiveLogsDestination == ResourceChoice.LogsExistingWorkspace)
+                {
+                    @if (_workspaces.Count > 0)
+                    {
+                        <SearchSelect Id="@($"{Id}-ws")" Items="WorkspaceItems" Value="@WorkspaceValue" ValueChanged="PickWorkspace" Placeholder="Choose a workspace…" Mono="true" />
+                    }
+                    else
+                    {
+                        <div class="ads-res-typed">
+                            <input class="form-control ads-mono-input" placeholder="workspace name" value="@C.LogsWorkspace?.Name" aria-label="Workspace name"
+                                   @onchange="e => SetWorkspace(e.Value?.ToString(), C.LogsWorkspace?.ResourceGroup)" />
+                            <input class="form-control ads-mono-input" placeholder="resource group" value="@C.LogsWorkspace?.ResourceGroup" aria-label="Workspace resource group"
+                                   @onchange="e => SetWorkspace(C.LogsWorkspace?.Name, e.Value?.ToString())" />
+                        </div>
+                    }
+                    <div class="form-text">Logs go to the workspace through a diagnostic setting, in the resource-specific tables (for example ContainerAppConsoleLogs).</div>
+                }
+            </div>
+        }
+    }
+
+    @if (_error is { } err)
+    {
+        <div class="form-text text-warning">
+            Could not list @(Noun)s: @err
+            <button type="button" class="btn btn-link btn-sm p-0 align-baseline" @onclick="() => LoadAsync(refresh: true)">Retry</button>
+        </div>
+    }
+    @if (CostWarning)
+    {
+        <div class="form-text text-warning">
+            Resources Aspire created earlier in @ProfileResourceGroup are not removed. Turn on Clear Aspire's deploy cache for the next deploy.
+        </div>
+    }
+</div>
+
+@code {
+    /// <summary>ContainerRegistry, ContainerAppEnvironment or ManagedIdentity (the ACR pull identity).</summary>
+    [Parameter, EditorRequired] public AzureResourceKind Kind { get; set; }
+
+    /// <summary>The destination being edited; this section changes its own <see cref="ResourceChoice"/> in place.</summary>
+    [Parameter, EditorRequired] public ProfileDestination Destination { get; set; } = default!;
+
+    [Parameter] public string? ProfileName { get; set; }
+    [Parameter] public string IdPrefix { get; set; } = "dest";
+
+    /// <summary>When set, the section stays on Let Aspire create and shows this reason (D4).</summary>
+    [Parameter] public string? Locked { get; set; }
+
+    /// <summary>When set (the pull identity without an existing registry, D13), the section is disabled with this reason.</summary>
+    [Parameter] public string? DisabledReason { get; set; }
+
+    /// <summary>The profile has deployed before (R10): leaving Let Aspire create leaves Aspire's earlier resources behind.</summary>
+    [Parameter] public bool DeployedBefore { get; set; }
+
+    /// <summary>Raised after every change, so the editor can re-render sections that depend on this one.</summary>
+    [Parameter] public EventCallback Changed { get; set; }
+
+    private IReadOnlyList<(string Name, string ResourceGroup, string Location, string? Detail)> _items = [];
+    private IReadOnlyList<AzureLogAnalyticsWorkspace> _workspaces = [];
+    private bool _loading, _checking, _typeExisting;
+    private string? _error, _nameTaken;
+    private string? _loadedFor;
+    private int _generation;
+    private ResourceMode? _initialMode;
+    private CancellationTokenSource? _checkCts;
+    private readonly CancellationTokenSource _disposed = new();
+
+    private string Id => $"{IdPrefix}-{Kind}";
+    private string? SubscriptionId => Destination.SubscriptionId;
+    private string? Location => Destination.Location;
+    private string? ProfileResourceGroup => Destination.ResourceGroup;
+    private bool NoSubscription => !Guid.TryParse(SubscriptionId, out _);
+    private bool Disabled => Locked is not null || DisabledReason is not null;
+
+    private ResourceChoice? C => Kind switch
+    {
+        AzureResourceKind.ContainerRegistry => Destination.ContainerRegistry,
+        AzureResourceKind.ContainerAppEnvironment => Destination.ContainerAppEnvironment,
+        _ => Destination.AcrPullIdentity
+    };
+
+    private ResourceChoice Ensure() => Kind switch
+    {
+        AzureResourceKind.ContainerRegistry => Destination.ContainerRegistry ??= new(),
+        AzureResourceKind.ContainerAppEnvironment => Destination.ContainerAppEnvironment ??= new(),
+        _ => Destination.AcrPullIdentity ??= new()
+    };
+
+    private ResourceMode Mode => C?.EffectiveMode ?? ResourceMode.AspireDefault;
+
+    private string Title => Kind switch
+    {
+        AzureResourceKind.ContainerRegistry => "Container registry",
+        AzureResourceKind.ContainerAppEnvironment => "Container Apps environment",
+        _ => "ACR pull identity"
+    };
+
+    private string Noun => Kind switch
+    {
+        AzureResourceKind.ContainerRegistry => "registry",
+        AzureResourceKind.ContainerAppEnvironment => "environment",
+        _ => "identity"
+    };
+
+    private string DefaultHint => Kind switch
+    {
+        AzureResourceKind.ContainerRegistry => "Aspire creates a registry in the profile's resource group.",
+        AzureResourceKind.ContainerAppEnvironment => "Aspire creates an environment and a Log Analytics workspace in the profile's resource group.",
+        _ => "Aspire creates an identity and gives it AcrPull on the registry (needs role-assignment rights)."
+    };
+
+    private string Suggested => AzureNameRules.Suggest(Kind, ProfileName ?? "app");
+
+    private string? NameProblem => string.IsNullOrWhiteSpace(C?.Name) ? null : AzureNameRules.Problem(Kind, C.Name);
+
+    private bool CostWarning => DeployedBefore && _initialMode is null or ResourceMode.AspireDefault && Mode != ResourceMode.AspireDefault;
+
+    private bool SharesProfileGroup => Mode == ResourceMode.Existing && C?.Name is { Length: > 0 }
+        && string.Equals(C.ResourceGroup, ProfileResourceGroup, StringComparison.OrdinalIgnoreCase);
+
+    private (string Name, string ResourceGroup, string Location, string? Detail)? SelectedOtherRegion
+    {
+        get
+        {
+            if (Kind != AzureResourceKind.ContainerAppEnvironment || Mode != ResourceMode.Existing)
+                return null;
+            foreach (var i in _items)
+            {
+                if (Key(i.ResourceGroup, i.Name) == SelectedValue && !SameRegion(i.Location, Location))
+                    return i;
+            }
+            return null;
+        }
+    }
+
+    private string? SelectedValue => C is { Name: { Length: > 0 } n } c ? Key(c.ResourceGroup ?? ProfileResourceGroup ?? "", n) : null;
+
+    private IReadOnlyList<SelectItem> Items => _items
+        .Select(i =>
+        {
+            var otherRegion = Kind == AzureResourceKind.ContainerAppEnvironment && !SameRegion(i.Location, Location);
+            return new SelectItem(Key(i.ResourceGroup, i.Name), i.Name, i.Detail ?? $"{i.ResourceGroup} · {i.Location}", otherRegion,
+                i.ResourceGroup, otherRegion ? "Other region" : null);
+        })
+        .OrderBy(i => i.Group, StringComparer.OrdinalIgnoreCase).ToList();
+
+    private IReadOnlyList<SelectItem> WorkspaceItems => _workspaces
+        .Select(w => new SelectItem(Key(w.ResourceGroup, w.Name), w.Name, $"{w.ResourceGroup} · {w.Location}", false, w.ResourceGroup))
+        .OrderBy(i => i.Group, StringComparer.OrdinalIgnoreCase).ToList();
+
+    private string? WorkspaceValue => C?.LogsWorkspace is { Name: { Length: > 0 } n } ws ? Key(ws.ResourceGroup ?? "", n) : null;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _initialMode ??= C?.EffectiveMode ?? ResourceMode.AspireDefault;
+        if (Disabled && Mode != ResourceMode.AspireDefault && Locked is not null)
+            ClearChoice();
+        if (Mode == ResourceMode.Existing && _loadedFor != SubscriptionId)
+            await LoadAsync(refresh: false);
+        if (Mode == ResourceMode.New && C?.EffectiveLogsDestination == ResourceChoice.LogsExistingWorkspace && _workspaces.Count == 0)
+            await LoadWorkspacesAsync(refresh: false);
+    }
+
+    private async Task SetMode(ResourceMode mode)
+    {
+        if (mode == Mode)
+            return;
+        if (mode == ResourceMode.AspireDefault)
+            ClearChoice();
+        else
+        {
+            var c = Ensure();
+            c.Mode = mode;
+            c.Name = null;
+            c.ResourceGroup = null;
+            c.Sku = null;
+            c.LogsDestination = null;
+            c.LogsWorkspace = null;
+            _nameTaken = null;
+        }
+        if (mode == ResourceMode.Existing)
+            await LoadAsync(refresh: false);
+        await Changed.InvokeAsync();
+    }
+
+    private void ClearChoice()
+    {
+        switch (Kind)
+        {
+            case AzureResourceKind.ContainerRegistry: Destination.ContainerRegistry = KeepExtra(Destination.ContainerRegistry); break;
+            case AzureResourceKind.ContainerAppEnvironment: Destination.ContainerAppEnvironment = KeepExtra(Destination.ContainerAppEnvironment); break;
+            default: Destination.AcrPullIdentity = KeepExtra(Destination.AcrPullIdentity); break;
+        }
+    }
+
+    /// <summary>Let Aspire create stores nothing, except hand-added keys and the AppHost resource choice.</summary>
+    private static ResourceChoice? KeepExtra(ResourceChoice? c) =>
+        c is { Extra: not null } or { AppHostResource: not null } ? new ResourceChoice { Extra = c.Extra, AppHostResource = c.AppHostResource } : null;
+
+    private async Task LoadAsync(bool refresh)
+    {
+        if (NoSubscription)
+            return;
+        var sub = SubscriptionId!;
+        var generation = ++_generation;
+        (_loading, _error) = (true, null);
+        StateHasChanged();
+        try
+        {
+            var ct = _disposed.Token;
+            IReadOnlyList<(string, string, string, string?)> items = Kind switch
+            {
+                AzureResourceKind.ContainerRegistry => (await Task.Run(() => Azure.ListContainerRegistriesAsync(sub, NullRunObserver.Instance, ct, refresh), ct))
+                    .Select(r => (r.Name, r.ResourceGroup, r.Location, (string?)$"{r.ResourceGroup} · {r.Sku} · {r.Location}")).ToList(),
+                AzureResourceKind.ContainerAppEnvironment => (await Task.Run(() => Azure.ListContainerAppEnvironmentsAsync(sub, NullRunObserver.Instance, ct, refresh), ct))
+                    .Select(e => (e.Name, e.ResourceGroup, e.Location, (string?)null)).ToList(),
+                _ => (await Task.Run(() => Azure.ListManagedIdentitiesAsync(sub, NullRunObserver.Instance, ct, refresh), ct))
+                    .Select(i => (i.Name, i.ResourceGroup, "", (string?)i.ResourceGroup)).ToList()
+            };
+            if (generation != _generation || sub != SubscriptionId)
+                return; // the subscription changed while az was running
+            _items = items;
+            _loadedFor = sub;
+            _typeExisting = _items.Count == 0;
+        }
+        catch (DeployerException ex)
+        {
+            if (generation == _generation)
+                (_items, _error, _typeExisting) = ([], ex.Message, true);
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        finally
+        {
+            if (generation == _generation)
+                _loading = false;
+        }
+    }
+
+    private async Task LoadWorkspacesAsync(bool refresh)
+    {
+        if (NoSubscription)
+            return;
+        var sub = SubscriptionId!;
+        try
+        {
+            var list = await Task.Run(() => Azure.ListLogAnalyticsWorkspacesAsync(sub, NullRunObserver.Instance, _disposed.Token, refresh), _disposed.Token);
+            if (sub == SubscriptionId)
+                _workspaces = list;
+        }
+        catch (DeployerException ex)
+        {
+            _error = ex.Message;
+        }
+        catch (OperationCanceledException)
+        {
+        }
+    }
+
+    private async Task PickExisting(string? key)
+    {
+        var hit = _items.FirstOrDefault(i => Key(i.ResourceGroup, i.Name) == key);
+        if (hit.Name is null)
+            return;
+        var c = Ensure();
+        c.Name = hit.Name;
+        c.ResourceGroup = hit.ResourceGroup;
+        await Changed.InvokeAsync();
+    }
+
+    private async Task SetTyped(string? name, string? group)
+    {
+        var c = Ensure();
+        c.Name = NullIfEmpty(name);
+        c.ResourceGroup = NullIfEmpty(group);
+        await Changed.InvokeAsync();
+    }
+
+    private async Task OnNameInput(string? value)
+    {
+        var c = Ensure();
+        c.Name = NullIfEmpty(value?.Trim());
+        _nameTaken = null;
+        await Changed.InvokeAsync();
+        if (Kind == AzureResourceKind.ContainerRegistry)
+            await CheckNameDebouncedAsync(c.Name, autoRetry: false);
+    }
+
+    private async Task UseSuggestionAsync()
+    {
+        var c = Ensure();
+        c.Name = Suggested;
+        await Changed.InvokeAsync();
+        if (Kind == AzureResourceKind.ContainerRegistry)
+            await CheckNameDebouncedAsync(c.Name, autoRetry: true);
+    }
+
+    /// <summary>
+    /// 400 ms after the last keystroke, asks Azure whether the registry name is free (copied behaviour of the reference
+    /// ResourcePicker). A taken suggestion is retried with a 4-hex suffix, at most 3 times.
+    /// </summary>
+    private async Task CheckNameDebouncedAsync(string? name, bool autoRetry)
+    {
+        _checkCts?.Cancel();
+        _checkCts?.Dispose();
+        _checkCts = CancellationTokenSource.CreateLinkedTokenSource(_disposed.Token);
+        var ct = _checkCts.Token;
+        if (string.IsNullOrWhiteSpace(name) || AzureNameRules.Problem(Kind, name) is not null || NoSubscription)
+            return;
+        try
+        {
+            await Task.Delay(400, ct);
+            var sub = SubscriptionId!;
+            for (var attempt = 0; attempt < (autoRetry ? 4 : 1); attempt++)
+            {
+                _checking = true;
+                StateHasChanged();
+                var result = await Task.Run(() => Azure.CheckRegistryNameAsync(sub, name!, NullRunObserver.Instance, ct), ct);
+                ct.ThrowIfCancellationRequested();
+                var inThisGroup = _items.Any(i => string.Equals(i.Name, name, StringComparison.OrdinalIgnoreCase)
+                    && string.Equals(i.ResourceGroup, ProfileResourceGroup, StringComparison.OrdinalIgnoreCase));
+                if (result.Available || inThisGroup)
+                {
+                    _nameTaken = null;
+                    break;
+                }
+                if (!autoRetry || attempt == 3)
+                {
+                    _nameTaken = $"The name {name} is taken in Azure. {result.Reason}";
+                    break;
+                }
+                name = AzureNameRules.Suggest(Kind, ProfileName ?? "app", Convert.ToHexStringLower(System.Security.Cryptography.RandomNumberGenerator.GetBytes(2)));
+                Ensure().Name = name;
+                await Changed.InvokeAsync();
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+        catch (DeployerException ex)
+        {
+            _nameTaken = null;
+            _error = ex.Message;
+        }
+        _checking = false;
+        StateHasChanged();
+    }
+
+    private async Task SetSku(string? sku)
+    {
+        Ensure().Sku = sku is null or "Basic" ? null : sku;
+        await Changed.InvokeAsync();
+    }
+
+    private async Task SetLogsAsync(string? dest)
+    {
+        var c = Ensure();
+        c.LogsDestination = dest is null or ResourceChoice.LogsLogAnalytics ? null : dest;
+        if (dest != ResourceChoice.LogsExistingWorkspace)
+            c.LogsWorkspace = null;
+        else
+            await LoadWorkspacesAsync(refresh: false);
+        await Changed.InvokeAsync();
+    }
+
+    private async Task PickWorkspace(string? key)
+    {
+        var hit = _workspaces.FirstOrDefault(w => Key(w.ResourceGroup, w.Name) == key);
+        if (hit is null)
+            return;
+        Ensure().LogsWorkspace = new WorkspaceRef { Name = hit.Name, ResourceGroup = hit.ResourceGroup };
+        await Changed.InvokeAsync();
+    }
+
+    private async Task SetWorkspace(string? name, string? group)
+    {
+        var ws = Ensure().LogsWorkspace ??= new WorkspaceRef();
+        ws.Name = NullIfEmpty(name);
+        ws.ResourceGroup = NullIfEmpty(group);
+        await Changed.InvokeAsync();
+    }
+
+    private static string Key(string group, string name) => group.ToLowerInvariant() + "/" + name.ToLowerInvariant();
+
+    private static bool SameRegion(string? a, string? b) =>
+        string.IsNullOrEmpty(a) || string.IsNullOrEmpty(b)
+        || string.Equals(a.Replace(" ", ""), b.Replace(" ", ""), StringComparison.OrdinalIgnoreCase);
+
+    private static string? NullIfEmpty(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    public void Dispose()
+    {
+        _disposed.Cancel();
+        _checkCts?.Dispose();
+        _disposed.Dispose();
+    }
+}

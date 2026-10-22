@@ -25,4 +25,9 @@
     <InternalsVisibleTo Include="AspireDeployService.Tests" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Resource pickers plan D16: the Markdown guide is AI Help's source for "how do I" questions. -->
+    <EmbeddedResource Include="..\docs\User-Guide.md" LogicalName="AspireDeployService.Core.UserGuide.md" />
+  </ItemGroup>
+
 </Project>

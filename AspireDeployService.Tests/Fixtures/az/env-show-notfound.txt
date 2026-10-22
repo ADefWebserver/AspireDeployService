@@ -1,0 +1,1 @@
+ERROR: (ResourceNotFound) The Resource 'Microsoft.App/managedEnvironments/nosuch' under resource group 'rg-shared' was not found. For more details please go to https://aka.ms/ARMResourceNotFoundFix

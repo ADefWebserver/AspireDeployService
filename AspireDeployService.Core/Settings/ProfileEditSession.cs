@@ -104,6 +104,18 @@ public sealed class ProfileEditSession
         Copy(o.Environment, e.Environment, v => p.Environment = v);
         Copy(o.ContainerRuntime, e.ContainerRuntime, v => p.ContainerRuntime = v);
 
+        // Resource pickers plan D15: a deploy may have switched a section to Existing while this page was open,
+        // so only the fields this page changed are written.
+        CopyChoice(o.Destination.ContainerRegistry, e.Destination.ContainerRegistry,
+            () => p.Destination.ContainerRegistry ??= new(), () => p.Destination.ContainerRegistry);
+        CopyChoice(o.Destination.ContainerAppEnvironment, e.Destination.ContainerAppEnvironment,
+            () => p.Destination.ContainerAppEnvironment ??= new(), () => p.Destination.ContainerAppEnvironment);
+        CopyChoice(o.Destination.AcrPullIdentity, e.Destination.AcrPullIdentity,
+            () => p.Destination.AcrPullIdentity ??= new(), () => p.Destination.AcrPullIdentity);
+        if (IsEmpty(p.Destination.ContainerRegistry)) p.Destination.ContainerRegistry = null;
+        if (IsEmpty(p.Destination.ContainerAppEnvironment)) p.Destination.ContainerAppEnvironment = null;
+        if (IsEmpty(p.Destination.AcrPullIdentity)) p.Destination.AcrPullIdentity = null;
+
         foreach (var removed in _removed.Where(n => !e.Parameters.ContainsKey(n)))
         {
             p.Parameters.Remove(removed);
@@ -144,6 +156,30 @@ public sealed class ProfileEditSession
             }
         }
     }
+
+    private static void CopyChoice(ResourceChoice? original, ResourceChoice? edited, Func<ResourceChoice> target, Func<ResourceChoice?> current)
+    {
+        var o = original ?? new ResourceChoice();
+        var e = edited ?? new ResourceChoice();
+        if ((o.Mode ?? ResourceMode.AspireDefault) != (e.Mode ?? ResourceMode.AspireDefault))
+        {
+            var mode = e.Mode is null or ResourceMode.AspireDefault ? (ResourceMode?)null : e.Mode;
+            if (mode is not null || current() is not null)
+                target().Mode = mode;
+        }
+        Copy(o.Name, e.Name, v => target().Name = v);
+        Copy(o.ResourceGroup, e.ResourceGroup, v => target().ResourceGroup = v);
+        Copy(o.Sku, e.Sku, v => target().Sku = v);
+        Copy(o.LogsDestination, e.LogsDestination, v => target().LogsDestination = v);
+        Copy(o.AppHostResource, e.AppHostResource, v => target().AppHostResource = v);
+        Copy(o.LogsWorkspace?.Name, e.LogsWorkspace?.Name, v => (target().LogsWorkspace ??= new()).Name = v);
+        Copy(o.LogsWorkspace?.ResourceGroup, e.LogsWorkspace?.ResourceGroup, v => (target().LogsWorkspace ??= new()).ResourceGroup = v);
+        if (current()?.LogsWorkspace is { Name: null, ResourceGroup: null, Extra: null })
+            target().LogsWorkspace = null;
+    }
+
+    private static bool IsEmpty(ResourceChoice? c) =>
+        c is { Mode: null, Name: null, ResourceGroup: null, Sku: null, LogsDestination: null, LogsWorkspace: null, AppHostResource: null, Extra: null };
 
     private static void Copy(string? original, string? edited, Action<string?> set)
     {

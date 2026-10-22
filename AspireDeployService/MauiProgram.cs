@@ -32,6 +32,38 @@ public static class MauiProgram
 		builder.Logging.AddDebug();
 #endif
 
-		return builder.Build();
+		var app = builder.Build();
+		CleanupOverlayLeftovers(app.Services);
+		return app;
+	}
+
+	/// <summary>
+	/// Resource pickers plan D3: a deploy killed mid-run can leave a temporary <c>*.ads-deploy.*</c> AppHost copy next to
+	/// the user's AppHost. Remove those (only files that start with the marker line) for every local profile folder.
+	/// </summary>
+	private static void CleanupOverlayLeftovers(IServiceProvider services)
+	{
+		var store = services.GetRequiredService<AspireDeployService.Core.Settings.ProfileStore>();
+		var logger = services.GetRequiredService<ILoggerFactory>().CreateLogger("AspireDeployService.Startup");
+		_ = Task.Run(async () =>
+		{
+			try
+			{
+				var snapshot = await store.LoadAsync(CancellationToken.None);
+				var folders = snapshot.Document.AspireDeploy.Profiles.Values
+					.Where(p => p.Source.Kind == AspireDeployService.Core.Sources.SourceKind.LocalFolder && Directory.Exists(p.Source.Location))
+					.Select(p => p.Source.Location)
+					.Distinct(StringComparer.OrdinalIgnoreCase);
+				foreach (var folder in folders)
+				{
+					foreach (var removed in AspireDeployService.Core.Deploy.SiblingOverlay.CleanupLeftovers(folder))
+						logger.LogInformation("Removed a leftover temporary AppHost file: {Path}", removed);
+				}
+			}
+			catch (Exception ex)
+			{
+				logger.LogWarning(ex, "Could not clean up temporary AppHost files.");
+			}
+		});
 	}
 }

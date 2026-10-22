@@ -167,6 +167,7 @@ public sealed class AIFileTools(string? sourceRoot, string? runLogFile, IReadOnl
             "read_file" => $"Read {Arg("relativePath", "?")} from line {Arg("startLine", "1")}",
             "search_files" => $"Searched for \"{Arg("text", "")}\"" + (Arg("glob", "") is { Length: > 0 } g ? $" in {g}" : ""),
             "read_run_log" => $"Read the run log from line {Arg("startLine", "1")}",
+            "read_guide" => $"Read the guide: {UserGuide.Find(Arg("section", ""))?.Title ?? Arg("section", "?")}",
             _ => $"Called {call.Name}"
         };
     }

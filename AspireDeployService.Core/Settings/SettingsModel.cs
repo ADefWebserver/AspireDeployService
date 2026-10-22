@@ -122,6 +122,78 @@ public sealed class ProfileDestination
     public bool? AllowResourceGroupCreation { get; set; }
     public string? CredentialSource { get; set; }
 
+    /// <summary>Resource pickers plan §6.1. Absent = <see cref="ResourceMode.AspireDefault"/>.</summary>
+    public ResourceChoice? ContainerRegistry { get; set; }
+    public ResourceChoice? ContainerAppEnvironment { get; set; }
+
+    /// <summary>Only <see cref="ResourceMode.AspireDefault"/> or <see cref="ResourceMode.Existing"/> (D13).</summary>
+    public ResourceChoice? AcrPullIdentity { get; set; }
+
+    [JsonExtensionData]
+    public Dictionary<string, JsonElement>? Extra { get; set; }
+
+    [JsonIgnore]
+    public ResourceMode RegistryMode => ContainerRegistry?.EffectiveMode ?? ResourceMode.AspireDefault;
+
+    [JsonIgnore]
+    public ResourceMode EnvironmentMode => ContainerAppEnvironment?.EffectiveMode ?? ResourceMode.AspireDefault;
+
+    [JsonIgnore]
+    public ResourceMode IdentityMode => AcrPullIdentity?.EffectiveMode ?? ResourceMode.AspireDefault;
+
+    /// <summary>Any section that needs the AppHost overlay (resource pickers plan F2).</summary>
+    [JsonIgnore]
+    public bool NeedsOverlay =>
+        RegistryMode != ResourceMode.AspireDefault || EnvironmentMode != ResourceMode.AspireDefault || IdentityMode != ResourceMode.AspireDefault;
+}
+
+/// <summary>Resource pickers plan D1: AspireDefault (absent or null in the file), Existing or New.</summary>
+[JsonConverter(typeof(JsonStringEnumConverter<ResourceMode>))]
+public enum ResourceMode { AspireDefault, Existing, New }
+
+/// <summary>One registry, environment or pull-identity section of a destination (resource pickers plan §6.1).</summary>
+public sealed class ResourceChoice
+{
+    public ResourceMode? Mode { get; set; }
+    public string? Name { get; set; }
+    public string? ResourceGroup { get; set; }
+
+    /// <summary>Registry only, for New: Basic, Standard or Premium.</summary>
+    public string? Sku { get; set; }
+
+    /// <summary>Environment only, for New: log-analytics, existing-workspace or none.</summary>
+    public string? LogsDestination { get; set; }
+
+    /// <summary>Environment only, for existing-workspace (D14).</summary>
+    public WorkspaceRef? LogsWorkspace { get; set; }
+
+    /// <summary>Environment only: the AppHost resource to override when the AppHost declares several.</summary>
+    public string? AppHostResource { get; set; }
+
+    [JsonExtensionData]
+    public Dictionary<string, JsonElement>? Extra { get; set; }
+
+    [JsonIgnore]
+    public ResourceMode EffectiveMode => Mode ?? ResourceMode.AspireDefault;
+
+    public const string LogsLogAnalytics = "log-analytics";
+    public const string LogsExistingWorkspace = "existing-workspace";
+    public const string LogsNone = "none";
+    public static readonly string[] Skus = ["Basic", "Standard", "Premium"];
+    public static readonly string[] LogsDestinations = [LogsLogAnalytics, LogsExistingWorkspace, LogsNone];
+
+    [JsonIgnore]
+    public string EffectiveLogsDestination => string.IsNullOrWhiteSpace(LogsDestination) ? LogsLogAnalytics : LogsDestination;
+
+    [JsonIgnore]
+    public string EffectiveSku => string.IsNullOrWhiteSpace(Sku) ? "Basic" : Sku;
+}
+
+public sealed class WorkspaceRef
+{
+    public string? Name { get; set; }
+    public string? ResourceGroup { get; set; }
+
     [JsonExtensionData]
     public Dictionary<string, JsonElement>? Extra { get; set; }
 }

@@ -1,0 +1,17 @@
+[
+  {
+    "name": "webfrontend",
+    "resourceGroup": "rg-shop",
+    "properties": {
+      "managedEnvironmentId": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-shared/providers/Microsoft.App/managedEnvironments/cae-shared",
+      "provisioningState": "Succeeded"
+    }
+  },
+  {
+    "name": "apiservice",
+    "resourceGroup": "rg-other",
+    "properties": {
+      "environmentId": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-shared/providers/Microsoft.App/managedEnvironments/cae-shared"
+    }
+  }
+]

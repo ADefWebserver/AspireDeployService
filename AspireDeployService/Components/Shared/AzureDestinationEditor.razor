@@ -130,6 +130,39 @@
         }
     </div>
 
+    @* Resource pickers plan F1/F1b: only for Azure Container Apps AppHosts (or when not known yet, on the edit page). *@
+    @if (ShowResourceSections)
+    {
+        <div class="ads-span-12">
+            <AzureResourceSection Kind="AzureResourceKind.ContainerRegistry" Destination="D" ProfileName="@ProfileName" IdPrefix="@IdPrefix"
+                                  Locked="@RegistryLockReason" DeployedBefore="@DeployedBefore" Changed="OnSectionChanged" />
+        </div>
+        <div class="ads-span-12">
+            <AzureResourceSection Kind="AzureResourceKind.ContainerAppEnvironment" Destination="D" ProfileName="@ProfileName" IdPrefix="@IdPrefix"
+                                  Locked="@EnvironmentLockReason" DeployedBefore="@DeployedBefore" Changed="OnSectionChanged" />
+            @if (Discovery?.AppHost.ContainerAppEnvironmentNames is { Count: > 1 } && D.EnvironmentMode != ResourceMode.AspireDefault || D.ContainerAppEnvironment?.AppHostResource is not null)
+            {
+                <label class="form-label mt-2" for="@($"{IdPrefix}-envres")">AppHost environment to replace</label>
+                <select id="@($"{IdPrefix}-envres")" class="form-select" value="@(D.ContainerAppEnvironment?.AppHostResource ?? "")"
+                        @onchange="e => SetAppHostResource(e.Value?.ToString())">
+                    <option value="">(the only one)</option>
+                    @foreach (var n in Discovery?.AppHost.ContainerAppEnvironmentNames ?? [])
+                    {
+                        <option value="@n">@n</option>
+                    }
+                    @if (D.ContainerAppEnvironment?.AppHostResource is { } current && Discovery?.AppHost.ContainerAppEnvironmentNames.Contains(current) != true)
+                    {
+                        <option value="@current">@current</option>
+                    }
+                </select>
+            }
+        </div>
+        <div class="ads-span-12">
+            <AzureResourceSection Kind="AzureResourceKind.ManagedIdentity" Destination="D" ProfileName="@ProfileName" IdPrefix="@IdPrefix"
+                                  Locked="@IdentityLockReason" DisabledReason="@IdentityDisabledReason" DeployedBefore="false" Changed="OnSectionChanged" />
+        </div>
+    }
+
     <div class="ads-span-4">
         <label class="form-label" for="@($"{IdPrefix}-cred")">Credential source</label>
         <select id="@($"{IdPrefix}-cred")" class="form-select" value="@(D.CredentialSource ?? "")" @onchange="e => D.CredentialSource = NullIfEmpty(e.Value?.ToString())">
@@ -184,6 +217,46 @@
 
     /// <summary>Choose the az default subscription when the profile has none yet (the new-profile wizard).</summary>
     [Parameter] public bool PickDefaultSubscription { get; set; }
+
+    /// <summary>
+    /// The discovery result when known (the new-profile wizard), used to lock sections the AppHost already decides (D4).
+    /// On the edit page it is null: the sections are enabled and the deploy enforces the rules (§7.1).
+    /// </summary>
+    [Parameter] public DiscoveryResult? Discovery { get; set; }
+
+    /// <summary>Raised when a resource section changes (the wizard refreshes its container apps preview).</summary>
+    [Parameter] public EventCallback ResourcesChanged { get; set; }
+
+    private bool DeployedBefore => Profile.LastDeployedAspireVersion is not null;
+
+    private bool ShowResourceSections => Discovery is null || Discovery.AppHost.DeclaredTargets.Contains(DeploymentTarget.AzureContainerApps);
+
+    private string? EnvironmentLockReason => Discovery?.AppHost.EnvironmentLocked == true
+        ? "The AppHost already chooses its own environment. Set its parameters on the Parameters step instead." : null;
+
+    private string? RegistryLockReason => Discovery?.AppHost.RegistryLocked == true
+        ? "The AppHost already chooses its own registry. Set its parameters on the Parameters step instead." : null;
+
+    private string? IdentityLockReason => Discovery?.AppHost.IdentityLocked == true
+        ? "The AppHost already sets its own ACR pull identity." : null;
+
+    private string? IdentityDisabledReason => D.RegistryMode != ResourceMode.Existing ? "Needs an existing registry: choose Use existing for the registry first." : null;
+
+    private async Task OnSectionChanged()
+    {
+        // D13: a pull identity needs an existing registry.
+        if (D.RegistryMode != ResourceMode.Existing && D.IdentityMode != ResourceMode.AspireDefault)
+            D.AcrPullIdentity = null;
+        await ResourcesChanged.InvokeAsync();
+    }
+
+    private void SetAppHostResource(string? name)
+    {
+        var c = D.ContainerAppEnvironment ??= new ResourceChoice();
+        c.AppHostResource = NullIfEmpty(name);
+        if (c is { Mode: null, Name: null, AppHostResource: null, Extra: null })
+            D.ContainerAppEnvironment = null;
+    }
 
     // Values Aspire accepts for Azure:CredentialSource, besides the default AzureCli.
     private static readonly (string Value, string Text)[] CredentialSources =

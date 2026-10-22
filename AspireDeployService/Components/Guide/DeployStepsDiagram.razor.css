@@ -1,0 +1,85 @@
+/* Shared by the three guide diagrams (each has an identical copy, because scoped CSS applies per component). */
+.ads-diagram {
+    margin: 16px 0;
+    color: var(--ads-muted);
+}
+
+    .ads-diagram svg {
+        display: block;
+        width: 100%;
+        height: auto;
+        font-family: var(--ads-font);
+    }
+
+    .ads-diagram .ads-diagram-stacked {
+        display: none;
+        max-width: 420px;
+        margin: 0 auto;
+    }
+
+@media (max-width: 900px) {
+    .ads-diagram .ads-diagram-wide {
+        display: none;
+    }
+
+    .ads-diagram .ads-diagram-stacked {
+        display: block;
+    }
+}
+
+.ads-diagram-group {
+    fill: var(--ads-well);
+    stroke: var(--ads-border-strong);
+    stroke-width: 1;
+}
+
+.ads-diagram-azure {
+    stroke: var(--ads-azure);
+    stroke-dasharray: 6 4;
+}
+
+.ads-diagram-group-label {
+    fill: var(--ads-subtle);
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.ads-diagram-box {
+    fill: var(--ads-card);
+    stroke: var(--ads-border-strong);
+    stroke-width: 1;
+}
+
+.ads-diagram-primary {
+    fill: var(--ads-primary-tint);
+    stroke: var(--ads-primary);
+}
+
+.ads-diagram-text {
+    fill: var(--ads-text);
+    font-size: 13px;
+    font-weight: 600;
+    text-anchor: middle;
+}
+
+.ads-diagram-note {
+    fill: var(--ads-muted);
+    font-size: 11.5px;
+    text-anchor: middle;
+}
+
+.ads-diagram-left {
+    text-anchor: start;
+}
+
+.ads-diagram-line {
+    stroke: currentColor;
+    stroke-width: 1.5;
+    fill: none;
+}
+
+.ads-diagram-dashed {
+    stroke-dasharray: 4 3;
+}

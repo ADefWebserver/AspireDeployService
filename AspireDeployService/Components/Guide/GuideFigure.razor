@@ -1,0 +1,24 @@
+@* A screenshot with a numbered legend, in the manner of BlazorDataDeploymentWebsite's GuideFigure (resource pickers plan §6.7). *@
+<figure class="ads-figure" id="@Id">
+    <img src="@Src" alt="@Alt" width="@Width" height="@Height" loading="lazy" />
+    @if (Caption is not null)
+    {
+        <figcaption>@Caption</figcaption>
+    }
+    @if (ChildContent is not null)
+    {
+        <ol class="ads-figure-legend">@ChildContent</ol>
+    }
+</figure>
+
+@code {
+    [Parameter, EditorRequired] public string Src { get; set; } = "";
+    [Parameter, EditorRequired] public string Alt { get; set; } = "";
+    [Parameter] public string? Caption { get; set; }
+    [Parameter] public string? Id { get; set; }
+    [Parameter] public int? Width { get; set; }
+    [Parameter] public int? Height { get; set; }
+
+    /// <summary>Legend items as &lt;li&gt; elements, numbered to match the callouts drawn into the image.</summary>
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+}

@@ -224,7 +224,18 @@ else if (_error is null)
     }
 
     // The deploy-running state decides whether the form is disabled, so re-render when runs start or end.
-    private void OnRunsChanged() => _ = InvokeAsync(StateHasChanged);
+    // Resource pickers plan D15: a deploy may have switched a created section to Use existing, so reload when it ends.
+    // The form was disabled while it ran, so no unsaved edits are lost.
+    private bool _wasBusy;
+
+    private void OnRunsChanged() => _ = InvokeAsync(async () =>
+    {
+        var busy = Busy;
+        if (_wasBusy && !busy)
+            await LoadAsync();
+        _wasBusy = busy;
+        StateHasChanged();
+    });
 
     public void Dispose() => Runs.RunsChanged -= OnRunsChanged;
 }

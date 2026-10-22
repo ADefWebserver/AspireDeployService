@@ -6,7 +6,10 @@ using AspireDeployService.Core.Sources;
 
 namespace AspireDeployService.Core.Services;
 
-public sealed record ProfileSummary(string Name, SourceKind SourceKind, string SourceDisplay, string? SubscriptionId, string? ResourceGroup);
+/// <param name="RegistryName">The chosen registry, or null when Aspire creates it (resource pickers plan §8).</param>
+/// <param name="EnvironmentName">The chosen Container Apps environment, or null when Aspire creates it.</param>
+public sealed record ProfileSummary(string Name, SourceKind SourceKind, string SourceDisplay, string? SubscriptionId, string? ResourceGroup,
+    string? RegistryName = null, string? EnvironmentName = null);
 
 public interface IProfileService
 {
@@ -59,7 +62,9 @@ public sealed class ProfileService(ProfileStore store) : IProfileService
         return snapshot.Document.AspireDeploy.Profiles
             .OrderBy(p => p.Key, StringComparer.Ordinal)
             .Select(p => new ProfileSummary(p.Key, p.Value.Source.Kind, p.Value.ToSourceSpec().Display,
-                p.Value.Destination.SubscriptionId, p.Value.Destination.ResourceGroup))
+                p.Value.Destination.SubscriptionId, p.Value.Destination.ResourceGroup,
+                p.Value.Destination.RegistryMode == ResourceMode.AspireDefault ? null : p.Value.Destination.ContainerRegistry?.Name,
+                p.Value.Destination.EnvironmentMode == ResourceMode.AspireDefault ? null : p.Value.Destination.ContainerAppEnvironment?.Name))
             .ToList();
     }
 

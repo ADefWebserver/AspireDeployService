@@ -1,0 +1,256 @@
+@page "/guide"
+@using System.Net
+@using System.Text.RegularExpressions
+@using AspireDeployService.Components.Guide
+@implements IDisposable
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+
+@* Resource pickers plan §6.7 (F4): the in-app twin of docs/User-Guide.md. Same headings and anchors; the troubleshooting
+   rows are read from the embedded Markdown guide so the two can never disagree. *@
+
+<header class="ads-page-header ads-hero">
+    <div class="ads-page-text">
+        <div class="ads-eyebrow"><span class="ads-eyebrow-icon"><Icon Name="book-open" Size="16" /></span> User guide</div>
+        <h1>Guide</h1>
+        <p class="ads-lead">How to deploy an Aspire solution to Azure Container Apps with this app: what you need, how to create a profile, how to pick or create the registry and environment, and what to do when something fails.</p>
+    </div>
+</header>
+
+<div class="ads-guide">
+    <nav class="ads-guide-toc ads-card" aria-label="On this page">
+        <div class="ads-guide-toc-title">On this page</div>
+        <ol>
+            @foreach (var (anchor, title) in Toc)
+            {
+                <li><a href="guide#@anchor" @onclick="() => ScrollAsync(anchor)" @onclick:preventDefault>@title</a></li>
+            }
+        </ol>
+    </nav>
+
+    <article class="ads-guide-body">
+        <section id="before" class="ads-guide-section">
+            <h2>Before you start</h2>
+            <ul>
+                <li><strong>Azure CLI</strong>, signed in: run <code class="ads-code">az login</code>. Every list on the profile page is read through it.</li>
+                <li><strong>Docker Desktop or Podman</strong>, running. Project resources are built into container images.</li>
+                <li><strong>.NET 10 SDK</strong> to build the AppHost; <strong>Node.js</strong> only for TypeScript AppHosts.</li>
+                <li><strong>Azure roles</strong>: Reader on the subscription to read the lists; Contributor on the resource group (or the subscription, for a new group) to create resources. Letting Aspire create the ACR pull identity also needs Owner, User Access Administrator or Role Based Access Control Administrator on the registry's group; without that, use an existing pull identity.</li>
+                <li>A new registry and a Log Analytics workspace each have a monthly cost.</li>
+            </ul>
+            <p>Run the general checks on <a href="setup">Setup</a> first.</p>
+        </section>
+
+        <section id="how" class="ads-guide-section">
+            <h2>How it works</h2>
+            <p>The app reads Azure with <code class="ads-code">az</code>, creates the resources you asked it to create with <code class="ads-code">az</code>, and then runs <code class="ads-code">aspire deploy</code> against your AppHost. Aspire builds the images, pushes them to the registry and creates or updates one container app per compute resource.</p>
+            <HowItWorksDiagram />
+        </section>
+
+        <section id="profile" class="ads-guide-section">
+            <h2>1. Create a profile</h2>
+            <p><a href="profiles">Profiles</a> → <strong>New profile</strong> has three steps:</p>
+            <ol>
+                <li><strong>Source</strong>: a local folder (used in place) or a GitHub repository. <strong>Discover</strong> finds the AppHost, its Aspire version, parameters and resources.</li>
+                <li><strong>Destination</strong>: subscription, tenant, region, resource group, then the container registry, Container Apps environment and ACR pull identity. The wizard shows which container apps will be new and which update an existing app.</li>
+                <li><strong>Parameters</strong>: a value for each parameter without a default, or tick <strong>AppHost supplies it</strong>.</li>
+            </ol>
+        </section>
+
+        <section id="azure-resources" class="ads-guide-section">
+            <h2>2. Choose Azure resources</h2>
+            <p>The resource group has <strong>Use existing</strong> and <strong>Create new</strong>. The registry and the environment have three modes:</p>
+            <div class="ads-guide-table">
+                <table>
+                    <thead><tr><th>Mode</th><th>In the profile</th><th>At deploy time</th></tr></thead>
+                    <tbody>
+                        <tr><td><strong>Let Aspire create</strong></td><td>Nothing is stored (the default; older profiles are in this mode).</td><td>Aspire creates a registry, an environment and a Log Analytics workspace in the profile's resource group, as before.</td></tr>
+                        <tr><td><strong>Use existing</strong></td><td>Name and resource group of a resource picked from the list, in any group of the subscription.</td><td>The app checks it exists; the deploy uses it as existing. Nothing is created.</td></tr>
+                        <tr><td><strong>Create new</strong></td><td>A name you type (a valid one is suggested).</td><td>The app creates it with <code class="ads-code">az</code> in the profile's group and region before the deploy. If it is already there it is used as is.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <ResourceModesDiagram />
+            <div class="ads-callout"><Icon Name="info" Size="16" /><div><strong>After a create, the profile switches to Use existing.</strong> The profile then names what is really in Azure, and a later deploy never re-creates a resource someone deleted on purpose: it stops with "not found". Choose Create new to create it again.</div></div>
+
+            <h3>Resource group</h3>
+            <p><strong>Use existing</strong> picks a group from the list. <strong>Create new</strong> takes a name; the group is created on the first deploy. If the profile does not allow creating groups and the group is missing, the deploy stops before anything is created.</p>
+
+            <h3>Container registry</h3>
+            <p><strong>Use existing</strong> lists every registry in the subscription. <strong>Create new</strong> checks the name with <code class="ads-code">az acr check-name</code> as you type (registry names are unique across Azure) and lets you pick the SKU: Basic (default), Standard or Premium.</p>
+
+            <h3>Container Apps environment</h3>
+            <p><strong>Use existing</strong> lists every environment; one in another region than the profile is marked <strong>Other region</strong> and cannot be picked. <strong>Create new</strong> offers three log choices:</p>
+            <ul>
+                <li><code class="ads-code">log-analytics</code> (default): <code class="ads-code">az</code> creates a new Log Analytics workspace in the same group.</li>
+                <li><code class="ads-code">existing-workspace</code>: pick a workspace in any group. The environment sends all logs to it through a diagnostic setting; the workspace key is never read. Logs land in the resource-specific tables such as <code class="ads-code">ContainerAppConsoleLogs</code>, not <code class="ads-code">ContainerAppConsoleLogs_CL</code>.</li>
+                <li><code class="ads-code">none</code>: no stored logs.</li>
+            </ul>
+            <p>Creating an environment can take 30 minutes or more (it took about 30 minutes in eastus2 when this was tested).</p>
+
+            <h3>ACR pull identity</h3>
+            <p>Normally Aspire creates an identity and gives it <code class="ads-code">AcrPull</code> on the registry, which needs role-assignment rights. Pick <strong>Use existing</strong> to use an identity that already has <code class="ads-code">AcrPull</code> on an existing registry; then no identity and no role assignment is created. It needs the registry to be Use existing. If the check finds no <code class="ads-code">AcrPull</code>, ask an owner of the registry to run:</p>
+            <pre class="ads-guide-pre">az role assignment create --assignee &lt;principal-id&gt; --role AcrPull --scope &lt;registry-resource-id&gt;</pre>
+
+            <h3>Naming rules</h3>
+            <div class="ads-guide-table">
+                <table>
+                    <thead><tr><th>Resource</th><th>Rule</th><th>Unique across Azure</th></tr></thead>
+                    <tbody>
+                        @foreach (var (kind, rule, unique) in AzureNameRules.Describe())
+                        {
+                            <tr><td>@AzureNameRules.Display(kind)</td><td>@rule</td><td>@(unique ? "Yes" : "No")</td></tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+            <p>Container app names are not chosen here: each one is the AppHost resource name in lowercase.</p>
+
+            <h3>Why a section can be locked</h3>
+            <p>A section is locked to Let Aspire create when the AppHost already chooses that resource: the environment when it calls <code class="ads-code">PublishAsExisting</code> on its <code class="ads-code">AddAzureContainerAppEnvironment(...)</code>, the registry when it calls <code class="ads-code">AddAzureContainerRegistry</code> or <code class="ads-code">WithAzureContainerRegistry</code>, the pull identity when it calls <code class="ads-code">WithAcrPullIdentity</code>. Fill its parameters on the Parameters step. To add the lines yourself, in C#:</p>
+            <pre class="ads-guide-pre">@CsSnippet</pre>
+            <p>In TypeScript:</p>
+            <pre class="ads-guide-pre">@TsSnippet</pre>
+        </section>
+
+        <section id="apphost-kinds" class="ads-guide-section">
+            <h2>AppHost kinds</h2>
+            <p>With a registry, environment or pull identity chosen, the deploy runs your AppHost with a patched copy of its entry file that marks them existing. Your files are never changed.</p>
+            <ul>
+                <li><strong>Project AppHost</strong>: the copy lives in the profile's work folder and is swapped in for the build of the AppHost project only. A normal build afterwards compiles your own file again.</li>
+                <li><strong>File-based C# and TypeScript AppHosts</strong>: a temporary <code class="ads-code">.ads-deploy</code> folder next to your AppHost holds a patched copy with the same name (for example <code class="ads-code">.ads-deploy/apphost.cs</code>) for the length of the deploy, and is removed afterwards.</li>
+            </ul>
+            <p>The copy's first line says it was written by Aspire Deploy and is safe to delete. After a crash the folder is removed by the next deploy, the next Discover or the next app start; a copy without the marker line is never deleted. The folder shows in <code class="ads-code">git status</code> during a deploy: do not commit it.</p>
+        </section>
+
+        <section id="deploy" class="ads-guide-section">
+            <h2>3. Deploy and watch</h2>
+            <DeployStepsDiagram />
+            <ol>
+                <li><strong>Prepare</strong>: scan, prerequisite checks and the manifest; with resources chosen, the overlay and a read-only check of each resource.</li>
+                <li><strong>Confirm</strong>: the tenant, subscription and resource group, each resource as existing, create or already there, and each container app as new, update, could not check or conflict. A conflict stops here.</li>
+                <li><strong>Create</strong>: after you click Deploy, the app creates what the confirmation listed.</li>
+                <li><strong>aspire deploy</strong> runs with the overlay; the log streams and Cancel stops it.</li>
+                <li>The result banner shows the outcome; the endpoints are in the log.</li>
+            </ol>
+            <p><strong>Dry run</strong> lists the steps and the planned creates and creates nothing.</p>
+        </section>
+
+        <section id="redeploy" class="ads-guide-section">
+            <h2>4. Deploy again</h2>
+            <p>Deploying again is safe: created resources are now Use existing, so nothing is created twice, and every container app shows update (a new revision of the same app). In a shared environment, an app with the same name in the same group is updated too; the preview shows it first. Switching a section from Let Aspire create to Use existing leaves what Aspire created earlier in place; turn on <strong>Clear Aspire's deploy cache</strong> for the next deploy.</p>
+        </section>
+
+        <section id="remove" class="ads-guide-section">
+            <h2>5. Remove a deployment</h2>
+            <p>Delete the profile's resource group in Azure. The app never deletes anything in Azure, and deleting a profile never touches Azure. Existing resources picked from other groups (registry, environment, pull identity, logs workspace) are not deleted with it; but if a resource you picked as Use existing is in the profile's own group, deleting the group deletes it too.</p>
+        </section>
+
+        <section id="trouble" class="ads-guide-section">
+            <h2>Troubleshooting</h2>
+            <div class="ads-guide-table">
+                <table>
+                    <thead><tr><th>Message</th><th>Fix</th></tr></thead>
+                    <tbody>
+                        @foreach (var (message, fix) in TroubleRows)
+                        {
+                            <tr><td>@Inline(message)</td><td>@Inline(fix)</td></tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </article>
+</div>
+
+@code {
+    private static readonly (string Anchor, string Title)[] Toc =
+    [
+        ("before", "Before you start"),
+        ("how", "How it works"),
+        ("profile", "1. Create a profile"),
+        ("azure-resources", "2. Choose Azure resources"),
+        ("apphost-kinds", "AppHost kinds"),
+        ("deploy", "3. Deploy and watch"),
+        ("redeploy", "4. Deploy again"),
+        ("remove", "5. Remove a deployment"),
+        ("trouble", "Troubleshooting"),
+    ];
+
+    private const string CsSnippet = """
+        var env = builder.AddAzureContainerAppEnvironment("env")
+            .PublishAsExisting(builder.AddParameter("existingEnvName"), builder.AddParameter("existingEnvResourceGroup"));
+        var acr = builder.AddAzureContainerRegistry("acr")
+            .PublishAsExisting(builder.AddParameter("existingAcrName"), builder.AddParameter("existingAcrResourceGroup"));
+        env.WithAzureContainerRegistry(acr);
+        """;
+
+    private const string TsSnippet = """
+        const env = await builder.addAzureContainerAppEnvironment("env");
+        await env.publishAsExisting(await builder.addParameter("existingEnvName"),
+            { resourceGroup: await builder.addParameter("existingEnvResourceGroup") });
+        const acr = await builder.addAzureContainerRegistry("acr");
+        await acr.publishAsExisting(await builder.addParameter("existingAcrName"),
+            { resourceGroup: await builder.addParameter("existingAcrResourceGroup") });
+        await env.withAzureContainerRegistry(acr);
+        """;
+
+    /// <summary>The Markdown guide's troubleshooting table, so both guides list the same rows (plan R7, R15).</summary>
+    private static readonly IReadOnlyList<(string Message, string Fix)> TroubleRows = ReadTroubleRows();
+
+    private static IReadOnlyList<(string, string)> ReadTroubleRows()
+    {
+        var rows = new List<(string, string)>();
+        foreach (var line in (UserGuide.Find("trouble")?.Text ?? "").Split('\n'))
+        {
+            var t = line.Trim();
+            if (!t.StartsWith('|') || t.StartsWith("|---", StringComparison.Ordinal) || t.StartsWith("| Message", StringComparison.Ordinal))
+                continue;
+            var cells = t.Trim('|').Split(" | ");
+            if (cells.Length >= 2)
+                rows.Add((cells[0].Trim(), string.Join(" | ", cells[1..]).Trim()));
+        }
+        return rows;
+    }
+
+    /// <summary>Markdown `code` and [text](#anchor) to HTML; everything else is encoded.</summary>
+    private static MarkupString Inline(string markdown)
+    {
+        var html = WebUtility.HtmlEncode(markdown);
+        html = Regex.Replace(html, "`([^`]+)`", "<code class=\"ads-code\">$1</code>");
+        html = Regex.Replace(html, @"\[([^\]]+)\]\(#([a-z-]+)\)", "<a href=\"guide#$2\">$1</a>");
+        html = Regex.Replace(html, @"\*\*([^*]+)\*\*", "<strong>$1</strong>");
+        return new MarkupString(html);
+    }
+
+    protected override void OnInitialized() => Nav.LocationChanged += OnLocationChanged;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+            await ScrollToFragmentAsync(Nav.Uri);
+    }
+
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs e) => _ = InvokeAsync(() => ScrollToFragmentAsync(e.Location));
+
+    private async Task ScrollToFragmentAsync(string uri)
+    {
+        var hash = uri.IndexOf('#');
+        if (hash >= 0 && hash < uri.Length - 1)
+            await ScrollAsync(uri[(hash + 1)..]);
+    }
+
+    private async Task ScrollAsync(string anchor)
+    {
+        try
+        {
+            await JS.InvokeAsync<bool>("adsGuide.scrollTo", anchor);
+        }
+        catch (JSException)
+        {
+            // Scrolling is a convenience; the page still shows every section.
+        }
+    }
+
+    public void Dispose() => Nav.LocationChanged -= OnLocationChanged;
+}

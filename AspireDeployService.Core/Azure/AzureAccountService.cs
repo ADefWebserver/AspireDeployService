@@ -23,8 +23,36 @@ public sealed record AzureLocation(string Name, string DisplayName, string? Geog
 
 public sealed record AzureResourceGroup(string Name, string Location);
 
+// Resource pickers plan §6.3.
+public sealed record AzureContainerRegistry(string Name, string ResourceGroup, string Location, string LoginServer, string Sku);
+public sealed record AzureContainerAppEnvironment(string Id, string Name, string ResourceGroup, string Location);
+public sealed record AzureContainerApp(string Name, string ResourceGroup, string? EnvironmentId);
+public sealed record NameAvailability(bool Available, string? Reason);
+public sealed record AzureManagedIdentity(string Id, string Name, string ResourceGroup, string PrincipalId);
+public sealed record AzureLogAnalyticsWorkspace(string Id, string Name, string ResourceGroup, string Location);
+
 public interface IAzureAccountService
 {
+    Task<IReadOnlyList<AzureContainerRegistry>> ListContainerRegistriesAsync(string subscriptionId, IRunObserver observer, CancellationToken ct, bool refresh = false);
+
+    Task<IReadOnlyList<AzureContainerAppEnvironment>> ListContainerAppEnvironmentsAsync(string subscriptionId, IRunObserver observer, CancellationToken ct, bool refresh = false);
+
+    /// <summary>
+    /// <paramref name="resourceGroup"/> null = every app in the subscription. A resource group that does not exist yet
+    /// gives an empty list, not an error.
+    /// </summary>
+    Task<IReadOnlyList<AzureContainerApp>> ListContainerAppsAsync(string subscriptionId, string? resourceGroup, IRunObserver observer, CancellationToken ct, bool refresh = false);
+
+    /// <summary>Never cached.</summary>
+    Task<NameAvailability> CheckRegistryNameAsync(string subscriptionId, string name, IRunObserver observer, CancellationToken ct);
+
+    Task<IReadOnlyList<AzureManagedIdentity>> ListManagedIdentitiesAsync(string subscriptionId, IRunObserver observer, CancellationToken ct, bool refresh = false);
+
+    Task<IReadOnlyList<AzureLogAnalyticsWorkspace>> ListLogAnalyticsWorkspacesAsync(string subscriptionId, IRunObserver observer, CancellationToken ct, bool refresh = false);
+
+    /// <summary>Drops every cached list for that subscription; called after a create.</summary>
+    void Invalidate(string subscriptionId);
+
     /// <summary>The subscriptions visible to the developer's <c>az login</c>. Code 3 when not signed in.</summary>
     Task<IReadOnlyList<AzureSubscription>> ListSubscriptionsAsync(IRunObserver observer, CancellationToken ct, bool refresh = false);
 
@@ -79,6 +107,102 @@ public sealed partial class AzureAccountService(ProfileStore store, IRunContextF
     public Task<IReadOnlyList<AzureResourceGroup>> ListResourceGroupsAsync(string subscriptionId, IRunObserver observer, CancellationToken ct, bool refresh = false) =>
         CachedAsync("groups:" + RequireGuid(subscriptionId), refresh, async () =>
             ParseResourceGroups(await RunAzAsync(["group", "list", "--subscription", subscriptionId, "--output", "json"], observer, ct)));
+
+    public Task<IReadOnlyList<AzureContainerRegistry>> ListContainerRegistriesAsync(string subscriptionId, IRunObserver observer, CancellationToken ct, bool refresh = false) =>
+        CachedAsync("registries:" + RequireGuid(subscriptionId), refresh, async () =>
+            ParseRegistries(await RunAzAsync(["acr", "list", "--subscription", subscriptionId, "--output", "json"], observer, ct)));
+
+    public Task<IReadOnlyList<AzureContainerAppEnvironment>> ListContainerAppEnvironmentsAsync(string subscriptionId, IRunObserver observer, CancellationToken ct, bool refresh = false) =>
+        CachedAsync("environments:" + RequireGuid(subscriptionId), refresh, async () =>
+            ParseEnvironments(await RunAzAsync(["containerapp", "env", "list", "--subscription", subscriptionId, "--output", "json"], observer, ct)));
+
+    public Task<IReadOnlyList<AzureContainerApp>> ListContainerAppsAsync(string subscriptionId, string? resourceGroup, IRunObserver observer, CancellationToken ct, bool refresh = false)
+    {
+        if (resourceGroup is not null && !ProfileRules.IsValidResourceGroup(resourceGroup))
+            throw new DeployerException(OutcomeCode.InvalidInput, $"'{resourceGroup}' is not a valid resource group name.");
+        return CachedAsync($"apps:{RequireGuid(subscriptionId)}:{resourceGroup ?? "*"}", refresh, async () =>
+        {
+            List<string> args = ["containerapp", "list", "--subscription", subscriptionId];
+            if (resourceGroup is not null)
+                args.AddRange(["--resource-group", resourceGroup]);
+            args.AddRange(["--output", "json"]);
+            var result = await RunAsync(args, observer, ct);
+            if (result.Kind == AzErrorKind.ResourceGroupNotFound)
+                return [];
+            return ParseContainerApps(Require(result, args));
+        });
+    }
+
+    public async Task<NameAvailability> CheckRegistryNameAsync(string subscriptionId, string name, IRunObserver observer, CancellationToken ct) =>
+        ParseNameAvailability(await RunAzAsync(["acr", "check-name", "--name", name, "--subscription", RequireGuid(subscriptionId), "--output", "json"], observer, ct));
+
+    public Task<IReadOnlyList<AzureManagedIdentity>> ListManagedIdentitiesAsync(string subscriptionId, IRunObserver observer, CancellationToken ct, bool refresh = false) =>
+        CachedAsync("identities:" + RequireGuid(subscriptionId), refresh, async () =>
+            ParseIdentities(await RunAzAsync(["identity", "list", "--subscription", subscriptionId, "--output", "json"], observer, ct)));
+
+    public Task<IReadOnlyList<AzureLogAnalyticsWorkspace>> ListLogAnalyticsWorkspacesAsync(string subscriptionId, IRunObserver observer, CancellationToken ct, bool refresh = false) =>
+        CachedAsync("workspaces:" + RequireGuid(subscriptionId), refresh, async () =>
+            ParseWorkspaces(await RunAzAsync(["monitor", "log-analytics", "workspace", "list", "--subscription", subscriptionId, "--output", "json"], observer, ct)));
+
+    public void Invalidate(string subscriptionId)
+    {
+        foreach (var key in _cache.Keys)
+        {
+            if (key.Contains(':') && key[(key.IndexOf(':') + 1)..].StartsWith(subscriptionId, StringComparison.OrdinalIgnoreCase))
+                _cache.TryRemove(key, out _);
+        }
+    }
+
+    internal static IReadOnlyList<AzureContainerRegistry> ParseRegistries(string json) => Parse(json, "az acr list", root =>
+        root.EnumerateArray()
+            .Select(r => new AzureContainerRegistry(Text(r, "name"), Text(r, "resourceGroup"), Text(r, "location"), Text(r, "loginServer"),
+                r.TryGetProperty("sku", out var sku) && sku.ValueKind == JsonValueKind.Object ? Text(sku, "name") : ""))
+            .Where(r => r.Name.Length > 0)
+            .OrderBy(r => r.Name, StringComparer.OrdinalIgnoreCase)
+            .ToList());
+
+    internal static IReadOnlyList<AzureContainerAppEnvironment> ParseEnvironments(string json) => Parse(json, "az containerapp env list", root =>
+        root.EnumerateArray()
+            .Select(e => new AzureContainerAppEnvironment(Text(e, "id"), Text(e, "name"), Text(e, "resourceGroup"), Text(e, "location")))
+            .Where(e => e.Name.Length > 0)
+            .OrderBy(e => e.Name, StringComparer.OrdinalIgnoreCase)
+            .ToList());
+
+    /// <summary>Reads <c>properties.managedEnvironmentId</c>, or <c>properties.environmentId</c> on other az versions (R4).</summary>
+    internal static IReadOnlyList<AzureContainerApp> ParseContainerApps(string json) => Parse(json, "az containerapp list", root =>
+        root.EnumerateArray()
+            .Select(a =>
+            {
+                string? envId = null;
+                if (a.TryGetProperty("properties", out var props) && props.ValueKind == JsonValueKind.Object)
+                    envId = Text(props, "managedEnvironmentId") is { Length: > 0 } m ? m : Text(props, "environmentId") is { Length: > 0 } e ? e : null;
+                envId ??= Text(a, "managedEnvironmentId") is { Length: > 0 } top ? top : null;
+                return new AzureContainerApp(Text(a, "name"), Text(a, "resourceGroup"), envId);
+            })
+            .Where(a => a.Name.Length > 0)
+            .OrderBy(a => a.Name, StringComparer.OrdinalIgnoreCase)
+            .ToList());
+
+    internal static NameAvailability ParseNameAvailability(string json) => Parse(json, "az acr check-name", root =>
+    {
+        var available = root.TryGetProperty("nameAvailable", out var a) && a.ValueKind == JsonValueKind.True;
+        var reason = Text(root, "message") is { Length: > 0 } message ? message : Text(root, "reason") is { Length: > 0 } r ? r : null;
+        return new NameAvailability(available, available ? null : reason);
+    });
+
+    internal static IReadOnlyList<AzureManagedIdentity> ParseIdentities(string json) => Parse(json, "az identity list", root =>
+        root.EnumerateArray()
+            .Select(i => new AzureManagedIdentity(Text(i, "id"), Text(i, "name"), Text(i, "resourceGroup"), Text(i, "principalId")))
+            .Where(i => i.Name.Length > 0)
+            .OrderBy(i => i.Name, StringComparer.OrdinalIgnoreCase)
+            .ToList());
+
+    internal static IReadOnlyList<AzureLogAnalyticsWorkspace> ParseWorkspaces(string json) => Parse(json, "az monitor log-analytics workspace list", root =>
+        root.EnumerateArray()
+            .Select(w => new AzureLogAnalyticsWorkspace(Text(w, "id"), Text(w, "name"), Text(w, "resourceGroup"), Text(w, "location")))
+            .Where(w => w.Name.Length > 0)
+            .OrderBy(w => w.Name, StringComparer.OrdinalIgnoreCase)
+            .ToList());
 
     internal static IReadOnlyList<AzureSubscription> ParseSubscriptions(string json) => Parse(json, "az account list", root =>
         root.EnumerateArray()
@@ -175,38 +299,26 @@ public sealed partial class AzureAccountService(ProfileStore store, IRunContextF
         return value;
     }
 
-    private async Task<string> RunAzAsync(IReadOnlyList<string> args, IRunObserver observer, CancellationToken ct)
+    private async Task<string> RunAzAsync(IReadOnlyList<string> args, IRunObserver observer, CancellationToken ct) =>
+        Require(await RunAsync(args, observer, ct), args);
+
+    /// <summary>Each list call keeps its own run context, as before the resource pickers plan.</summary>
+    private async Task<AzResult> RunAsync(IReadOnlyList<string> args, IRunObserver observer, CancellationToken ct)
     {
         var options = (await store.LoadAsync(ct)).Options;
         await using var run = runs.Create(WorkKeys.For(options.WorkRoot, null, null), observer);
-        ProcessResult result;
-        try
-        {
-            var spec = new ProcessSpec("az", args, Path.GetTempPath())
-            {
-                CaptureStdOut = true,
-                LogStdOut = false,
-                Timeout = TimeSpan.FromMinutes(2)
-            };
-            result = await run.Runner.RunAsync(spec, run.Log, ct);
-        }
-        catch (Win32Exception ex)
-        {
-            throw new DeployerException(OutcomeCode.MissingPrerequisite, "The Azure CLI (az) is not installed.", inner: ex);
-        }
-
-        if (!result.Succeeded)
-            throw new DeployerException(OutcomeCode.MissingPrerequisite,
-                args[0] == "account" && args[1] == "list"
-                    ? "The Azure CLI is not signed in. Run: az login"
-                    : $"az {string.Join(' ', args.Take(2))} failed: {LastLine(result)}");
-        return string.Join('\n', result.StdOut);
+        return await AzCli.RunAsync(args, run, AzCli.DefaultTimeout, ct);
     }
 
-    /// <summary>The CLI's own "ERROR: ..." line when there is one; az prints help text after it.</summary>
-    private static string LastLine(ProcessResult result)
+    private static string Require(AzResult result, IReadOnlyList<string> args)
     {
-        var lines = result.OutputTail.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        return lines.FirstOrDefault(l => l.StartsWith("ERROR", StringComparison.Ordinal)) ?? lines.LastOrDefault() ?? "see the log";
+        if (result.Succeeded)
+            return result.StdOut;
+        if (args[0] == "account" && args[1] == "list")
+            throw new DeployerException(OutcomeCode.MissingPrerequisite, "The Azure CLI is not signed in. Run: az login");
+        var message = $"{AzCli.Describe(args)} failed: {result.ErrorLine}";
+        if (result.Kind == AzErrorKind.ProviderNotRegistered)
+            message += "\n" + AzCli.ProviderFix;
+        throw new DeployerException(OutcomeCode.MissingPrerequisite, message);
     }
 }

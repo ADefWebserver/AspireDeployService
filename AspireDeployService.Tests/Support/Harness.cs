@@ -1,6 +1,7 @@
 using System.IO.Compression;
 using System.Net;
 using System.Text.Json;
+using AspireDeployService.Core.Azure;
 using AspireDeployService.Core.Infrastructure;
 using AspireDeployService.Core.Prerequisites;
 using AspireDeployService.Core.Processes;
@@ -53,7 +54,15 @@ public sealed class Harness : IDisposable
     public DiscoveryPipeline Pipeline() => new(new StubHttpClientFactory(GitHub), new GitHubTokenResolver(), new TrustStore(),
         new AspireCliProvisioner(), Interaction);
 
-    public DeployService Deploy() => new(Store, Profiles, Runs, Pipeline(), new PrerequisiteChecker(), Interaction, TimeProvider.System)
+    /// <summary>Answers <c>az</c> commands (the resource pickers plan's reads and creates). Null result = not handled.</summary>
+    public Func<ProcessSpec, ProcessResult?> OnAz { get; set; } = _ => null;
+
+    public IReadOnlyList<ProcessSpec> AzSpecs => Runner.Specs.Where(s => s.FileName == "az").ToList();
+
+    public AzureAccountService Account() => new(Store, Runs, TimeProvider.System);
+
+    public DeployService Deploy() => new(Store, Profiles, Runs, Pipeline(), new PrerequisiteChecker(), Interaction,
+        new AzureResourceProvisioner(Store, Account(), Runs), TimeProvider.System)
     {
         SkipPrerequisites = true,
         ParentEnvironment = _ => null
@@ -111,6 +120,8 @@ public sealed class Harness : IDisposable
 
     private async Task<ProcessResult> HandleAsync(ProcessSpec spec, CancellationToken ct)
     {
+        if (spec.FileName == "az")
+            return OnAz(spec) ?? FakeProcessRunner.Fail(1, "ERROR: (ResourceGroupNotFound) Resource group 'x' could not be found.");
         if (FakeProcessRunner.Is(spec, "--version"))
             return FakeProcessRunner.Ok(CliVersion + "+abcdef");
         if (FakeProcessRunner.Is(spec, "do", "publish-manifest"))

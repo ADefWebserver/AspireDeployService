@@ -1,0 +1,51 @@
+@* Resource pickers plan §6.7: the three section modes and what each does at deploy time. *@
+@* <!text> stops Razor from reading the SVG <text> element as its own <text> tag inside code blocks. *@
+<figure class="ads-diagram">
+    <svg class="ads-diagram-wide" viewBox="0 0 760 200" role="img" aria-labelledby="rmd-title rmd-desc">
+        <title id="rmd-title">The three modes of a resource section</title>
+        <desc id="rmd-desc">Let Aspire create: aspire deploy creates the resource in the profile's group. Use existing: az checks that it exists and the overlay marks it existing. Create new: az creates it in the profile's group, the overlay marks it existing, and the profile switches to Use existing.</desc>
+        <defs>
+            <marker id="rmd-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                <path d="M0 0 10 5 0 10z" fill="currentColor" />
+            </marker>
+        </defs>
+        @for (var i = 0; i < Modes.Length; i++)
+        {
+            var x = 20 + i * 250;
+            var m = Modes[i];
+            <rect class="ads-diagram-box @(i == 0 ? "" : "ads-diagram-primary")" x="@x" y="20" width="220" height="44" rx="8" />
+            <!text class="ads-diagram-text" x="@(x + 110)" y="47">@m.Name</!text>
+            <path class="ads-diagram-line" d="M@(x + 110) 64v38" marker-end="url(#rmd-arrow)" />
+            <rect class="ads-diagram-group" x="@x" y="104" width="220" height="@(m.Lines.Length * 22 + 18)" rx="8" />
+            @for (var j = 0; j < m.Lines.Length; j++)
+            {
+                <!text class="ads-diagram-note ads-diagram-left" x="@(x + 14)" y="@(128 + j * 22)">@m.Lines[j]</!text>
+            }
+        }
+    </svg>
+
+    <svg class="ads-diagram-stacked" viewBox="0 0 340 420" role="img" aria-labelledby="rmd-s-title rmd-s-desc">
+        <title id="rmd-s-title">The three modes of a resource section</title>
+        <desc id="rmd-s-desc">Let Aspire create, Use existing and Create new, each with what happens at deploy time.</desc>
+        @for (var i = 0; i < Modes.Length; i++)
+        {
+            var y = 10 + i * 136;
+            var m = Modes[i];
+            <rect class="ads-diagram-box @(i == 0 ? "" : "ads-diagram-primary")" x="10" y="@y" width="320" height="38" rx="8" />
+            <!text class="ads-diagram-text" x="170" y="@(y + 24)">@m.Name</!text>
+            @for (var j = 0; j < m.Lines.Length; j++)
+            {
+                <!text class="ads-diagram-note ads-diagram-left" x="24" y="@(y + 62 + j * 20)">@m.Lines[j]</!text>
+            }
+        }
+    </svg>
+</figure>
+
+@code {
+    private static readonly (string Name, string[] Lines)[] Modes =
+    [
+        ("Let Aspire create", ["aspire deploy creates it", "in the profile's resource group", "(the default)"]),
+        ("Use existing", ["az show checks that it exists", "the overlay marks it existing", "nothing is created"]),
+        ("Create new", ["az creates it before the deploy", "the overlay marks it existing", "the profile switches to Use existing"]),
+    ];
+}

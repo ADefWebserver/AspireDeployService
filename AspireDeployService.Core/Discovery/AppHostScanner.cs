@@ -15,7 +15,7 @@ public sealed record ScanResult(AppHostInfo AppHost, IReadOnlyList<string> Warni
 public static partial class AppHostScanner
 {
     private static readonly HashSet<string> SkippedFolders = new(StringComparer.OrdinalIgnoreCase)
-        { "bin", "obj", "node_modules", ".git", ".vs", "aspire-output" };
+        { "bin", "obj", "node_modules", ".git", ".vs", "aspire-output", Deploy.SiblingOverlay.FolderName };
 
     private const int MaxFilesScanned = 200_000;
 
@@ -100,9 +100,31 @@ public static partial class AppHostScanner
         if (walk.Truncated)
             warnings.Add($"The source has more than {MaxFilesScanned:N0} files; the scan stopped early.");
 
-        var info = new AppHostInfo(Relative(root, fullPath), kind, version, packages, targets, FindGlobalJsonSdk(root, fullPath));
+        var source = AppHostSource(fullPath, kind);
+        var info = new AppHostInfo(Relative(root, fullPath), kind, version, packages, targets, FindGlobalJsonSdk(root, fullPath))
+        {
+            EnvironmentLocked = EnvironmentAsExisting().IsMatch(source),
+            RegistryLocked = source.Contains("WithAzureContainerRegistry(", StringComparison.Ordinal)
+                || source.Contains("AddAzureContainerRegistry(", StringComparison.Ordinal)
+                || source.Contains("withAzureContainerRegistry(", StringComparison.Ordinal)
+                || source.Contains("addAzureContainerRegistry(", StringComparison.Ordinal),
+            IdentityLocked = source.Contains("WithAcrPullIdentity(", StringComparison.Ordinal)
+                || source.Contains("withAcrPullIdentity(", StringComparison.Ordinal),
+            ContainerAppEnvironmentNames = EnvironmentName().Matches(source).Select(m => m.Groups["n"].Value).Distinct(StringComparer.Ordinal).ToList()
+        };
         return new ScanResult(info, warnings, usesSubmodulesOrLfs);
     }
+
+    // Resource pickers plan D4. Single-line mode so a call chain across lines still matches.
+    [GeneratedRegex(@"[Aa]ddAzureContainerAppEnvironment\([^;]*?\)\s*\.\s*(Run|Publish|run|publish)?[Aa]sExisting\(", RegexOptions.Singleline)]
+    private static partial Regex EnvironmentAsExisting();
+
+    [GeneratedRegex(@"[Aa]ddAzureContainerAppEnvironment\(\s*[""'](?<n>[A-Za-z0-9-]{1,64})[""']")]
+    private static partial Regex EnvironmentName();
+
+    /// <summary>Temporary overlay copies (resource pickers plan D3, in a <c>.ads-deploy</c> folder) are never AppHosts.</summary>
+    internal static bool IsOverlaySibling(string path) =>
+        path.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar).Contains(Deploy.SiblingOverlay.FolderName, StringComparer.OrdinalIgnoreCase);
 
     private sealed record WalkResult(List<string> Files, string? LfsPointer, bool Truncated);
 
@@ -135,6 +157,8 @@ public static partial class AppHostScanner
                         stack.Push(entry);
                     continue;
                 }
+                if (IsOverlaySibling(entry))
+                    continue;
                 files.Add(entry);
                 if (lfs is null && IsLfsPointer(entry))
                     lfs = entry;
@@ -317,21 +341,21 @@ public static partial class AppHostScanner
     }
 
     /// <summary>The AppHost's code: the .cs files of a project (not bin/obj), or the single file.</summary>
-    private static string AppHostSource(string appHost, AppHostKind kind)
-    {
-        if (kind != AppHostKind.ProjectCsproj)
-            return File.ReadAllText(appHost);
+    private static string AppHostSource(string appHost, AppHostKind kind) =>
+        kind != AppHostKind.ProjectCsproj
+            ? File.ReadAllText(appHost)
+            : string.Join('\n', ProjectSourceFiles(Path.GetDirectoryName(appHost)!).Select(File.ReadAllText));
 
-        var dir = Path.GetDirectoryName(appHost)!;
-        var parts = new List<string>();
+    /// <summary>The .cs files of a project folder, not under bin/obj, and not overlay siblings.</summary>
+    internal static IEnumerable<string> ProjectSourceFiles(string dir)
+    {
         foreach (var file in Directory.EnumerateFiles(dir, "*.cs", SearchOption.AllDirectories))
         {
             var relative = Path.GetRelativePath(dir, file).Split('\\', '/');
-            if (relative.Any(SkippedFolders.Contains))
+            if (relative.Any(SkippedFolders.Contains) || IsOverlaySibling(file))
                 continue;
-            parts.Add(File.ReadAllText(file));
+            yield return file;
         }
-        return string.Join('\n', parts);
     }
 
     private static string? FindGlobalJsonSdk(string root, string appHost)

@@ -1,0 +1,47 @@
+.ads-figure {
+    margin: 16px 0;
+    border: 1px solid var(--ads-border);
+    border-radius: 10px;
+    background: var(--ads-well);
+    padding: 12px;
+}
+
+    .ads-figure img {
+        display: block;
+        max-width: 100%;
+        height: auto;
+        border-radius: 6px;
+    }
+
+    .ads-figure figcaption {
+        margin-top: 8px;
+        font-size: 12.5px;
+        color: var(--ads-muted);
+    }
+
+.ads-figure-legend {
+    counter-reset: ads-figure;
+    list-style: none;
+    margin: 10px 0 0;
+    padding: 0;
+    font-size: 13px;
+}
+
+    .ads-figure-legend ::deep li {
+        counter-increment: ads-figure;
+        margin: 4px 0;
+    }
+
+        .ads-figure-legend ::deep li::before {
+            content: counter(ads-figure);
+            display: inline-grid;
+            place-items: center;
+            width: 20px;
+            height: 20px;
+            margin-right: 8px;
+            border-radius: 50%;
+            background: var(--ads-primary);
+            color: #fff;
+            font-size: 11px;
+            font-weight: 600;
+        }

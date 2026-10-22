@@ -1,0 +1,31 @@
+[
+  {
+    "createdDate": "2026-10-21T13:44:01.9481096Z",
+    "customerId": "11111111-2222-3333-4444-555555555555",
+    "etag": "\"4e021b03-0000-0200-0000-6ad8c1ae0000\"",
+    "features": {
+      "enableLogAccessUsingOnlyResourcePermissions": true,
+      "legacy": 0,
+      "searchVersion": 1
+    },
+    "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-shared/providers/Microsoft.OperationalInsights/workspaces/ws-shared",
+    "location": "eastus2",
+    "modifiedDate": "2026-10-21T13:44:14.4751442Z",
+    "name": "ws-shared",
+    "provisioningState": "Succeeded",
+    "publicNetworkAccessForIngestion": "Enabled",
+    "publicNetworkAccessForQuery": "Enabled",
+    "resourceGroup": "rg-shared",
+    "retentionInDays": 30,
+    "sku": {
+      "lastSkuUpdate": "2026-10-21T13:44:01.9481096Z",
+      "name": "PerGB2018"
+    },
+    "type": "Microsoft.OperationalInsights/workspaces",
+    "workspaceCapping": {
+      "dailyQuotaGb": -1.0,
+      "dataIngestionStatus": "RespectQuota",
+      "quotaNextResetTime": "2026-10-22T02:00:00Z"
+    }
+  }
+]

@@ -28,6 +28,18 @@ public sealed record AppHostInfo(
 {
     [JsonIgnore]
     public bool HasAzureTarget => DeclaredTargets.Any(t => t.IsAzure());
+
+    /// <summary>Resource pickers plan D4: the AppHost already marks its Container Apps environment as existing.</summary>
+    public bool EnvironmentLocked { get; init; }
+
+    /// <summary>Resource pickers plan D4: the AppHost already wires its own container registry.</summary>
+    public bool RegistryLocked { get; init; }
+
+    /// <summary>Resource pickers plan §6.4: the AppHost already sets its own ACR pull identity.</summary>
+    public bool IdentityLocked { get; init; }
+
+    /// <summary>The names passed to <c>AddAzureContainerAppEnvironment("...")</c>, in source order.</summary>
+    public IReadOnlyList<string> ContainerAppEnvironmentNames { get; init; } = [];
 }
 
 /// <param name="ConfigKey">"Parameters:&lt;name&gt;" or "ConnectionStrings:&lt;name&gt;" (source plan D12).</param>

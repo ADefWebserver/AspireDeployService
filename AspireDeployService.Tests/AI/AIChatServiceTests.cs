@@ -60,7 +60,7 @@ public class AIChatServiceTests : IDisposable
         Assert.Equal(session.ContextText, call.Messages[1].Text);
         Assert.DoesNotContain("openai-secret-key", call.Messages[2].Text);
         Assert.Equal(0.2f, call.Temperature);
-        Assert.Equal(3, call.ToolCount); // no log file, so no read_run_log
+        Assert.Equal(4, call.ToolCount); // three file tools and read_guide; no log file, so no read_run_log
         Assert.Equal("Hello", session.Turns[^1].Text);
         Assert.False(session.IsBusy);
     }
@@ -107,6 +107,9 @@ public class AIChatServiceTests : IDisposable
         Assert.False(session.ToolsEnabled);
         Assert.Contains(reasonPart, session.ToolsUnavailableReason);
         Assert.Contains("- File tools: none.", session.ContextText);
+        Assert.Contains("- From the user guide: Troubleshooting:", session.ContextText);
+        Assert.Contains("does not exist and the profile does not allow creating it.", session.ContextText);
+        Assert.True(session.ContextText.Length <= AIContextFormatter.MaxContextChars);
 
         await Collect(_service.SendAsync(session, "hi", CancellationToken.None));
         Assert.Equal(0, _client.Calls[^1].ToolCount);
@@ -204,5 +207,35 @@ public class AIChatServiceTests : IDisposable
             Endpoint = "https://r.services.ai.azure.com"
         };
         Assert.Equal(FoundryApiProtocol.AnthropicMessages, AIChatService.EffectiveProtocol(foundry));
+    }
+
+    [Fact]
+    public async Task Tools_are_offered_without_a_source_folder_or_log_because_the_guide_can_be_read()
+    {
+        var plain = new AIHelpContext("err:1", "Error", AIContextKind.Error, "Something failed", [], [], null, null);
+        var session = await _service.StartAsync(plain, CancellationToken.None);
+        Assert.True(session.ToolsEnabled);
+        Assert.Contains("- File tools: can read the user guide", session.ContextText);
+        Assert.DoesNotContain("From the user guide: Troubleshooting", session.ContextText);
+
+        _client.Script.Enqueue(FakeChatClient.Call("read_guide", new() { ["section"] = "azure-resources" }));
+        _client.Script.Enqueue(FakeChatClient.Text("Use the Container registry section."));
+        var updates = await Collect(_service.SendAsync(session, "How do I use an existing registry?", CancellationToken.None));
+
+        Assert.Equal(1, _client.Calls[0].ToolCount);
+        Assert.Contains(updates, u => u.ToolActivity == "Read the guide: 2. Choose Azure resources");
+        Assert.Contains(_client.Calls[1].Messages.SelectMany(m => m.Contents).OfType<FunctionResultContent>(),
+            r => r.Result?.ToString()?.Contains("Container registry") == true);
+    }
+
+    [Fact]
+    public async Task The_system_prompt_lists_the_guide_sections()
+    {
+        var session = await _service.StartAsync(Context(), CancellationToken.None);
+        await Collect(_service.SendAsync(session, "hi", CancellationToken.None));
+        var system = _client.Calls[0].Messages[0].Text;
+        Assert.Contains("Aspire Deploy has a user guide. Sections:", system);
+        Assert.Contains("azure-resources: 2. Choose Azure resources", system);
+        Assert.Contains("trouble: Troubleshooting", system);
     }
 }
