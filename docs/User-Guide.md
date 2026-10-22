@@ -57,6 +57,8 @@ A profile says what to deploy and where. **Profiles → New profile** walks thro
 
 Profiles are saved in `appsettings.Local.json` (see the README).
 
+![New profile: the Destination step with the container apps preview](images/05-new-profile-destination.png)
+
 <a id="azure-resources"></a>
 ## 2. Choose Azure resources
 
@@ -67,6 +69,10 @@ The **Destination** card has a section for each resource. The resource group has
 | **Let Aspire create** | Nothing is stored (the default; every older profile is in this mode). | Aspire creates a registry, an environment and a Log Analytics workspace in the profile's resource group, exactly as before. |
 | **Use existing** | Name and resource group of a resource picked from the list. Any resource group in the subscription. | The app checks the resource exists, then the deploy uses it as an existing resource. Nothing is created. |
 | **Create new** | A name you type (a valid one is suggested). | The app creates it with `az` in the profile's resource group and region before `aspire deploy`, then deploys with it as existing. If it is already there it is used as is. |
+
+![Create new registry and environment](images/03-destination-new.png)
+
+![Use existing registry, environment and pull identity](images/02-destination-existing.png)
 
 ```mermaid
 flowchart TD
@@ -165,6 +171,8 @@ The copy's first line is `// ads-deploy-temp: written by Aspire Deploy during a 
 
 <a id="deploy"></a>
 ## 3. Deploy and watch
+
+![The deploy confirmation lists what will be created and each container app](images/04-deploy-confirm.png)
 
 ```mermaid
 flowchart LR

@@ -220,7 +220,7 @@ public class AppHostScannerTests : IDisposable
         var scan = AppHostScanner.Scan(AppHostFixtures.RepositoryRoot(), null, Options);
         Assert.Equal("AspireDeployService.AppHost/AspireDeployService.AppHost.csproj", scan.AppHost.AppHostPath);
         Assert.Equal(AppHostKind.ProjectCsproj, scan.AppHost.Kind);
-        Assert.Equal("13.5.4", scan.AppHost.AspireSdkVersion);
+        Assert.Equal("13.6.3", scan.AppHost.AspireSdkVersion);
         Assert.False(scan.AppHost.HasAzureTarget);
         Assert.Contains(scan.Warnings, w => w.Contains("No Azure compute environment"));
     }

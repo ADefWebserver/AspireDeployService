@@ -368,7 +368,7 @@ public sealed class DeployService(
         var label = s.Kind switch
         {
             AzureResourceKind.ContainerRegistry => "registry",
-            AzureResourceKind.ContainerAppEnvironment => "environment",
+            AzureResourceKind.ContainerAppEnvironment => "apps environment",
             AzureResourceKind.ManagedIdentity => "pull identity",
             _ => "resource group"
         };

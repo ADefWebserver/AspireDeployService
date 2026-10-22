@@ -11,17 +11,78 @@ It **discovers** what the AppHost needs first (AppHost kind, Aspire version, par
 
 Design: [docs/AspireDeployService-Implementation-Plan.md](docs/AspireDeployService-Implementation-Plan.md), which builds on [docs/Aspire-Project-Deployer-Plan.md](docs/Aspire-Project-Deployer-Plan.md).
 
-## Quick start
+## How to use it
 
-New here? Read the **[user guide](docs/User-Guide.md)** (also the **Guide** tab in the app). It covers profiles, picking or creating the registry and Container Apps environment, and troubleshooting.
+The full walkthrough is the **[user guide](docs/User-Guide.md)**, which is also the **Guide** tab inside the app. The short version:
 
-1. Install the prerequisites below, then run `az login`.
+### 1. Start the app and check your tools
+
+1. Install the [prerequisites](#prerequisites), then run `az login`.
 2. Start the app: open `AspireDeployService.slnx` in Visual Studio and run the **Windows Machine** profile, or run `aspire run` and start the `aspiredeployservice-windows` resource from the dashboard.
-3. **Setup**: run the general checks.
-4. **Profiles → New profile**: name it, pick the solution folder (or `<owner>/<repo>`), click **Discover**, fill in the region and the parameters, and save.
-5. **Deploy**: tick **Dry run** first to list the steps, then deploy for real. Every deploy shows the tenant, subscription and resource group and asks before it starts.
+3. Open **Setup** and run the general checks. Each tool shows Pass, Warn or Fail with the fix.
 
-To remove a deployment, delete its resource group in Azure. Deleting a profile never touches Azure. Existing resources a profile picked from **other** resource groups (registry, environment, pull identity, logs workspace) are never deleted by the app and are not in that group; but an existing resource that lives in the profile's own group goes with it.
+Your AppHost needs an Azure compute environment, for example `builder.AddAzureContainerAppEnvironment("env");` with the `Aspire.Hosting.Azure.AppContainers` package.
+
+### 2. Create a profile
+
+**Profiles → New profile**: give it a name, pick the solution folder (or `<owner>/<repo>` on GitHub), and click **Discover**. The app reads the AppHost, runs `aspire do publish-manifest`, and then shows the **Destination** and **Parameters** steps.
+
+![New profile: the Destination step after Discover](docs/images/05-new-profile-destination.png)
+
+- **Subscription, region and resource group** are read from your `az login`. A resource group is either an existing one or a new name that is created on the first deploy.
+- **Container apps** (bottom of the card) previews each compute resource of the AppHost as **New**, **Updates existing** or **Conflict**, by comparing it with what is already in Azure. A conflict (for example an app with that name already running in another environment) blocks the deploy.
+- Fill in the **Parameters** step and **Save profile**.
+
+### 3. Choose the Azure resources (optional)
+
+By default Aspire creates its own container registry, Container Apps environment and Log Analytics workspace in the profile's resource group. Each of the three sections on the profile page lets you change that:
+
+| Mode | What happens on deploy |
+|---|---|
+| **Let Aspire create** | As before: Aspire creates it in the profile's resource group. |
+| **Use existing** | Pick a registry, environment or pull identity from any resource group in the subscription. The app checks it exists, and the deploy uses it as is. |
+| **Create new** | Type a name (a valid one is suggested; registry names are checked for availability as you type). The app creates it with `az` before the deploy, then switches the profile to **Use existing**. |
+
+**Create new** registry (with its SKU) and environment (with where its logs go):
+
+![Destination card with a new registry and a new environment](docs/images/03-destination-new.png)
+
+**Use existing** registry, environment and ACR pull identity, in a shared resource group:
+
+![Destination card using an existing registry, environment and pull identity](docs/images/02-destination-existing.png)
+
+- The lists come from `az`. If `az` cannot list something (or the subscription has none), type the name and resource group instead.
+- **ACR pull identity** is only available with an existing registry. Pick a user-assigned identity that already has `AcrPull` on it, and the deploy creates no identity and no role assignment.
+- A new environment can send its logs to a new Log Analytics workspace, an **existing** workspace, or nowhere.
+- Your AppHost files are never edited. The app adds the "use existing" calls through a temporary overlay at deploy time (see [What the tooling writes into a local folder](#what-the-tooling-writes-into-a-local-folder)). If your AppHost already chooses its own environment or registry, that section is locked and you set its parameters instead.
+
+### 4. Deploy
+
+**Profiles → Deploy**. Tick **Dry run** the first time: it lists the deployment steps and creates nothing. Every deploy asks first and shows exactly what will happen in Azure:
+
+![The deploy confirmation](docs/images/04-deploy-confirm.png)
+
+- What will be **created** (resource group, registry, environment) and what is **existing**.
+- Each container app as **new** or **update**.
+- Creating an environment can take 30 minutes or more. The log streams while it runs, and **Cancel** works.
+
+When it finishes, the endpoints are in the log. A second deploy creates nothing and updates the apps.
+
+The profile list shows each profile's resource group, and the registry and environment when they are not left to Aspire:
+
+![Profiles list](docs/images/01-profiles.png)
+
+### 5. Get help
+
+The **Guide** tab has the same content as [docs/User-Guide.md](docs/User-Guide.md): diagrams, every mode, naming rules, and a troubleshooting table that quotes each error message. Each resource section on the profile page has a **Help** link into it, and AI Help (below) can read it too.
+
+![The Guide tab](docs/images/06-guide.png)
+
+![Guide: choosing Azure resources](docs/images/07-guide-resources.png)
+
+### Removing a deployment
+
+Delete the profile's resource group in Azure. Deleting a profile never touches Azure. Existing resources a profile picked from **other** resource groups (registry, environment, pull identity, logs workspace) are never deleted by the app and are not in that group, but an existing resource that lives in the profile's own group goes with it.
 
 ## Prerequisites
 
@@ -104,7 +165,7 @@ Run this before a release. Rows marked **(Azure)** create real resources; delete
 | # | Check | Expected |
 |---|---|---|
 | 1 | Setup, general checks | Each tool shows Pass, Warn or Fail with a fix. |
-| 2 | Discover this repository's own folder | AppHost 13.5.4, and a "no Azure compute environment" warning. |
+| 2 | Discover this repository's own folder | AppHost 13.6.3, and a "no Azure compute environment" warning. |
 | 3 | New profile from this repository | Refused with result code 4 and the line to add. |
 | 4 | Discover an `aspire-starter` app that has `AddAzureContainerAppEnvironment` | Its parameters and resources are listed. |
 | 5 | New profile for that app, then **Dry run** | The confirmation names the tenant, subscription and resource group; the steps are listed; no secret appears in the log. |
