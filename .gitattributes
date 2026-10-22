@@ -1,0 +1,6 @@
+# Keep GitHub's language stats on the project's own code.
+# Generated Aspire SDK modules in the TypeScript AppHost test fixtures.
+AspireDeployService.Tests/Fixtures/** linguist-vendored
+**/.aspire/modules/** linguist-generated
+# Third-party client libraries.
+AspireDeployService/wwwroot/lib/** linguist-vendored
