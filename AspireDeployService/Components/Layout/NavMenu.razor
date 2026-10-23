@@ -1,8 +1,10 @@
 ﻿@implements IDisposable
 @inject RunCoordinator Runs
 @inject IJSRuntime JS
+@inject IAzureAccountService Azure
+@inject NavigationManager Nav
 
-@* The horizontal top app bar (docs/mockups): brand, page tabs, theme toggle. No sidebar. *@
+@* The horizontal top app bar (docs/mockups): brand, page tabs with icons, activity, Azure account, theme toggle. No sidebar. *@
 <header class="ads-topbar">
     @* aria-label keeps the link named when the narrow layout hides the brand text. *@
     <a class="ads-brand" href="" aria-label="Aspire Deploy home">
@@ -11,11 +13,12 @@
     </a>
 
     <nav class="ads-tabs" aria-label="Pages">
-        <NavLink class="ads-tab" href="" Match="NavLinkMatch.All">Home</NavLink>
-        <NavLink class="ads-tab" href="setup">Setup @Running("setup")</NavLink>
-        <NavLink class="ads-tab" href="profiles">Profiles @Running("deploy", "profile")</NavLink>
-        <NavLink class="ads-tab" href="settings">Settings</NavLink>
-        <NavLink class="ads-tab" href="guide">Guide</NavLink>
+        <NavLink class="ads-tab" href="" Match="NavLinkMatch.All"><Icon Name="home" Size="16" /> Home</NavLink>
+        <NavLink class="ads-tab" href="setup"><Icon Name="stethoscope" Size="16" /> Setup @Running("setup")</NavLink>
+        @* A deploy page belongs to Profiles, so that tab stays highlighted there. *@
+        <NavLink class="@($"ads-tab{(OnDeployPage ? " active" : "")}")" href="profiles"><Icon Name="layers" Size="16" /> Profiles @Running("deploy", "profile")</NavLink>
+        <NavLink class="ads-tab" href="settings"><Icon Name="sliders" Size="16" /> Settings</NavLink>
+        <NavLink class="ads-tab" href="guide"><Icon Name="book-open" Size="16" /> Guide</NavLink>
     </nav>
 
     <div class="ads-topbar-end">
@@ -26,20 +29,70 @@
                 @ActiveCount running
             </span>
         }
+        @if (_account is { } a)
+        {
+            <span class="ads-account" title="@($"az login: {a.User ?? "(unknown user)"}, tenant {a.TenantId}, default subscription {a.Name}")">
+                <span class="ads-account-avatar">@Initial(a.User)</span>
+                <span class="ads-account-text">
+                    <span class="ads-account-name">@(a.User ?? a.Name) <span class="ads-account-dot" aria-hidden="true"></span></span>
+                    <span class="ads-account-sub">@a.Name · @Short(a.TenantId)</span>
+                </span>
+            </span>
+        }
+        else if (_accountError is not null)
+        {
+            <a class="ads-account is-off" href="setup" title="@_accountError">
+                <span class="ads-account-avatar"><Icon Name="cloud" Size="14" /></span>
+                <span class="ads-account-text">
+                    <span class="ads-account-name">@(_signedOut ? "Not signed in" : "Azure CLI")</span>
+                    <span class="ads-account-sub">@(_signedOut ? "Sign in from a profile" : "Not available")</span>
+                </span>
+            </a>
+        }
         <button type="button" class="btn btn-ghost btn-icon" title="@(_theme == "dark" ? "Switch to light theme" : "Switch to dark theme")"
                 aria-label="Toggle theme" @onclick="ToggleThemeAsync">
             <Icon Name="@(_theme == "dark" ? "moon" : "sun")" Size="18" />
         </button>
-        <a class="btn btn-ghost btn-icon" href="settings" title="Settings" aria-label="Settings"><Icon Name="sliders" Size="18" /></a>
     </div>
 </header>
 
 @code {
     private string _theme = "dark";
+    private AzureSubscription? _account;
+    private string? _accountError;
+    private bool _signedOut;
+    private ActiveRun? _signInSeen;
 
     private int ActiveCount => Runs.Active.Count(r => !r.Key.StartsWith("debug:", StringComparison.Ordinal));
 
-    protected override void OnInitialized() => Runs.RunsChanged += OnRunsChanged;
+    private bool OnDeployPage => Nav.ToBaseRelativePath(Nav.Uri).StartsWith("deploy/", StringComparison.OrdinalIgnoreCase);
+
+    protected override void OnInitialized()
+    {
+        Nav.LocationChanged += OnLocationChanged;
+        Runs.RunsChanged += OnRunsChanged;
+        _signInSeen = Runs.TryGet(AzureSignInButton.RunKey);
+        _ = LoadAccountAsync();
+    }
+
+    /// <summary>The az login the app deploys with: the default subscription's user and tenant (the list is cached).</summary>
+    private async Task LoadAccountAsync()
+    {
+        try
+        {
+            var subs = await Task.Run(() => Azure.ListSubscriptionsAsync(NullRunObserver.Instance, CancellationToken.None));
+            (_account, _accountError) = (subs.FirstOrDefault(s => s.IsDefault) ?? subs.FirstOrDefault(), null);
+        }
+        catch (DeployerException ex)
+        {
+            (_account, _accountError, _signedOut) = (null, ex.Message, ex.Category == ErrorCategory.Permissions);
+        }
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private static string Initial(string? user) => string.IsNullOrEmpty(user) ? "?" : char.ToUpperInvariant(user[0]).ToString();
+
+    private static string Short(string id) => id.Length > 8 ? id[..8] : id;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -68,7 +121,16 @@
         }
     }
 
-    private void OnRunsChanged() => _ = InvokeAsync(StateHasChanged);
+    private void OnRunsChanged()
+    {
+        // A finished sign-in changes who is signed in.
+        if (Runs.TryGet(AzureSignInButton.RunKey) is { IsRunning: false } signIn && !ReferenceEquals(signIn, _signInSeen))
+        {
+            _signInSeen = signIn;
+            _ = LoadAccountAsync();
+        }
+        _ = InvokeAsync(StateHasChanged);
+    }
 
     /// <summary>Plan §6.1: a live indicator next to pages that have an active run.</summary>
     private RenderFragment? Running(params string[] prefixes) =>
@@ -76,5 +138,11 @@
             ? @<span class="ads-tab-live" role="status" aria-label="running"></span>
             : null;
 
-    public void Dispose() => Runs.RunsChanged -= OnRunsChanged;
+    private void OnLocationChanged(object? sender, Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs e) => _ = InvokeAsync(StateHasChanged);
+
+    public void Dispose()
+    {
+        Runs.RunsChanged -= OnRunsChanged;
+        Nav.LocationChanged -= OnLocationChanged;
+    }
 }

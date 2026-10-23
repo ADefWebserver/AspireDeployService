@@ -9,13 +9,19 @@
 *@
 <div class="ads-res-section @(Locked is not null || DisabledReason is not null ? "is-locked" : "")">
     <div class="ads-res-head">
-        <span class="ads-res-title">@Title</span>
+        <span class="ads-tile-icon ads-tile-sm @(Kind == AzureResourceKind.ContainerAppEnvironment ? "ads-tone-azure" : "")"><Icon Name="@KindIcon" Size="16" /></span>
+        <span class="ads-res-titles">
+            <span class="ads-res-title">@Title</span>
+            <span class="ads-res-sub">@KindSubtitle</span>
+        </span>
         @if (_loading)
         {
             <span class="ads-spinner ads-spinner-sm"></span>
         }
-        <a class="ads-res-help" href="guide#azure-resources" title="How these choices work"><Icon Name="info" Size="12" /> Help</a>
-        <span class="ads-seg ms-auto" role="radiogroup" aria-label="@Title">
+        <a class="ads-res-help ms-auto" href="guide#azure-resources" title="How these choices work"><Icon Name="info" Size="12" /> Help</a>
+    </div>
+    <div class="ads-res-modes-row">
+        <span class="ads-seg ads-res-modes" role="radiogroup" aria-label="@Title">
             <button type="button" role="radio" aria-checked="@(Mode == ResourceMode.AspireDefault)" class="@(Mode == ResourceMode.AspireDefault ? "is-on" : "")"
                     disabled="@Disabled" @onclick="() => SetMode(ResourceMode.AspireDefault)">Let Aspire create</button>
             <button type="button" role="radio" aria-checked="@(Mode == ResourceMode.Existing)" class="@(Mode == ResourceMode.Existing ? "is-on" : "")"
@@ -205,6 +211,20 @@
     };
 
     private ResourceMode Mode => C?.EffectiveMode ?? ResourceMode.AspireDefault;
+
+    private string KindIcon => Kind switch
+    {
+        AzureResourceKind.ContainerRegistry => "database",
+        AzureResourceKind.ContainerAppEnvironment => "cloud",
+        _ => "key"
+    };
+
+    private string KindSubtitle => Kind switch
+    {
+        AzureResourceKind.ContainerRegistry => "Azure Container Registry",
+        AzureResourceKind.ContainerAppEnvironment => "Where the container apps run",
+        _ => "User-assigned managed identity"
+    };
 
     private string Title => Kind switch
     {

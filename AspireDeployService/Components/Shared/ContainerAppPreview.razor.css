@@ -1,17 +1,23 @@
-.ads-preview {
-    border-top: 1px solid var(--ads-border);
-    padding-top: 10px;
-}
-
 .ads-res-head-preview {
     display: flex;
     align-items: center;
-    gap: 8px;
-    margin-bottom: 6px;
-    font-size: 13px;
+    gap: 10px;
+    margin-bottom: 14px;
+    font-size: 14px;
+}
+
+.ads-res-titles-preview {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.3;
 }
 
 .ads-preview-table td, .ads-preview-table th {
     vertical-align: middle;
     font-size: 12.5px;
 }
+
+    .ads-preview-table td .ads-dot {
+        margin-right: 6px;
+        vertical-align: middle;
+    }

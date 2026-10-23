@@ -3,9 +3,10 @@
 @inject IProfileService ProfileService
 @inject RunCoordinator Runs
 
+@* docs/mockups/profiles_delete_modal: a filter bar, one row per profile, and the delete dialog. *@
 <header class="ads-page-header">
     <div class="ads-page-text">
-        <div class="ads-eyebrow">Deployment profiles</div>
+        <div class="ads-eyebrow"><Icon Name="layers" Size="14" /> Deployment profiles</div>
         <h1>Profiles</h1>
         <p class="ads-lead">One profile per AppHost and Azure destination, kept in your local settings file.</p>
     </div>
@@ -23,25 +24,6 @@
     </div>
 }
 
-@if (_pendingDelete is { } name)
-{
-    <div class="ads-card ads-delete mb-3">
-        <div class="ads-card-header">
-            <span class="ads-tile-icon ads-tone-fail"><Icon Name="trash" Size="18" /></span>
-            <h2>Delete profile @name?</h2>
-        </div>
-        <p class="ads-muted">This edits only the local settings file. Nothing in Azure is touched; the resource group stays.</p>
-        <div class="form-check">
-            <input id="delete-work" class="form-check-input" type="checkbox" @bind="_deleteWorkFolder" />
-            <label class="form-check-label" for="delete-work">Also delete its work folder (source copy, logs, history)</label>
-        </div>
-        <div class="ads-card-footer justify-content-end">
-            <button class="btn btn-outline-secondary" @onclick="() => _pendingDelete = null">Cancel</button>
-            <button class="btn btn-danger" @onclick="ConfirmDeleteAsync"><Icon Name="trash" Size="14" /> Delete</button>
-        </div>
-    </div>
-}
-
 @if (_profiles is null)
 {
     <p class="ads-muted">Loading…</p>
@@ -49,83 +31,151 @@
 else if (_profiles.Count == 0 && _error is null)
 {
     <div class="ads-empty">
-        <span class="ads-tile-icon"><Icon Name="sliders" Size="24" /></span>
+        <span class="ads-empty-art" aria-hidden="true">
+            <span class="ads-tile-icon"><Icon Name="layers" Size="26" /></span>
+            <span class="ads-empty-badge"><Icon Name="plus" Size="14" /></span>
+        </span>
         <h2>No profiles yet</h2>
-        <p class="mb-2">Create one from a discovered AppHost.</p>
+        <p class="mb-3">Create one by scanning a local folder or a GitHub repository.</p>
         <a class="btn btn-primary" href="profiles/new"><Icon Name="plus" Size="15" /> New profile</a>
     </div>
 }
 else
 {
-    @foreach (var p in _profiles)
-    {
-        var running = Runs.TryGet("deploy:" + p.Name)?.IsRunning == true;
-        <div class="ads-card ads-card-interactive ads-profile">
-            <span class="ads-tile-icon @(running ? "ads-tone-run" : "ads-tone-neutral")"><Icon Name="@(p.SourceKind == SourceKind.GitHub ? "github" : "folder")" Size="18" /></span>
-            <div class="ads-profile-body">
-                <div class="ads-profile-title">
-                    <a href="profiles/@p.Name">@p.Name</a>
-                    <span class="ads-chip">@p.SourceKind</span>
-                    @if (running)
-                    {
-                        <span class="ads-pill ads-pill-run">Deploying</span>
-                    }
+    var shown = Filtered().ToList();
+    <div class="ads-filterbar mb-3">
+        <div class="ads-search">
+            <Icon Name="search" Size="15" />
+            <input class="form-control" placeholder="Filter by name, repository or resource group" aria-label="Filter profiles"
+                   @bind="_query" @bind:event="oninput" />
+        </div>
+        <span class="ads-seg" role="radiogroup" aria-label="Source kind">
+            <button type="button" role="radio" aria-checked="@(_kind is null)" class="@(_kind is null ? "is-on" : "")" @onclick="() => _kind = null">All (@_profiles.Count)</button>
+            <button type="button" role="radio" aria-checked="@(_kind == SourceKind.GitHub)" class="@(_kind == SourceKind.GitHub ? "is-on" : "")" @onclick="() => _kind = SourceKind.GitHub"><Icon Name="github" Size="13" /> GitHub</button>
+            <button type="button" role="radio" aria-checked="@(_kind == SourceKind.LocalFolder)" class="@(_kind == SourceKind.LocalFolder ? "is-on" : "")" @onclick="() => _kind = SourceKind.LocalFolder"><Icon Name="folder" Size="13" /> Local</button>
+        </span>
+    </div>
+
+    <div class="ads-list">
+        @foreach (var p in shown)
+        {
+            var running = Runs.TryGet("deploy:" + p.Name)?.IsRunning == true;
+            <div class="ads-list-row ads-profile-row @(running ? "is-running" : "")">
+                <span class="ads-tile-icon @(running ? "ads-tone-run" : "ads-tone-neutral")"><Icon Name="@(p.SourceKind == SourceKind.GitHub ? "github" : "folder")" Size="18" /></span>
+                <div class="ads-list-body">
+                    <div class="ads-list-title">
+                        <a href="profiles/@p.Name">@p.Name</a>
+                        <span class="ads-chip">@p.DeployEnvironment</span>
+                        @if (running)
+                        {
+                            <span class="ads-pill ads-pill-run">Deploying</span>
+                        }
+                        else if (p.LastDeployedAspireVersion is { } v)
+                        {
+                            <span class="ads-chip ads-chip-pass"><span class="ads-dot ads-dot-pass"></span> Deployed · Aspire @v</span>
+                        }
+                        else
+                        {
+                            <span class="ads-chip ads-chip-quiet">Never deployed</span>
+                        }
+                    </div>
+                    <div class="ads-meta">
+                        <span class="ads-mono">@p.SourceDisplay</span>
+                    </div>
+                    <div class="ads-meta ads-meta-azure">
+                        @if (p.SubscriptionId is { Length: > 0 } sub)
+                        {
+                            <span title="@sub">
+                                <Icon Name="key" Size="13" /> <span class="ads-mono">@Short(sub)</span>
+                                <button class="btn btn-sm btn-ghost ads-inline-copy" title="Copy subscription ID" aria-label="Copy subscription ID" @onclick="() => CopyAsync(sub)">
+                                    <Icon Name="@(_copied == sub ? "check" : "copy")" Size="12" />
+                                </button>
+                            </span>
+                        }
+                        @if (p.ResourceGroup is { Length: > 0 } rg)
+                        {
+                            <span class="ads-azure-link"><Icon Name="cloud" Size="13" /> @rg@(p.Location is { Length: > 0 } loc ? $" · {loc}" : "")</span>
+                        }
+                        @if (p.RegistryName is { Length: > 0 } registry)
+                        {
+                            <span class="ads-meta-sep">·</span>
+                            <span title="Container registry"><Icon Name="server" Size="13" /> @registry</span>
+                        }
+                        @if (p.EnvironmentName is { Length: > 0 } environment)
+                        {
+                            <span class="ads-meta-sep">·</span>
+                            <span title="Container Apps environment"><Icon Name="layers" Size="13" /> @environment</span>
+                        }
+                    </div>
                 </div>
-                <div class="ads-meta">
-                    <span><Icon Name="@(p.SourceKind == SourceKind.GitHub ? "code" : "server")" Size="13" /> @p.SourceDisplay</span>
-                    @if (p.SubscriptionId is { Length: > 0 } sub)
-                    {
-                        <span class="ads-meta-sep">·</span>
-                        <span title="@sub">
-                            <Icon Name="key" Size="13" /> Sub: @Short(sub)
-                            <button class="btn btn-sm btn-ghost ads-inline-copy" title="Copy subscription ID" aria-label="Copy subscription ID" @onclick="() => CopyAsync(sub)">
-                                <Icon Name="@(_copied == sub ? "check" : "copy")" Size="12" />
-                            </button>
-                        </span>
-                    }
-                    @if (p.ResourceGroup is { Length: > 0 } rg)
-                    {
-                        <span class="ads-meta-sep">·</span>
-                        <span><Icon Name="cloud" Size="13" /> @rg</span>
-                    }
-                    @if (p.RegistryName is { Length: > 0 } registry)
-                    {
-                        <span class="ads-meta-sep">·</span>
-                        <span title="Container registry"><Icon Name="server" Size="13" /> @registry</span>
-                    }
-                    @if (p.EnvironmentName is { Length: > 0 } environment)
-                    {
-                        <span class="ads-meta-sep">·</span>
-                        <span title="Container Apps environment"><Icon Name="cloud" Size="13" /> @environment</span>
-                    }
+                <div class="ads-list-actions">
+                    <a class="btn @(running ? "btn-run" : "btn-primary") ads-btn-deploy" href="deploy/@p.Name">
+                        @if (running)
+                        {
+                            <span class="ads-spinner ads-spinner-sm"></span> <span>Deploying…</span>
+                        }
+                        else
+                        {
+                            <Icon Name="zap" Size="13" /> <span>Deploy</span>
+                        }
+                    </a>
+                    <a class="btn btn-outline-secondary" href="profiles/@p.Name"><Icon Name="pencil" Size="13" /> Edit</a>
+                    <button class="btn btn-outline-danger btn-icon" disabled="@running" title="Delete" aria-label="Delete @p.Name" @onclick="() => AskDeleteAsync(p.Name)">
+                        <Icon Name="trash" Size="14" />
+                    </button>
                 </div>
             </div>
-            <div class="ads-profile-actions">
-                <a class="btn btn-primary btn-sm" href="deploy/@p.Name">
-                    @if (running)
-                    {
-                        <span class="ads-spinner ads-spinner-sm"></span> <span>Deploying…</span>
-                    }
-                    else
-                    {
-                        <Icon Name="play" Size="12" /> <span>Deploy</span>
-                    }
-                </a>
-                <a class="btn btn-outline-secondary btn-sm" href="profiles/@p.Name"><Icon Name="pencil" Size="12" /> Edit</a>
-                <button class="btn btn-outline-danger btn-sm btn-icon" disabled="@running" title="Delete" aria-label="Delete @p.Name" @onclick="() => AskDelete(p.Name)">
-                    <Icon Name="trash" Size="13" />
-                </button>
+        }
+        @if (shown.Count == 0)
+        {
+            <div class="ads-list-row ads-muted"><Icon Name="search" Size="15" /> No profile matches “@_query”.</div>
+        }
+    </div>
+}
+
+@if (_pendingDelete is { } name)
+{
+    <div class="ads-backdrop">
+        <div class="ads-dialog ads-dialog-danger" role="dialog" aria-modal="true" aria-labelledby="delete-title" @onkeydown="OnDialogKey">
+            <button type="button" class="btn btn-ghost btn-icon ads-dialog-close" aria-label="Close" @onclick="() => _pendingDelete = null"><Icon Name="x" Size="16" /></button>
+            <div class="ads-dialog-head">
+                <span class="ads-tile-icon ads-tone-fail"><Icon Name="trash" Size="20" /></span>
+                <div>
+                    <h2 id="delete-title">Delete profile @name?</h2>
+                    <p class="ads-muted mb-0">This edits only the local settings file. Nothing in Azure is touched; the resource group stays.</p>
+                </div>
+            </div>
+            <div class="ads-dialog-body">
+                <label class="ads-check-option" for="delete-work">
+                    <input id="delete-work" class="form-check-input" type="checkbox" @bind="_deleteWorkFolder" />
+                    <span>
+                        <span class="fw-semibold">Also delete its work folder (source copy, logs, history)</span>
+                        @if (_workFolder is { } folder)
+                        {
+                            <span class="ads-check-option-path">@folder</span>
+                        }
+                    </span>
+                </label>
+            </div>
+            <div class="ads-dialog-foot">
+                <button class="btn btn-outline-secondary" @ref="_cancelDelete" @onclick="() => _pendingDelete = null">Cancel</button>
+                <button class="btn btn-danger" @onclick="ConfirmDeleteAsync"><Icon Name="trash" Size="14" /> Delete profile</button>
             </div>
         </div>
-    }
+    </div>
 }
 
 @code {
     private IReadOnlyList<ProfileSummary>? _profiles;
     private string? _error;
     private string? _pendingDelete;
+    private string? _workFolder;
     private bool _deleteWorkFolder = true;
     private string? _copied;
+    private string? _query;
+    private SourceKind? _kind;
+    private ElementReference _cancelDelete;
+    private bool _focusDelete;
 
     protected override async Task OnInitializedAsync()
     {
@@ -145,10 +195,42 @@ else
         _profiles = await ProfileService.ListAsync(CancellationToken.None);
     }
 
-    private void AskDelete(string name)
+    private IEnumerable<ProfileSummary> Filtered() => (_profiles ?? []).Where(p =>
+        (_kind is null || p.SourceKind == _kind)
+        && (string.IsNullOrWhiteSpace(_query)
+            || new[] { p.Name, p.SourceDisplay, p.ResourceGroup }.Any(t => t?.Contains(_query.Trim(), StringComparison.OrdinalIgnoreCase) == true)));
+
+    private async Task AskDeleteAsync(string name)
     {
         _pendingDelete = name;
         _deleteWorkFolder = true;
+        _workFolder = null;
+        _focusDelete = true;
+        try
+        {
+            var options = (await ProfileService.LoadAsync(CancellationToken.None)).Options;
+            _workFolder = Core.Infrastructure.WorkKeys.For(options.WorkRoot, name, null);
+        }
+        catch (DeployerException)
+        {
+            // The path is only shown for information.
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        // Like DialogHost: focus starts on Cancel, so Escape and Enter work at once and a stray Enter deletes nothing.
+        if (_focusDelete && _pendingDelete is not null)
+        {
+            _focusDelete = false;
+            await _cancelDelete.FocusAsync();
+        }
+    }
+
+    private void OnDialogKey(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape")
+            _pendingDelete = null;
     }
 
     private async Task ConfirmDeleteAsync()

@@ -8,70 +8,119 @@
 @{
     var data = Data;
     var scan = Scan;
-    // Wizard plan §6.2: 1 = no result, 2 = scan only, 3 = built, 5 = saved (every step done).
-    var stage = _savedName is not null ? 5 : data is not null ? 3 : scan is not null ? 2 : 1;
+    // Wizard plan §6.2: 1 = no result, 2 = scan only, 3 = built, 5 = saved (every step done). Once built, the user can move
+    // between Scan (2), Destination (3) and Parameters (4).
+    var stage = _savedName is not null ? 5 : data is not null ? _view : scan is not null ? 2 : 1;
 }
 
+@* docs/mockups/new_profile_wizard: a source bar, a four-step stepper, one screen per step, and a sticky footer. *@
 <header class="ads-page-header">
     <div class="ads-page-text">
         <div class="ads-eyebrow"><a href="profiles" class="ads-eyebrow-link"><Icon Name="arrow-left" Size="12" /> Profiles</a></div>
         <h1>New profile</h1>
         <p class="ads-lead">
-            Scan the AppHost (this reads files only), build it to read its manifest, then fill in the destination and the parameters it needs.
+            Scan the AppHost (this reads files only), build it to read its manifest, then choose the destination and fill in the parameters.
             Code from GitHub is built only after you trust the commit the scan shows.
         </p>
     </div>
 </header>
 
-<div class="ads-stepper" aria-label="Progress">
-    @foreach (var (step, title) in Steps)
-    {
-        @if (step > 1)
+@if (scan is not null && !_showSource)
+{
+    var github = scan.Spec.Kind == SourceKind.GitHub;
+    var app = (data?.Discovery ?? scan.Scan).AppHost;
+    <div class="ads-sourcebar mb-3">
+        <span class="ads-tile-icon ads-tile-sm ads-tone-neutral"><Icon Name="@(github ? "github" : "folder")" Size="16" /></span>
+        <span class="ads-sourcebar-name" title="@scan.Spec.Location">@scan.Spec.Location</span>
+        @if (github)
         {
-            <span class="ads-stepper-line"></span>
+            <span class="ads-sourcebar-ref">@@@(scan.Spec.Ref ?? "default branch")</span>
+            <span class="ads-sourcebar-sha">· @Short(scan.CommitSha)</span>
         }
-        <span class="ads-stepper-item @StepClass(step, stage)" aria-current="@(step == stage ? "step" : null)">
-            <span class="ads-stepper-num">@(stage > step ? "✓" : step.ToString())</span> @title
-        </span>
-    }
-</div>
-
-<div class="ads-card mb-4">
-    <div class="ads-card-header"><span class="ads-stepper-num-sm">1</span><h2>Source</h2></div>
-    <div class="ads-form-grid mb-3">
-        <div class="ads-span-6">
-            <label class="form-label" for="pn-name">Profile name <span class="ads-label-hint">needed to build, not to scan</span></label>
-            <input id="pn-name" class="form-control ads-mono-input" placeholder="orders-dev" @bind="_name" @bind:event="oninput" disabled="@Busy" />
-            @if (_name is { Length: > 0 } && !ProfileRules.IsValidName(_name))
-            {
-                <div class="form-text text-danger">2 to 40 lower-case letters, digits or dashes, starting with a letter or digit.</div>
-            }
-            else
-            {
-                <div class="form-text">2 to 40 lower-case letters, digits or dashes.</div>
-            }
-        </div>
-    </div>
-    <SourcePicker Id="pn" @bind-Kind="_kind" @bind-Kind:after="SourceEdited" @bind-Location="_location" @bind-Location:after="SourceEdited"
-                  @bind-Ref="_ref" @bind-Ref:after="SourceEdited" @bind-AppHostPath="_appHost" @bind-AppHostPath:after="SourceEdited" Disabled="@Busy" />
-    <div class="ads-card-footer">
-        <div class="form-check mb-0">
-            <input id="pn-overwrite" class="form-check-input" type="checkbox" @bind="_overwrite" disabled="@Busy" />
-            <label class="form-check-label" for="pn-overwrite">Overwrite an existing profile with this name</label>
-        </div>
         <span class="ads-spacer"></span>
-        <button class="btn btn-primary" disabled="@(Busy || string.IsNullOrWhiteSpace(_location))" @onclick="StartScanAsync">
-            @if (Busy && _run?.Tag is WizardInput { Stage: not WizardStage.Build })
-            {
-                <span class="ads-spinner ads-spinner-sm"></span> <span>Scanning…</span>
-            }
-            else
-            {
-                <Icon Name="search" Size="15" /> <span>Scan</span>
-            }
+        <span class="ads-chip"><Icon Name="zap" Size="12" /> Aspire @app.AspireSdkVersion</span>
+        @if (data is not null)
+        {
+            <span class="ads-chip"><Icon Name="key" Size="12" /> @data.Discovery.Parameters.Count parameters</span>
+            <span class="ads-chip"><Icon Name="box" Size="12" /> @data.Discovery.Resources.Count resources</span>
+        }
+        else
+        {
+            <span class="ads-chip">Static scan</span>
+        }
+        <button type="button" class="btn btn-sm btn-ghost" disabled="@Busy" title="Change the source or the profile name" @onclick="() => _showSource = true">
+            <Icon Name="pencil" Size="13" /> Change
         </button>
     </div>
-</div>
+}
+
+<nav class="ads-wstepper mb-4" aria-label="Progress">
+    @foreach (var (step, title) in Steps)
+    {
+        var state = step < stage ? "is-done" : step == stage ? "is-active" : "";
+        var canGo = data is not null && _savedName is null && step is >= 2 and <= 4 && step != stage;
+        <button type="button" class="ads-wstep @state" disabled="@(!canGo)" aria-current="@(step == stage ? "step" : null)" @onclick="() => _view = step">
+            <span class="ads-wstep-track">
+                <span class="ads-wstep-dot">@if (step < stage) { <Icon Name="check" Size="13" StrokeWidth="2.4" /> } else { @step }</span>
+                <span class="ads-wstep-line"></span>
+            </span>
+            <span class="ads-wstep-label">@(step == stage ? "Current step" : step < stage ? $"Step {step}" : "Upcoming")</span>
+            <span class="ads-wstep-title">@title</span>
+            <span class="ads-wstep-sub">@StepSubtitle(step, scan, data)</span>
+        </button>
+    }
+</nav>
+
+@if (scan is null || _showSource)
+{
+    <div class="ads-card mb-4">
+        <div class="ads-card-header">
+            <span class="ads-tile-icon ads-tile-sm"><Icon Name="git-branch" Size="16" /></span>
+            <div>
+                <h2>Source</h2>
+                <div class="ads-small ads-muted">Where the AppHost comes from. Scanning reads files only; nothing is built or run.</div>
+            </div>
+            @if (scan is not null)
+            {
+                <span class="ads-spacer"></span>
+                <button type="button" class="btn btn-sm btn-ghost" @onclick="() => _showSource = false"><Icon Name="x" Size="13" /> Close</button>
+            }
+        </div>
+        <div class="ads-form-grid mb-3">
+            <div class="ads-span-6">
+                <label class="form-label" for="pn-name">Profile name <span class="ads-label-hint">needed to build, not to scan</span></label>
+                <input id="pn-name" class="form-control ads-mono-input" placeholder="orders-dev" @bind="_name" @bind:event="oninput" disabled="@Busy" />
+                @if (_name is { Length: > 0 } && !ProfileRules.IsValidName(_name))
+                {
+                    <div class="form-text text-danger">2 to 40 lower-case letters, digits or dashes, starting with a letter or digit.</div>
+                }
+                else
+                {
+                    <div class="form-text">2 to 40 lower-case letters, digits or dashes. With a local folder, a name builds right after the scan.</div>
+                }
+            </div>
+        </div>
+        <SourcePicker Id="pn" @bind-Kind="_kind" @bind-Kind:after="SourceEdited" @bind-Location="_location" @bind-Location:after="SourceEdited"
+                      @bind-Ref="_ref" @bind-Ref:after="SourceEdited" @bind-AppHostPath="_appHost" @bind-AppHostPath:after="SourceEdited" Disabled="@Busy" />
+        <div class="ads-card-footer">
+            <div class="form-check mb-0">
+                <input id="pn-overwrite" class="form-check-input" type="checkbox" @bind="_overwrite" disabled="@Busy" />
+                <label class="form-check-label" for="pn-overwrite">Overwrite an existing profile with this name</label>
+            </div>
+            <span class="ads-spacer"></span>
+            <button class="btn btn-primary" disabled="@(Busy || string.IsNullOrWhiteSpace(_location))" @onclick="StartScanAsync">
+                @if (Busy && _run?.Tag is WizardInput { Stage: not WizardStage.Build })
+                {
+                    <span class="ads-spinner ads-spinner-sm"></span> <span>Scanning…</span>
+                }
+                else
+                {
+                    <Icon Name="search" Size="15" /> <span>Scan</span>
+                }
+            </button>
+        </div>
+    </div>
+}
 
 @if (_startError is { } startError)
 {
@@ -81,9 +130,10 @@
     </div>
 }
 
-<OutcomeBanner Run="@(_cleared ? null : _run)" Page="New profile" />
+@* After a successful build, the Destination and Parameters steps do not repeat the "Built …" banner. *@
+<OutcomeBanner Run="@(_cleared || (data is not null && stage >= 3 && _run?.Result?.Succeeded == true) ? null : _run)" Page="New profile" />
 
-@if (scan is not null)
+@if (scan is not null && (data is null || stage == 2))
 {
     <div class="ads-stack mb-3">
         <AppHostSummary Result="@(data?.Discovery ?? scan.Scan)" Spec="scan.Spec" />
@@ -110,154 +160,204 @@
         else if (data is null && !Busy)
         {
             var github = scan.Spec.Kind == SourceKind.GitHub;
-            <div class="ads-card ads-row py-3">
-                <span class="ads-meta">
+            <div class="ads-card ads-trust">
+                <span class="ads-tile-icon @(github ? "ads-tone-warn" : "")"><Icon Name="@(github ? "shield-check" : "play")" Size="20" /></span>
+                <div class="ads-trust-body">
+                    <div class="fw-semibold">@(github ? "Trust this commit and build it" : "Build the AppHost")</div>
+                    <div class="ads-small ads-muted">
+                        @if (github)
+                        {
+                            <span>Building runs the AppHost from <span class="ads-mono">@scan.Spec.Location</span> at commit <span class="ads-mono">@Short(scan.CommitSha)</span> on this machine, even if the branch moves.</span>
+                        }
+                        else
+                        {
+                            <span>Building runs the AppHost on this machine to read its manifest. Nothing is created in Azure.</span>
+                        }
+                    </div>
+                    <div class="ads-trust-name">
+                        <label class="form-label mb-1" for="pn-name-build">Profile name</label>
+                        <input id="pn-name-build" class="form-control ads-mono-input" placeholder="orders-dev" @bind="_name" @bind:event="oninput" />
+                        @if (!ProfileRules.IsValidName(_name))
+                        {
+                            <div class="form-text text-warning">Enter a profile name to build.</div>
+                        }
+                    </div>
+                </div>
+                <button class="btn btn-primary btn-lg" disabled="@(!ProfileRules.IsValidName(_name))" @onclick="StartBuildAsync">
                     @if (github)
                     {
-                        <span>Building runs the AppHost from <span class="ads-mono">@scan.Spec.Location</span> at commit <span class="ads-mono">@Short(scan.CommitSha)</span> on this machine.</span>
+                        <Icon Name="shield-check" Size="16" /> <span>Trust and build @Short(scan.CommitSha)</span>
                     }
                     else
                     {
-                        <span>Building runs the AppHost on this machine to read its manifest.</span>
-                    }
-                    @if (!ProfileRules.IsValidName(_name))
-                    {
-                        <span class="ads-meta-sep">·</span>
-                        <span class="text-warning">Enter a profile name to build.</span>
-                    }
-                </span>
-                <span class="ads-spacer"></span>
-                <button class="btn btn-primary" disabled="@(!ProfileRules.IsValidName(_name))" @onclick="StartBuildAsync">
-                    @if (github)
-                    {
-                        <Icon Name="shield-check" Size="15" /> <span>Trust and build @Short(scan.CommitSha)</span>
-                    }
-                    else
-                    {
-                        <Icon Name="play" Size="13" /> <span>Build</span>
+                        <Icon Name="play" Size="14" /> <span>Build</span>
                     }
                 </button>
             </div>
         }
+
+        @if (data is not null)
+        {
+            <DiscoveryDetails @key="data" Result="data.Discovery" />
+        }
     </div>
+
+    @if (data is not null)
+    {
+        <div class="ads-wizard-foot">
+            <span class="ads-wizard-status"><span class="ads-pass-text">Built</span> · @data.Discovery.Parameters.Count parameters, @data.Discovery.Resources.Count resources</span>
+            <span class="ads-spacer"></span>
+            <button class="btn btn-primary btn-lg" @onclick="() => _view = 3">Continue to Destination <Icon Name="arrow-right" Size="15" /></button>
+        </div>
+    }
 }
 
 @if (data is not null && _form is { } p)
 {
-    <div class="ads-stack mb-3">
-        <DiscoveryDetails @key="data" Result="data.Discovery" />
-
-        <div class="ads-card">
-            <div class="ads-card-header"><span class="ads-stepper-num-sm">3</span><h2>Destination</h2></div>
-            <AzureDestinationEditor @key="p" Profile="p" ProfileName="@data.Name" IdPrefix="pn" PickDefaultSubscription="true"
-                                    Discovery="data.Discovery" ResourcesChanged="StateHasChanged" AllowAdopt="true"
-                                    AdoptModeChanged="a => _adopt = a" />
-            @if (data.Discovery.AppHost.DeclaredTargets.Contains(DeploymentTarget.AzureContainerApps))
-            {
-                <div class="mt-3">
-                    <ContainerAppPreview Profile="p" Resources="data.Discovery.Resources" />
-                </div>
-            }
-        </div>
-
-        <div class="ads-card">
-            <div class="ads-card-header"><span class="ads-stepper-num-sm">4</span><h2>Parameters</h2></div>
-            @if (data.Draft.ToAsk.Count == 0)
-            {
-                <p class="ads-muted">This AppHost needs no parameter values.</p>
-            }
-            <div class="ads-stack">
-                @foreach (var param in data.Draft.ToAsk)
-                {
-                    var supplied = _appHostSupplies.Contains(param.Name);
-                    <div>
-                        <label class="form-label" for="pn-p-@param.Name">
-                            <code>@param.Name</code>
-                            <span class="ads-label-hint">@param.ConfigKey@(param.Secret ? " · secret" : "")</span>
-                        </label>
-                        @if (param.Secret)
-                        {
-                            <SecretInput Id="@($"pn-p-{param.Name}")" Value="@_values.GetValueOrDefault(param.Name)" ValueChanged="v => _values[param.Name] = v" Disabled="@supplied" />
-                        }
-                        else
-                        {
-                            <input id="pn-p-@param.Name" class="form-control ads-mono-input" value="@_values.GetValueOrDefault(param.Name)" disabled="@supplied"
-                                   @onchange="e => _values[param.Name] = e.Value?.ToString()" />
-                        }
-                        <div class="form-check mt-2">
-                            <input id="pn-s-@param.Name" class="form-check-input" type="checkbox" checked="@supplied"
-                                   @onchange="e => Toggle(param.Name, (bool)e.Value!)" />
-                            <label class="form-check-label ads-small" for="pn-s-@param.Name">Leave empty (the AppHost's own configuration supplies it)</label>
-                        </div>
-                    </div>
-                }
-            </div>
-
-            @* Wizard plan §6.6, D11: in update mode, generated secrets can keep the existing deployment's values. *@
-            @if (_adopt && ExistingValues(data) is { Count: > 0 } existing)
-            {
-                <div class="mt-4">
-                    <div class="fw-semibold mb-1">Values from the existing deployment</div>
-                    <div class="ads-callout ads-callout-warn mb-2">
-                        <Icon Name="alert-triangle" Size="17" />
-                        <div class="ads-callout-body">
-                            Leave empty and Aspire generates a new value, which can break a database that already uses the old one.
-                            On the machine that deployed it, the values are in <span class="ads-mono">~/.aspire/deployments</span>.
-                        </div>
-                    </div>
-                    <div class="ads-stack">
-                        @foreach (var param in existing)
-                        {
-                            <div>
-                                <label class="form-label" for="pn-x-@param.Name">
-                                    <code>@param.Name</code>
-                                    <span class="ads-label-hint">@param.ConfigKey · secret · optional</span>
-                                </label>
-                                <SecretInput Id="@($"pn-x-{param.Name}")" Value="@_existing.GetValueOrDefault(param.Name)" ValueChanged="v => _existing[param.Name] = v" />
-                            </div>
-                        }
-                    </div>
-                </div>
-            }
-
-            @if (NotAsked(data) is { Count: > 0 } notAsked)
-            {
-                <p class="ads-small ads-subtle mt-3 mb-0">
-                    Not asked, because they have a default or are generated: @string.Join(", ", notAsked.Select(o => o.Name)).
-                    You can override them later on the profile page.
-                </p>
-            }
-
-            <div class="ads-card-footer">
-                @if (_saveError is { } se)
-                {
-                    <div class="ads-callout ads-callout-error w-100">
-                        <Icon Name="x-circle" Size="17" />
-                        <div class="ads-callout-body ads-pre-line">@se</div>
-                        <AIHelpButton GetContext="@(() => AIHelpContexts.FromError("New profile", se))" Compact="true" />
-                    </div>
-                }
-                @if (_savedName is { } saved)
-                {
-                    <div class="ads-banner ads-banner-success w-100 mb-0">
-                        <span class="ads-banner-icon"><Icon Name="check-circle" Size="18" /></span>
-                        <div class="ads-banner-body">
-                            <span class="ads-banner-title">Profile @saved saved.</span>
-                            <span class="ads-muted"> <a href="deploy/@saved">Deploy it</a> or <a href="profiles/@saved">review it</a>.</span>
-                        </div>
-                    </div>
-                }
-                else
-                {
-                    <span class="ads-spacer"></span>
-                    <button class="btn btn-primary" @onclick="() => SaveAsync(data)"><Icon Name="check" Size="15" /> Save profile</button>
-                }
+    @* Kept mounted (hidden) on the other steps, so the editor keeps its lists, Find results and update mode. *@
+    <div hidden="@(stage != 3)">
+    <div class="ads-card mb-3">
+        <div class="ads-card-header">
+            <span class="ads-tile-icon ads-tile-sm ads-tone-azure"><Icon Name="cloud" Size="16" /></span>
+            <div>
+                <h2>Destination</h2>
+                <div class="ads-small ads-muted">The subscription, region and resource group to deploy to, and the Azure resources to use.</div>
             </div>
         </div>
+        <AzureDestinationEditor @key="p" Profile="p" ProfileName="@data.Name" IdPrefix="pn" PickDefaultSubscription="true"
+                                Discovery="data.Discovery" ResourcesChanged="StateHasChanged" AllowAdopt="true"
+                                AdoptModeChanged="a => _adopt = a" />
+    </div>
+    @if (data.Discovery.AppHost.DeclaredTargets.Contains(DeploymentTarget.AzureContainerApps))
+    {
+        <div class="ads-card mb-3">
+            <ContainerAppPreview Profile="p" Resources="data.Discovery.Resources" />
+        </div>
+    }
+    <div class="ads-wizard-foot">
+        <button class="btn btn-outline-secondary" @onclick="() => _view = 2"><Icon Name="arrow-left" Size="15" /> Back to Scan</button>
+        <span class="ads-spacer"></span>
+        <span class="ads-wizard-status">
+            Target: <span class="ads-mono">@(p.Destination.ResourceGroup ?? "(no resource group)")</span>@(p.Destination.Location is { Length: > 0 } loc ? $" ({loc})" : "")
+        </span>
+        <button class="btn btn-primary btn-lg" @onclick="() => _view = 4">Continue to Parameters <Icon Name="arrow-right" Size="15" /></button>
+    </div>
     </div>
 }
 
-<LogViewer Run="_run" Page="New profile" />
+@if (data is not null && _form is not null && stage is 4 or 5)
+{
+    <div class="ads-card mb-3">
+        <div class="ads-card-header">
+            <span class="ads-tile-icon ads-tile-sm"><Icon Name="key" Size="16" /></span>
+            <div>
+                <h2>Parameters</h2>
+                <div class="ads-small ads-muted">Values the AppHost needs when it is provisioned. Secrets are stored as secrets and kept out of logs.</div>
+            </div>
+        </div>
+        @if (data.Draft.ToAsk.Count == 0)
+        {
+            <p class="ads-muted">This AppHost needs no parameter values.</p>
+        }
+        <div class="ads-params">
+            @foreach (var param in data.Draft.ToAsk)
+            {
+                var supplied = _appHostSupplies.Contains(param.Name);
+                <div class="ads-param">
+                    <label class="form-label" for="pn-p-@param.Name">
+                        <Icon Name="@(param.Secret ? "lock" : "key")" Size="13" Class="ads-subtle" />
+                        <code>@param.Name</code>
+                        <span class="ads-label-hint">@param.ConfigKey@(param.Secret ? " · secret" : "")</span>
+                    </label>
+                    @if (param.Secret)
+                    {
+                        <SecretInput Id="@($"pn-p-{param.Name}")" Value="@_values.GetValueOrDefault(param.Name)" ValueChanged="v => _values[param.Name] = v" Disabled="@supplied" />
+                    }
+                    else
+                    {
+                        <input id="pn-p-@param.Name" class="form-control ads-mono-input" value="@_values.GetValueOrDefault(param.Name)" disabled="@supplied"
+                               @onchange="e => _values[param.Name] = e.Value?.ToString()" />
+                    }
+                    <div class="form-check mt-2">
+                        <input id="pn-s-@param.Name" class="form-check-input" type="checkbox" checked="@supplied"
+                               @onchange="e => Toggle(param.Name, (bool)e.Value!)" />
+                        <label class="form-check-label ads-small" for="pn-s-@param.Name">Leave empty (the AppHost's own configuration supplies it)</label>
+                    </div>
+                </div>
+            }
+        </div>
+
+        @* Wizard plan §6.6, D11: in update mode, generated secrets can keep the existing deployment's values. *@
+        @if (_adopt && ExistingValues(data) is { Count: > 0 } existing)
+        {
+            <div class="mt-4">
+                <div class="fw-semibold mb-1">Values from the existing deployment</div>
+                <div class="ads-callout ads-callout-warn mb-2">
+                    <Icon Name="alert-triangle" Size="17" />
+                    <div class="ads-callout-body">
+                        Leave empty and Aspire generates a new value, which can break a database that already uses the old one.
+                        On the machine that deployed it, the values are in <span class="ads-mono">~/.aspire/deployments</span>.
+                    </div>
+                </div>
+                <div class="ads-params">
+                    @foreach (var param in existing)
+                    {
+                        <div class="ads-param">
+                            <label class="form-label" for="pn-x-@param.Name">
+                                <Icon Name="lock" Size="13" Class="ads-subtle" />
+                                <code>@param.Name</code>
+                                <span class="ads-label-hint">@param.ConfigKey · secret · optional</span>
+                            </label>
+                            <SecretInput Id="@($"pn-x-{param.Name}")" Value="@_existing.GetValueOrDefault(param.Name)" ValueChanged="v => _existing[param.Name] = v" />
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+
+        @if (NotAsked(data) is { Count: > 0 } notAsked)
+        {
+            <p class="ads-small ads-subtle mt-3 mb-0">
+                Not asked, because they have a default or are generated: @string.Join(", ", notAsked.Select(o => o.Name)).
+                You can override them later on the profile page.
+            </p>
+        }
+    </div>
+
+    @if (_saveError is { } se)
+    {
+        <div class="ads-callout ads-callout-error mb-3">
+            <Icon Name="x-circle" Size="17" />
+            <div class="ads-callout-body ads-pre-line">@se</div>
+            <AIHelpButton GetContext="@(() => AIHelpContexts.FromError("New profile", se))" Compact="true" />
+        </div>
+    }
+
+    @if (_savedName is { } saved)
+    {
+        <div class="ads-card ads-saved mb-3">
+            <span class="ads-saved-art"><Icon Name="check" Size="26" StrokeWidth="2.4" /></span>
+            <div>
+                <h2>Profile @saved saved</h2>
+                <p class="ads-muted mb-0">It is in your local settings file. Deploy it now, or review it first.</p>
+            </div>
+            <span class="ads-spacer"></span>
+            <a class="btn btn-outline-secondary" href="profiles/@saved"><Icon Name="pencil" Size="14" /> Review it</a>
+            <a class="btn btn-primary btn-lg" href="deploy/@saved"><Icon Name="zap" Size="15" /> Deploy it</a>
+        </div>
+    }
+    else
+    {
+        <div class="ads-wizard-foot">
+            <button class="btn btn-outline-secondary" @onclick="() => _view = 3"><Icon Name="arrow-left" Size="15" /> Back to Destination</button>
+            <span class="ads-spacer"></span>
+            <span class="ads-wizard-status">Saves to your local settings file; nothing is deployed yet.</span>
+            <button class="btn btn-primary btn-lg" @onclick="() => SaveAsync(data)"><Icon Name="check" Size="15" /> Save profile</button>
+        </div>
+    }
+}
+
+<LogViewer Run="_run" Page="New profile" StartCollapsed="@(data is not null)" />
 
 @code {
     [SupplyParameterFromQuery(Name = "kind")] public string? QueryKind { get; set; }
@@ -290,6 +390,8 @@
     private bool _overwrite;
     private ActiveRun? _run;
     private bool _cleared;
+    private int _view = 3;
+    private bool _showSource;
     private string? _startError;
     private DeployProfile? _form;
     private WizardData? _formFor;
@@ -327,6 +429,7 @@
     {
         _run = run;
         _cleared = false;
+        _showSource = false;
         if (run.Tag is WizardInput input)
             (_name, _kind, _location, _ref, _appHost, _overwrite) = (input.Name, input.Kind, input.Location, input.Ref, input.AppHost, input.Overwrite);
     }
@@ -424,6 +527,19 @@
         return null;
     }
 
+    /// <summary>The line under each stepper title: what that step holds so far.</summary>
+    private string StepSubtitle(int step, ScanData? scan, WizardData? data) => step switch
+    {
+        1 => _kind == SourceKind.GitHub ? "GitHub repository" : "Local folder",
+        2 when data is not null => $"Built · Aspire {data.Discovery.AppHost.AspireSdkVersion}",
+        2 when scan is not null => scan.Spec.Kind == SourceKind.GitHub ? $"Scan · {Short(scan.CommitSha)}" : "Static scan",
+        2 => "Static scan, then build",
+        3 when _form?.Destination is { ResourceGroup: { Length: > 0 } rg } d => $"{rg}{(d.Location is { Length: > 0 } l ? " · " + l : "")}",
+        3 => "Azure Container Apps",
+        4 when data is not null => data.Draft.ToAsk.Count == 0 ? "None needed" : $"{data.Draft.ToAsk.Count} to fill",
+        _ => "Values and secrets"
+    };
+
     private static string Short(string? sha) => sha is null ? "" : sha[..Math.Min(7, sha.Length)];
 
     /// <summary>Generated secrets (for example a database password): offered in update mode (D11).</summary>
@@ -440,6 +556,7 @@
             return;
         _formFor = data;
         _form = data.Draft.Profile.Clone();
+        _view = 3;
         _adopt = false;
         _values.Clear();
         _existing.Clear();

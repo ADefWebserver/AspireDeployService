@@ -8,8 +8,12 @@ namespace AspireDeployService.Core.Services;
 
 /// <param name="RegistryName">The chosen registry, or null when Aspire creates it (resource pickers plan §8).</param>
 /// <param name="EnvironmentName">The chosen Container Apps environment, or null when Aspire creates it.</param>
+/// <param name="Location">The profile's region, for the profile lists.</param>
+/// <param name="DeployEnvironment">The profile's DOTNET_ENVIRONMENT (Production when not set).</param>
+/// <param name="LastDeployedAspireVersion">The AppHost's Aspire version at the last successful deploy; null when never deployed.</param>
 public sealed record ProfileSummary(string Name, SourceKind SourceKind, string SourceDisplay, string? SubscriptionId, string? ResourceGroup,
-    string? RegistryName = null, string? EnvironmentName = null);
+    string? RegistryName = null, string? EnvironmentName = null, string? Location = null, string DeployEnvironment = "Production",
+    string? LastDeployedAspireVersion = null);
 
 public interface IProfileService
 {
@@ -64,7 +68,8 @@ public sealed class ProfileService(ProfileStore store) : IProfileService
             .Select(p => new ProfileSummary(p.Key, p.Value.Source.Kind, p.Value.ToSourceSpec().Display,
                 p.Value.Destination.SubscriptionId, p.Value.Destination.ResourceGroup,
                 p.Value.Destination.RegistryMode == ResourceMode.AspireDefault ? null : p.Value.Destination.ContainerRegistry?.Name,
-                p.Value.Destination.EnvironmentMode == ResourceMode.AspireDefault ? null : p.Value.Destination.ContainerAppEnvironment?.Name))
+                p.Value.Destination.EnvironmentMode == ResourceMode.AspireDefault ? null : p.Value.Destination.ContainerAppEnvironment?.Name,
+                p.Value.Destination.Location, p.Value.EnvironmentName, p.Value.LastDeployedAspireVersion))
             .ToList();
     }
 

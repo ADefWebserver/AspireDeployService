@@ -9,12 +9,16 @@
 *@
 <div class="ads-preview">
     <div class="ads-res-head-preview">
-        <span class="fw-semibold">Container apps</span>
+        <span class="ads-tile-icon ads-tile-sm"><Icon Name="layers" Size="16" /></span>
+        <span class="ads-res-titles-preview">
+            <span class="fw-semibold">Container apps plan</span>
+            <span class="ads-small ads-muted">Each compute resource of the AppHost, compared with what is already in Azure.</span>
+        </span>
         @if (_loading)
         {
             <span class="ads-spinner ads-spinner-sm"></span>
         }
-        <button type="button" class="btn btn-link btn-sm p-0 ms-auto" disabled="@_loading" @onclick="LoadAsync"><Icon Name="refresh" Size="12" /> Check again</button>
+        <button type="button" class="btn btn-sm btn-outline-secondary ms-auto" disabled="@_loading" @onclick="LoadAsync"><Icon Name="refresh" Size="13" /> Check again</button>
     </div>
     @if (_error is { } err)
     {
@@ -26,20 +30,18 @@
     }
     else
     {
-        <table class="table table-sm mb-0 ads-preview-table">
+        <table class="ads-table ads-preview-table">
             <thead>
-                <tr><th>Resource</th><th>Container app</th><th>Action</th><th></th></tr>
+                <tr><th>Aspire resource</th><th>Container app</th><th>Note</th><th class="ads-cell-end">Action</th></tr>
             </thead>
             <tbody>
                 @foreach (var row in _rows)
                 {
                     <tr>
-                        <td><code>@row.Resource</code></td>
-                        <td><code>@row.AppName</code></td>
-                        <td>
-                            <span class="ads-pill @PillClass(row.Action)">@Label(row.Action)</span>
-                        </td>
-                        <td class="@(row.Action == AppPlanAction.Conflict ? "text-danger" : "ads-muted") ads-small">@row.Note</td>
+                        <td class="ads-cell-mono"><span class="ads-dot @DotClass(row.Action)"></span> @row.Resource</td>
+                        <td class="ads-cell-mono">@row.AppName</td>
+                        <td class="@(row.Action == AppPlanAction.Conflict ? "ads-fail-text" : "ads-muted") ads-small">@row.Note</td>
+                        <td class="ads-cell-end"><span class="ads-pill @PillClass(row.Action)">@Label(row.Action)</span></td>
                     </tr>
                 }
             </tbody>
@@ -114,6 +116,14 @@
         AppPlanAction.Update => "Updates existing",
         AppPlanAction.Conflict => "Conflict",
         _ => "Could not check"
+    };
+
+    private static string DotClass(AppPlanAction action) => action switch
+    {
+        AppPlanAction.Conflict => "ads-dot-fail",
+        AppPlanAction.Update => "ads-dot-warn",
+        AppPlanAction.New => "ads-dot-pass",
+        _ => ""
     };
 
     private static string PillClass(AppPlanAction action) => action switch

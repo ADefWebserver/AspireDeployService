@@ -1,7 +1,7 @@
 @* The AppHost card, moved from the Discover page (wizard plan D4). Shown after the scan. *@
 <div class="ads-card">
     <div class="ads-card-header">
-        <Icon Name="layers" Size="18" />
+        <span class="ads-tile-icon ads-tile-sm"><Icon Name="layers" Size="16" /></span>
         <h2>AppHost</h2>
         <span class="ads-spacer"></span>
         <span class="ads-pill @(Result.ManifestRan ? "ads-pill-pass" : "")">@(Result.ManifestRan ? "Manifest parsed" : "Static scan")</span>

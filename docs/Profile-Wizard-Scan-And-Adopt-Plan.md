@@ -713,6 +713,7 @@ Run on 2026-10-23 against a test subscription with `ADefWebserver/Blazor-Azure-I
 | F-3 | Scanning a second commit into the same ad-hoc work folder failed with "Access to the path … is denied": the just-deleted `src` was still held (MSBuild nodes of the previous build, or a virus scan). Pre-existing, but scan-then-build makes it common. | `GitHubSource` retries the move into `src` for up to 15 seconds, then fails with a clear message. |
 | F-4 | Picking a subscription or resource group did not refresh the container apps preview (it kept "Could not check" from the default subscription). Pre-existing. | The editor raises `ResourcesChanged` on those picks. |
 | F-5 | A refused scan showed the scanner's "No Azure compute environment" warning and the refusal callout with the same text. | The warning is hidden when the refusal is shown. |
+| F-6 | On Windows, az 2.6x signs in through the shared WAM broker. An `az logout` in a separate `AZURE_CONFIG_DIR` (used to test the signed-out state) also signed the account out of the broker, so the developer's own `az` then failed every list call with "Account has previously been signed out of this application… Status_AccountUnusable". That error was not recognized as a sign-in error, so no **Sign in to Azure** button appeared. | `AzCli.Classify` treats "previously been signed out" and "AccountUnusable" as `NotSignedIn`. Testing note: test the signed-out state with a fresh, empty `AZURE_CONFIG_DIR` and never run `az logout` there; a fresh folder starts signed out. |
 
 ## 16. Manual test results (2026-10-23)
 

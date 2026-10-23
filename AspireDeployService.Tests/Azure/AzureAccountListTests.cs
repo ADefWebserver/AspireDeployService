@@ -198,6 +198,7 @@ public class AzCliTests
     [InlineData("ERROR: (Conflict) Another operation is in progress", AzErrorKind.Conflict)]
     [InlineData("ERROR: The registry crx is already in use.", AzErrorKind.Conflict)]
     [InlineData("ERROR: Please run 'az login' to setup account.", AzErrorKind.NotSignedIn)]
+    [InlineData("ERROR: Account has previously been signed out of this application.. Status: Response_Status.Status_AccountUnusable, Error code: 0", AzErrorKind.NotSignedIn)]
     [InlineData("ERROR: something odd", AzErrorKind.Other)]
     [InlineData("", AzErrorKind.Other)]
     public void Classifies_error_lines(string line, AzErrorKind kind) => Assert.Equal(kind, AzCli.Classify(line));

@@ -3,12 +3,19 @@
 @inject IProfileService Profiles
 @inject RunCoordinator Runs
 
+@* docs/mockups/home_redesigned: the three-step journey, recent profiles, and the settings file. *@
 <header class="ads-page-header">
     <div class="ads-page-text">
-        <div class="ads-eyebrow">Aspire 13.x · Azure</div>
+        <div class="ads-eyebrow">
+            <Icon Name="logo" Size="14" /> Aspire 13.x · Azure Container Apps
+            @if (_location?.ParseError is null)
+            {
+                <span class="ads-eyebrow-status"><span class="ads-dot ads-dot-pass"></span> Ready</span>
+            }
+        </div>
         <h1>Aspire Deploy</h1>
         <p class="ads-lead">
-            Scan an Aspire 13.x AppHost for what it needs, keep per-developer deploy profiles, and deploy it to Azure with
+            Scan an Aspire AppHost for what it needs, keep per-developer deploy profiles, and deploy it to Azure Container Apps with
             <span class="ads-code">aspire deploy</span> and your own <span class="ads-code">az login</span>.
         </p>
     </div>
@@ -18,21 +25,21 @@
     </div>
 </header>
 
-<div class="ads-section-label">01 // Getting started <span class="ads-section-sub">· three steps to a deployment</span></div>
+<div class="ads-section-label">Getting started <span class="ads-section-sub">/ three steps to a deployment</span></div>
 <div class="ads-steps">
-    <div class="ads-card ads-step">
+    @{ var next = NextStep; }
+    <div class="ads-card ads-step @(next == 1 ? "is-next" : "")">
         <div class="ads-step-top">
             <span class="ads-tile-icon ads-tone-pass"><Icon Name="stethoscope" Size="19" /></span>
             @StepState(Runs.Latest("setup:"), "Passed")
         </div>
-        <span class="ads-step-num">Step 1</span>
-        <h3>Check prerequisites</h3>
-        <p>Verify the .NET SDK, Azure CLI sign-in, a container runtime and the Aspire CLI.</p>
-        <a class="btn btn-outline-secondary" href="setup"><Icon Name="refresh" Size="14" /> Run Setup</a>
+        <div class="ads-step-title"><span class="ads-step-num">Step 01@(next == 1 ? " · Recommended" : "")</span> <h3>Check prerequisites</h3></div>
+        <p>Verify the .NET SDK, the Azure CLI sign-in, a container runtime and the Aspire CLI.</p>
+        <a class="btn @(next == 1 ? "btn-primary" : "btn-outline-secondary")" href="setup"><Icon Name="refresh" Size="14" /> Run checks</a>
     </div>
-    <div class="ads-card ads-step">
+    <div class="ads-card ads-step @(next == 2 ? "is-next" : "")">
         <div class="ads-step-top">
-            <span class="ads-tile-icon ads-tone-run"><Icon Name="sliders" Size="19" /></span>
+            <span class="ads-tile-icon"><Icon Name="layers" Size="19" /></span>
             @if (Runs.Latest("profile:new") is { IsRunning: true } wizard)
             {
                 @StepState(wizard, "")
@@ -42,30 +49,96 @@
                 <span class="ads-pill ads-pill-primary">@saved.Count saved</span>
             }
         </div>
-        <span class="ads-step-num">Step 2</span>
-        <h3>Create a profile</h3>
-        <p>Scan a local folder or a GitHub repository, build it, then pick the destination (new, or an existing deployment) and fill in the parameters.</p>
-        <a class="btn btn-outline-secondary" href="profiles/new"><Icon Name="plus-circle" Size="14" /> New profile</a>
+        <div class="ads-step-title"><span class="ads-step-num">Step 02@(next == 2 ? " · Recommended" : "")</span> <h3>Create a profile</h3></div>
+        <p>Scan a local folder or a GitHub repository, build it, then choose a new or an existing deployment and fill in the parameters.</p>
+        <a class="btn @(next == 2 ? "btn-primary" : "btn-outline-secondary")" href="profiles/new"><Icon Name="plus-circle" Size="14" /> New profile</a>
     </div>
-    <div class="ads-card ads-step">
+    <div class="ads-card ads-step @(next == 3 ? "is-next" : "")">
         <div class="ads-step-top">
-            <span class="ads-tile-icon"><Icon Name="rocket" Size="19" /></span>
-            <span class="ads-subtle ads-mono ads-small">Target: Azure</span>
+            <span class="ads-tile-icon ads-tone-run"><Icon Name="rocket" Size="19" /></span>
+            @if (DeploysRunning is > 0 and var n)
+            {
+                <span class="ads-pill ads-pill-run">@n running</span>
+            }
         </div>
-        <span class="ads-step-num">Step 3</span>
-        <h3>Deploy</h3>
-        <p>Run <span class="ads-code">aspire deploy</span> with the profile and follow the live log.</p>
-        <a class="btn btn-primary" href="profiles"><Icon Name="play" Size="13" /> Deploy</a>
+        <div class="ads-step-title"><span class="ads-step-num">Step 03@(next == 3 ? " · Recommended" : "")</span> <h3>Deploy</h3></div>
+        <p>Run <span class="ads-code">aspire deploy</span> with a profile, confirm the target, and follow the live log.</p>
+        <a class="btn @(next == 3 ? "btn-primary" : "btn-outline-secondary")" href="profiles"><Icon Name="zap" Size="14" /> Deploy</a>
     </div>
 </div>
 
+@if (_profiles is { Count: > 0 } profiles)
+{
+    var shown = profiles.Where(p => _filter is null || p.SourceKind == _filter).Take(5).ToList();
+    <div class="ads-section-head">
+        <h2>Recent profiles</h2>
+        <span class="ads-count">@profiles.Count configured</span>
+        <span class="ads-spacer"></span>
+        <span class="ads-seg" role="radiogroup" aria-label="Filter profiles">
+            <button type="button" role="radio" aria-checked="@(_filter is null)" class="@(_filter is null ? "is-on" : "")" @onclick="() => _filter = null">All (@profiles.Count)</button>
+            <button type="button" role="radio" aria-checked="@(_filter == SourceKind.GitHub)" class="@(_filter == SourceKind.GitHub ? "is-on" : "")" @onclick="() => _filter = SourceKind.GitHub">GitHub (@profiles.Count(p => p.SourceKind == SourceKind.GitHub))</button>
+            <button type="button" role="radio" aria-checked="@(_filter == SourceKind.LocalFolder)" class="@(_filter == SourceKind.LocalFolder ? "is-on" : "")" @onclick="() => _filter = SourceKind.LocalFolder">Local (@profiles.Count(p => p.SourceKind == SourceKind.LocalFolder))</button>
+        </span>
+    </div>
+    <div class="ads-list">
+        @foreach (var p in shown)
+        {
+            var running = Runs.TryGet("deploy:" + p.Name)?.IsRunning == true;
+            <div class="ads-list-row">
+                <span class="ads-tile-icon ads-tone-neutral"><Icon Name="@(p.SourceKind == SourceKind.GitHub ? "github" : "folder")" Size="18" /></span>
+                <div class="ads-list-body">
+                    <div class="ads-list-title">
+                        <a href="profiles/@p.Name">@p.Name</a>
+                        <span class="ads-chip">@p.DeployEnvironment</span>
+                        @if (p.LastDeployedAspireVersion is { } v)
+                        {
+                            <span class="ads-chip ads-chip-pass"><span class="ads-dot ads-dot-pass"></span> Aspire @v</span>
+                        }
+                    </div>
+                    <div class="ads-meta">
+                        <span class="ads-mono">@p.SourceDisplay</span>
+                        @if (p.ResourceGroup is { Length: > 0 } rg)
+                        {
+                            <span class="ads-meta-sep">·</span>
+                            <span class="ads-azure-link"><Icon Name="cloud" Size="13" /> @rg@(p.Location is { Length: > 0 } loc ? $" · {loc}" : "")</span>
+                        }
+                    </div>
+                </div>
+                <div class="ads-list-actions">
+                    <a class="btn btn-outline-secondary btn-icon" href="profiles/@p.Name" title="Edit profile" aria-label="Edit @p.Name"><Icon Name="pencil" Size="15" /></a>
+                    <a class="btn @(running ? "btn-run" : "btn-outline-secondary") ads-btn-deploy" href="deploy/@p.Name">
+                        @if (running)
+                        {
+                            <span class="ads-spinner ads-spinner-sm"></span> <span>Deploying…</span>
+                        }
+                        else
+                        {
+                            <Icon Name="play" Size="12" /> <span>Deploy</span>
+                        }
+                    </a>
+                </div>
+            </div>
+        }
+        @if (shown.Count == 0)
+        {
+            <div class="ads-list-row ads-muted">No profiles of this kind.</div>
+        }
+    </div>
+    @if (profiles.Count > 5)
+    {
+        <div class="text-end mt-2"><a class="ads-small" href="profiles">View all @profiles.Count <Icon Name="arrow-right" Size="12" /></a></div>
+    }
+}
+
 @if (_location is { } location)
 {
-    <div class="ads-section-label">02 // Settings file <span class="ads-section-sub">· where profiles are kept</span></div>
-    <div class="ads-card">
+    <div class="ads-card mt-4">
         <div class="ads-card-header">
-            <Icon Name="file-text" Size="18" />
-            <h2>Settings file</h2>
+            <span class="ads-tile-icon ads-tone-neutral ads-tile-sm"><Icon Name="sliders" Size="16" /></span>
+            <div>
+                <h2>Settings file</h2>
+                <div class="ads-small ads-muted">Where profiles and the AI and GitHub settings are kept.</div>
+            </div>
             <span class="ads-spacer"></span>
             @if (location.ParseError is not null)
             {
@@ -81,9 +154,9 @@
             }
         </div>
         <div class="ads-path">
-            <Icon Name="folder" Size="15" />
+            <Icon Name="file-text" Size="15" />
             <span>@location.Path</span>
-            <button class="btn btn-sm btn-outline-secondary" @onclick="() => CopyAsync(location.Path)"><Icon Name="@(_copied ? "check" : "copy")" Size="13" /> @(_copied ? "Copied" : "Copy")</button>
+            <button class="btn btn-sm btn-ghost" @onclick="() => CopyAsync(location.Path)"><Icon Name="@(_copied ? "check" : "copy")" Size="13" /> @(_copied ? "Copied" : "Copy")</button>
         </div>
         @if (location.ParseError is { } error)
         {
@@ -97,63 +170,10 @@
         }
         else
         {
-            <div class="ads-meta mt-3">
-                @if (location.Exists)
-                {
-                    <span class="ads-yes"><Icon Name="check" Size="13" /> Exists on disk</span>
-                }
-                else
-                {
-                    <span>The first saved profile creates it.</span>
-                }
-                @if (_profiles is { } list)
-                {
-                    <span class="ads-meta-sep">·</span>
-                    <span>Profiles: @list.Count configured</span>
-                }
-            </div>
-        }
-    </div>
-}
-
-@if (_profiles is { Count: > 0 } profiles)
-{
-    <div class="ads-section-label">
-        03 // Deployment profiles <span class="ads-section-sub">· recent</span>
-        <a class="ads-section-end" href="profiles">View all <Icon Name="arrow-right" Size="12" /></a>
-    </div>
-    <div>
-        @foreach (var p in profiles.Take(3))
-        {
-            var running = Runs.TryGet("deploy:" + p.Name)?.IsRunning == true;
-            <div class="ads-card ads-card-interactive ads-profile">
-                <span class="ads-tile-icon ads-tone-neutral"><Icon Name="@(p.SourceKind == SourceKind.GitHub ? "github" : "folder")" Size="18" /></span>
-                <div class="ads-profile-body">
-                    <div class="ads-profile-title">
-                        <a href="profiles/@p.Name">@p.Name</a>
-                        <span class="ads-chip">@p.SourceKind</span>
-                    </div>
-                    <div class="ads-meta">
-                        <span><Icon Name="@(p.SourceKind == SourceKind.GitHub ? "code" : "server")" Size="13" /> @p.SourceDisplay</span>
-                        @if (p.ResourceGroup is { Length: > 0 } rg)
-                        {
-                            <span class="ads-meta-sep">·</span>
-                            <span><Icon Name="cloud" Size="13" /> @rg</span>
-                        }
-                    </div>
-                </div>
-                <div class="ads-profile-actions">
-                    <a class="btn btn-primary btn-sm" href="deploy/@p.Name">
-                        @if (running)
-                        {
-                            <span class="ads-spinner ads-spinner-sm"></span> <span>Deploying…</span>
-                        }
-                        else
-                        {
-                            <Icon Name="play" Size="12" /> <span>Deploy</span>
-                        }
-                    </a>
-                </div>
+            <div class="ads-facts mt-3">
+                <div><span class="ads-fact-label">Profiles</span><span>@(_profiles?.Count ?? 0) configured</span></div>
+                <div><span class="ads-fact-label">Last modified</span><span>@(location.Exists ? File.GetLastWriteTime(location.Path).ToString("g") : "—")</span></div>
+                <div><span class="ads-fact-label">Found by</span><span>@RuleText(location.Rule)</span></div>
             </div>
         }
     </div>
@@ -162,6 +182,7 @@
 @code {
     private SettingsLocation? _location;
     private IReadOnlyList<ProfileSummary>? _profiles;
+    private SourceKind? _filter;
     private bool _copied;
 
     protected override async Task OnInitializedAsync()
@@ -173,17 +194,32 @@
             _profiles = await Profiles.ListAsync(CancellationToken.None);
     }
 
+    /// <summary>The step to highlight: checks first, then a profile, then deploying.</summary>
+    private int NextStep =>
+        _profiles is { Count: > 0 } ? 3
+        : Runs.Latest("setup:") is { Result.Succeeded: true } ? 2
+        : 1;
+
+    private int DeploysRunning => Runs.Active.Count(r => r.Key.StartsWith("deploy:", StringComparison.Ordinal));
+
     private async Task CopyAsync(string text)
     {
         await Clipboard.Default.SetTextAsync(text);
         _copied = true;
     }
 
+    private static string RuleText(SettingsRule rule) => rule switch
+    {
+        SettingsRule.EnvironmentVariable => "ADS_SETTINGS variable",
+        SettingsRule.ProjectFolder => "Next to the project",
+        _ => "Local app data"
+    };
+
     /// <summary>The state of the latest run for a step, if there was one this session.</summary>
     private static RenderFragment? StepState(ActiveRun? run, string passed) => run switch
     {
         { IsRunning: true } => @<span class="ads-pill ads-pill-run">Running</span>,
-        { Result.Succeeded: true } => @<span class="ads-pill ads-pill-pass">@passed</span>,
+        { Result.Succeeded: true } => @<span class="ads-pill ads-pill-pass"><Icon Name="check" Size="11" /> @passed</span>,
         { Result: not null } => @<span class="ads-pill ads-pill-fail">Failed</span>,
         _ => null
     };

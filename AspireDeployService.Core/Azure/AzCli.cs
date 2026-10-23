@@ -69,7 +69,8 @@ internal static class AzCli
             return AzErrorKind.ProviderNotRegistered;
         if (Has("Conflict") || Has("AlreadyExists") || Has("already in use") || Has("already exists"))
             return AzErrorKind.Conflict;
-        if (Has("az login") || Has("AADSTS") || Has("Please run 'az login'"))
+        // The Windows broker (WAM) reports an expired sign-in as "Account has previously been signed out … Status_AccountUnusable".
+        if (Has("az login") || Has("AADSTS") || Has("Please run 'az login'") || Has("previously been signed out") || Has("AccountUnusable"))
             return AzErrorKind.NotSignedIn;
         return AzErrorKind.Other;
     }

@@ -162,6 +162,14 @@ public class AzureSignInServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task Subscriptions_carry_the_signed_in_user()
+    {
+        var list = await _account.ListSubscriptionsAsync(NullRunObserver.Instance, CancellationToken.None);
+        Assert.All(list, s => Assert.Equal("dev@contoso.example", s.User));
+        Assert.Null(AzureAccountService.ParseSubscriptions("""[ { "id": "x", "name": "n", "tenantId": "t" } ]""").Single().User);
+    }
+
+    [Fact]
     public void Parse_reads_the_first_user_and_the_count()
     {
         Assert.Equal(new AzureSignInResult(null, 0), AzureSignInService.Parse("not json"));

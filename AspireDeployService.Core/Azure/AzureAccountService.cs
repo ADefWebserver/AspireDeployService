@@ -12,7 +12,8 @@ using AspireDeployService.Core.Settings;
 namespace AspireDeployService.Core.Azure;
 
 /// <param name="State">The subscription state from <c>az account list</c>, for example Enabled, Warned or Disabled.</param>
-public sealed record AzureSubscription(string Id, string Name, string TenantId, bool IsDefault, string State = "Enabled")
+/// <param name="User">The signed-in user or service principal that sees it (<c>user.name</c>), for the top bar.</param>
+public sealed record AzureSubscription(string Id, string Name, string TenantId, bool IsDefault, string State = "Enabled", string? User = null)
 {
     /// <summary>A subscription that can take a deployment (the same rule as BlazorDataDeploymentWebsite).</summary>
     public bool IsUsable => State is "Enabled" or "Warned" or "PastDue";
@@ -219,7 +220,8 @@ public sealed partial class AzureAccountService(ProfileStore store, IRunContextF
             .Select(s => new AzureSubscription(
                 Text(s, "id"), Text(s, "name"), Text(s, "tenantId"),
                 s.TryGetProperty("isDefault", out var d) && d.ValueKind == JsonValueKind.True,
-                Text(s, "state") is { Length: > 0 } state ? state : "Enabled"))
+                Text(s, "state") is { Length: > 0 } state ? state : "Enabled",
+                s.TryGetProperty("user", out var u) && u.ValueKind == JsonValueKind.Object && Text(u, "name") is { Length: > 0 } user ? user : null))
             .Where(s => s.Id.Length > 0)
             .OrderByDescending(s => s.IsDefault).ThenBy(s => s.Name, StringComparer.OrdinalIgnoreCase)
             .ToList());

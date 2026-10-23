@@ -10,11 +10,23 @@
 <div class="ads-form-grid">
     @if (AllowAdopt && Discovery is { } discovery)
     {
-        <div class="ads-span-12">
-            <span class="ads-seg" role="radiogroup" aria-label="Deployment">
-                <button type="button" role="radio" aria-checked="@(!_adopt)" class="@(!_adopt ? "is-on" : "")" @onclick="() => SetAdoptAsync(false)">New deployment</button>
-                <button type="button" role="radio" aria-checked="@_adopt" class="@(_adopt ? "is-on" : "")" @onclick="() => SetAdoptAsync(true)">Update an existing deployment</button>
-            </span>
+        <div class="ads-span-12 ads-choices" role="radiogroup" aria-label="Deployment">
+            <button type="button" role="radio" aria-checked="@(!_adopt)" class="ads-choice @(!_adopt ? "is-on" : "")" @onclick="() => SetAdoptAsync(false)">
+                <span class="ads-tile-icon ads-tile-sm"><Icon Name="plus-circle" Size="17" /></span>
+                <span class="ads-choice-text">
+                    <span class="ads-choice-title">New deployment</span>
+                    <span class="ads-choice-desc">Deploy into a new or chosen resource group; Aspire creates what is missing.</span>
+                </span>
+                <span class="ads-choice-radio" aria-hidden="true"></span>
+            </button>
+            <button type="button" role="radio" aria-checked="@_adopt" class="ads-choice @(_adopt ? "is-on" : "")" @onclick="() => SetAdoptAsync(true)">
+                <span class="ads-tile-icon ads-tile-sm ads-tone-azure"><Icon Name="refresh" Size="17" /></span>
+                <span class="ads-choice-text">
+                    <span class="ads-choice-title">Update an existing deployment</span>
+                    <span class="ads-choice-desc">Find where this AppHost is already deployed and update its container apps in place.</span>
+                </span>
+                <span class="ads-choice-radio" aria-hidden="true"></span>
+            </button>
         </div>
         @if (_adopt)
         {
@@ -154,11 +166,13 @@
     @* Resource pickers plan F1/F1b: only for Azure Container Apps AppHosts (or when not known yet, on the edit page). *@
     @if (ShowResourceSections)
     {
-        <div class="ads-span-12">
+        <div class="ads-span-12 ads-section-label mt-2 mb-0">Azure resources <span class="ads-section-sub">/ registry, environment, pull identity</span></div>
+        <div class="ads-span-12 ads-resource-grid">
+        <div>
             <AzureResourceSection Kind="AzureResourceKind.ContainerRegistry" Destination="D" ProfileName="@ProfileName" IdPrefix="@IdPrefix"
                                   Locked="@RegistryLockReason" DeployedBefore="@DeployedBefore" Changed="OnSectionChanged" />
         </div>
-        <div class="ads-span-12">
+        <div>
             <AzureResourceSection Kind="AzureResourceKind.ContainerAppEnvironment" Destination="D" ProfileName="@ProfileName" IdPrefix="@IdPrefix"
                                   Locked="@EnvironmentLockReason" DeployedBefore="@DeployedBefore" Changed="OnSectionChanged" />
             @if (Discovery?.AppHost.ContainerAppEnvironmentNames is { Count: > 1 } && D.EnvironmentMode != ResourceMode.AspireDefault || D.ContainerAppEnvironment?.AppHostResource is not null)
@@ -178,9 +192,10 @@
                 </select>
             }
         </div>
-        <div class="ads-span-12">
+        <div>
             <AzureResourceSection Kind="AzureResourceKind.ManagedIdentity" Destination="D" ProfileName="@ProfileName" IdPrefix="@IdPrefix"
                                   Locked="@IdentityLockReason" DisabledReason="@IdentityDisabledReason" DeployedBefore="false" Changed="OnSectionChanged" />
+        </div>
         </div>
     }
 

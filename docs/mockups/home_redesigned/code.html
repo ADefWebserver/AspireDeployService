@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0" name="viewport"/><meta content="web_standard" name="shell-type"/><title>Aspire Deploy</title><link href="https://fonts.googleapis.com" rel="preconnect"/><link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><style>@layer base{html,body{margin:0;padding:0;}body{overscroll-behavior:none;}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}@keyframes spin{from{transform:rotate(0deg);}to{transform:rotate(360deg);}}@keyframes pulse-subtle{0%,100%{opacity:1;}50%{opacity:0.4;}}.animate-spin-slow{animation:spin 2s linear infinite;}.animate-pulse-dot{animation:pulse-subtle 1.8s cubic-bezier(0.4,0,0.6,1) infinite;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config={darkMode:"class",theme:{extend:{"colors":{"on-tertiary-fixed-variant":"#005236","outline-variant":"#484555","on-tertiary-fixed":"#002113","on-secondary-container":"#002a51","inverse-primary":"#5f3de2","primary":"#c9beff","surface-container-high":"#282a30","on-surface-variant":"#c9c4d8","secondary-fixed-dim":"#a3c9ff","on-primary":"#30009b","on-secondary":"#00315c","tertiary-fixed-dim":"#4edea3","on-surface":"#e2e2eb","background":"#111319","inverse-surface":"#e2e2eb","secondary":"#a3c9ff","on-background":"#e2e2eb","primary-container":"#512bd4","on-primary-fixed-variant":"#4618ca","on-secondary-fixed":"#001c39","surface":"#111319","on-primary-fixed":"#1b0063","outline":"#938ea1","secondary-fixed":"#d3e3ff","on-tertiary":"#003824","surface-tint":"#c9beff","primary-fixed-dim":"#c9beff","surface-container-lowest":"#0c0e14","tertiary":"#4edea3","on-tertiary-container":"#4bdca0","surface-bright":"#373940","inverse-on-surface":"#2e3037","surface-container":"#1e1f26","surface-container-highest":"#33343b","primary-fixed":"#e6deff","tertiary-fixed":"#6ffbbe","on-primary-container":"#c7bcff","secondary-container":"#3b93f1","on-error-container":"#ffdad6","surface-dim":"#111319","error-container":"#93000a","error":"#ffb4ab","on-secondary-fixed-variant":"#004883","surface-variant":"#33343b","on-error":"#690005","tertiary-container":"#005d3f","surface-container-low":"#191b22"},"borderRadius":{"DEFAULT":"0.25rem","lg":"0.5rem","xl":"0.75rem","full":"9999px"},"spacing":{"space-lg":"1.25rem","space-sm":"0.5rem","space-md":"0.75rem","margin-mobile":"1rem","margin":"1.5rem","gutter-dense":"0.5rem","space-xs":"0.25rem","space-xl":"2rem","gutter":"1rem"},"fontFamily":{"code-sm":["JetBrains Mono"],"code-md":["JetBrains Mono"],"body-sm":["Inter"],"headline-lg-mobile":["Inter"],"body-md":["Inter"],"headline-md":["Inter"],"body-lg":["Inter"],"code-lg":["JetBrains Mono"],"headline-lg":["Inter"],"label-caps":["Inter"],"headline-sm":["Inter"]},"fontSize":{"code-sm":["11px",{"lineHeight":"14px","fontWeight":"400"}],"code-md":["12px",{"lineHeight":"16px","fontWeight":"400"}],"body-sm":["12px",{"lineHeight":"16px","fontWeight":"400"}],"headline-lg-mobile":["24px",{"lineHeight":"32px","letterSpacing":"-0.015em","fontWeight":"600"}],"body-md":["13px",{"lineHeight":"18px","fontWeight":"400"}],"headline-md":["20px",{"lineHeight":"28px","letterSpacing":"-0.01em","fontWeight":"600"}],"body-lg":["15px",{"lineHeight":"22px","fontWeight":"400"}],"code-lg":["13px",{"lineHeight":"20px","fontWeight":"500"}],"headline-lg":["32px",{"lineHeight":"40px","letterSpacing":"-0.02em","fontWeight":"600"}],"label-caps":["11px",{"lineHeight":"14px","letterSpacing":"0.04em","fontWeight":"600"}],"headline-sm":["16px",{"lineHeight":"24px","letterSpacing":"-0.005em","fontWeight":"600"}]}}}};</script></head><body class="bg-surface font-body-md text-on-surface select-none antialiased min-h-screen flex flex-col justify-between"><header class="fixed top-0 left-0 right-0 z-50 bg-surface-container-low/95 backdrop-blur-md shadow-[0_1px_8px_rgba(0,0,0,0.04)]"><div class="h-14 w-full flex items-center justify-between pl-margin pr-0"><div class="flex items-center gap-space-lg flex-shrink-0 mr-space-md"><div class="flex items-center gap-space-sm"><img alt="Aspire Deploy Brand Mark" class="h-8 w-auto object-contain" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDtR-wa1XwLkepwqXaKY_w_hOoEGhmtZK73Q4g66l5VO4pzZLnKo120_3fxCUfWm6Y8Ghysnh0YAY23We218zBIJWWO-r234FUvMHEr2rBEL2aO8Lug0ALCuJzl_z_ejKAG74HN8pTDCToX6on52H5QZLrCw1nje4Fd8-npPR8Z-ohjDtfqTpQV1toT9y8gI2jf0zSY9Lk0uvQLUU0EgmTcFe7Zr7r8BxgvWKTmMvUFyp4eu2uc5g8g"/><span class="font-headline-sm text-headline-sm text-on-surface tracking-tight">Aspire Deploy</span></div><nav class="flex items-center gap-space-xs overflow-x-auto no-scrollbar max-w-[420px] lg:max-w-none" data-active-classes="bg-primary-container text-on-primary-container font-headline-sm rounded-lg"><a aria-current="page" class="flex items-center gap-space-xs px-space-md py-space-xs transition-colors bg-primary-container text-on-primary-container font-headline-sm rounded-lg" data-path="home" href="#"><span class="material-symbols-outlined text-[16px]">home</span><span>Home</span></a><a class="flex items-center gap-space-xs px-space-md py-space-xs text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high rounded-lg transition-colors font-body-md text-body-md" data-path="setup" href="#"><span class="material-symbols-outlined text-[16px]">check_circle</span><span>Setup</span></a><a class="flex items-center gap-space-xs px-space-md py-space-xs text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high rounded-lg transition-colors font-body-md text-body-md" data-path="profiles" href="#"><span class="material-symbols-outlined text-[16px]">layers</span><span>Profiles</span><span class="w-2 h-2 rounded-full bg-secondary animate-pulse-dot inline-block ml-0.5"></span></a><a class="flex items-center gap-space-xs px-space-md py-space-xs text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high rounded-lg transition-colors font-body-md text-body-md" data-path="settings" href="#"><span class="material-symbols-outlined text-[16px]">tune</span><span>Settings</span></a><a class="flex items-center gap-space-xs px-space-md py-space-xs text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high rounded-lg transition-colors font-body-md text-body-md" data-path="guide" href="#"><span class="material-symbols-outlined text-[16px]">menu_book</span><span>Guide</span></a></nav></div><div class="flex items-center gap-space-sm ml-auto"><div class="hidden sm:flex items-center gap-space-xs px-space-sm py-1 rounded-full bg-surface-container-high"><span class="material-symbols-outlined text-[15px] text-secondary animate-spin-slow">sync</span><span class="font-code-sm text-code-sm text-secondary-fixed">2 running</span></div><div class="flex items-center gap-space-sm px-space-sm py-1 rounded-lg bg-surface-container"><img alt="Profile" class="w-6 h-6 rounded-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCP5MIqAzHwSLTJxVGuEiakqxMP1gTd03KtoCvdrItGoHA-j51HSBkc6vOtqjWGaoLqLyVyy6Wj_jMXFfA51L8GS1_krj49ERW-1lwh3GzkHbESXx309mvpMXKUJvRFEviEYneQ2MoYExDQ_l3TP7_cVwXEPpgscQcQH1aNRfMIm3rd-um4oMOvKSLRdNoNgLTqvfTO6-TuzE4kgdHe1xSrVcCcMi3qArJ8TdT44koQ9Po640Pq0fJs"/><div class="flex flex-col leading-none text-left"><div class="flex items-center gap-1.5"><span class="font-body-sm text-body-sm text-on-surface font-semibold">webmaster@contoso.com</span><span class="w-1.5 h-1.5 rounded-full bg-tertiary"></span></div><span class="font-code-sm text-code-sm text-on-surface-variant">Contoso Corp (72f988bf)</span></div></div><button aria-label="Toggle Theme" class="flex items-center justify-center w-8 h-8 rounded-lg bg-surface-container hover:bg-surface-container-high text-on-surface-variant hover:text-on-surface transition-colors" id="theme-toggle" type="button"><span class="material-symbols-outlined text-[18px]" id="theme-icon">light_mode</span></button><div class="flex items-center h-14 pl-space-xs"><button aria-label="Minimize" class="h-14 w-11 inline-flex items-center justify-center text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-colors" type="button"><span class="material-symbols-outlined text-[16px]">remove</span></button><button aria-label="Maximize" class="h-14 w-11 inline-flex items-center justify-center text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-colors" type="button"><span class="material-symbols-outlined text-[14px]">crop_square</span></button><button aria-label="Close" class="h-14 w-12 inline-flex items-center justify-center text-on-surface-variant hover:text-on-error hover:bg-error-container transition-colors" type="button"><span class="material-symbols-outlined text-[16px]">close</span></button></div></div></div></header><main class="w-full pt-14 bg-surface"><div class="max-w-[1100px] mx-auto px-margin py-space-lg w-full min-h-[calc(100vh-5.5rem)]"><div class="flex flex-col w-full">
+<!-- Command Eyebrow & Main Intro Section -->
+<section class="flex flex-col md:flex-row md:items-end justify-between gap-space-lg mb-space-xl">
+<div class="flex flex-col max-w-2xl">
+<div class="inline-flex items-center gap-space-xs mb-space-xs">
+<span class="material-symbols-outlined text-primary text-[14px]">cloud_sync</span>
+<span class="font-label-caps text-label-caps uppercase tracking-wider text-primary">ASPIRE 13.X · AZURE INFRASTRUCTURE</span>
+<span class="w-1 h-1 rounded-full bg-outline-variant inline-block mx-1"></span>
+<span class="font-code-sm text-code-sm text-tertiary flex items-center gap-1">
+<span class="inline-block w-1.5 h-1.5 rounded-full bg-tertiary"></span>Ready
+        </span>
+</div>
+<h1 class="font-headline-lg text-headline-lg text-on-surface tracking-tight">Aspire Deploy</h1>
+<p class="font-body-lg text-body-lg text-on-surface-variant mt-space-xs leading-relaxed">
+        Scan an Aspire AppHost for required resources, maintain granular per-developer profiles, and provision zero-friction Azure Container Apps with native <code class="font-code-sm text-code-sm bg-surface-container-high px-1.5 py-0.5 rounded text-primary-fixed">aspire deploy</code> and active <code class="font-code-sm text-code-sm bg-surface-container-high px-1.5 py-0.5 rounded text-secondary-fixed">az login</code>.
+      </p>
+</div>
+<!-- Header Action CTAs -->
+<div class="flex items-center gap-space-sm flex-shrink-0">
+<button class="group relative flex items-center gap-space-xs px-space-md py-2 rounded-lg bg-surface-container hover:bg-surface-container-high text-on-surface transition-all duration-150 shadow-sm active:scale-[0.98]" id="btn-header-checks" type="button">
+<span class="material-symbols-outlined text-[18px] text-tertiary group-hover:rotate-12 transition-transform">stethoscope</span>
+<span class="font-headline-sm text-body-md font-semibold">Run checks</span>
+</button>
+<button class="group relative flex items-center gap-space-xs px-space-md py-2 rounded-lg bg-primary-container text-on-primary font-headline-sm text-body-md font-semibold hover:bg-inverse-primary transition-all duration-150 shadow-md active:scale-[0.98]" id="btn-header-new-profile" type="button">
+<span class="material-symbols-outlined text-[18px]">add</span>
+<span>New profile</span>
+</button>
+</div>
+</section>
+<!-- 3-Step Guided Provisioning Flow (Horizontal Connected Track) -->
+<section class="mb-space-xl">
+<div class="flex items-center justify-between mb-space-sm">
+<div class="flex items-center gap-space-xs">
+<span class="font-label-caps text-label-caps uppercase tracking-wider text-outline">LIFECYCLE PIPELINE</span>
+<span class="text-outline-variant font-code-sm text-code-sm">/ 3-STAGE ORCHESTRATION</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="font-code-sm text-code-sm text-on-surface-variant">Host Engine: Connected</span>
+<span class="w-2 h-2 rounded-full bg-tertiary"></span>
+</div>
+</div>
+<!-- Connected Grid Layout with Dotted Flow Connectors -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-space-md relative">
+<!-- Step 1 Card: Check Prerequisites -->
+<div class="relative bg-surface-container rounded-xl p-space-lg flex flex-col justify-between overflow-hidden shadow-sm group hover:bg-surface-container-high transition-all">
+<div class="absolute -right-6 -bottom-6 w-24 h-24 bg-tertiary/5 rounded-full pointer-events-none blur-xl"></div>
+<div>
+<div class="flex items-center justify-between mb-space-md">
+<div class="w-8 h-8 rounded-lg bg-tertiary-container/30 flex items-center justify-center text-tertiary">
+<span class="material-symbols-outlined text-[20px]">stethoscope</span>
+</div>
+<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-tertiary-container/40 text-on-tertiary-container font-code-sm text-code-sm font-medium">
+<span class="material-symbols-outlined text-[12px]">check</span>
+<span>Passed</span>
+</span>
+</div>
+<div class="flex items-center gap-2 mb-1">
+<span class="font-code-sm text-code-sm text-outline">STEP 01</span>
+<h2 class="font-headline-sm text-headline-sm text-on-surface">Check prerequisites</h2>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant mb-space-lg">
+            Verify .NET 9 SDK, Docker daemon engine &amp; active Azure CLI login context.
+          </p>
+</div>
+<button class="w-full flex items-center justify-center gap-space-xs py-2 px-space-md rounded-lg bg-surface-container-high hover:bg-surface-bright text-on-surface font-body-md text-body-md font-medium transition-colors" onclick="triggerCheckSimulation(this)" type="button">
+<span class="material-symbols-outlined text-[16px] text-tertiary">fact_check</span>
+<span>Run checks</span>
+</button>
+</div>
+<!-- Step 2 Card: Create a Profile (Recommended / Next Step Spotlight) -->
+<div class="relative bg-surface-container-high rounded-xl p-space-lg flex flex-col justify-between overflow-hidden shadow-md group">
+<!-- Accent Glow Header Strip -->
+<div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary-container via-primary to-secondary"></div>
+<div class="absolute -right-4 -top-4 w-28 h-28 bg-primary/10 rounded-full pointer-events-none blur-2xl"></div>
+<div>
+<div class="flex items-center justify-between mb-space-md">
+<div class="w-8 h-8 rounded-lg bg-primary-container/40 flex items-center justify-center text-primary-fixed">
+<span class="material-symbols-outlined text-[20px]">layers</span>
+</div>
+<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-surface-container-highest text-secondary-fixed font-code-sm text-code-sm font-medium">
+<span class="material-symbols-outlined text-[12px]">dataset</span>
+<span>3 saved</span>
+</span>
+</div>
+<div class="flex items-center gap-2 mb-1">
+<span class="font-code-sm text-code-sm text-primary font-semibold">STEP 02 · RECOMMENDED</span>
+<h2 class="font-headline-sm text-headline-sm text-on-surface">Create a profile</h2>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant mb-space-lg">
+            Scan <code class="font-code-sm text-code-sm text-primary px-1 py-0.5 rounded bg-surface-container-lowest">ADefWebserver/Blazor-Azure-Inventory</code> or a local AppHost folder.
+          </p>
+</div>
+<button class="w-full flex items-center justify-center gap-space-xs py-2 px-space-md rounded-lg bg-primary-container text-on-primary font-body-md text-body-md font-semibold hover:bg-inverse-primary transition-all duration-150 shadow-sm" type="button">
+<span class="material-symbols-outlined text-[16px]">add_circle</span>
+<span>New profile</span>
+</button>
+</div>
+<!-- Step 3 Card: Deploy -->
+<div class="relative bg-surface-container rounded-xl p-space-lg flex flex-col justify-between overflow-hidden shadow-sm group hover:bg-surface-container-high transition-all">
+<div class="absolute -right-6 -bottom-6 w-24 h-24 bg-secondary/5 rounded-full pointer-events-none blur-xl"></div>
+<div>
+<div class="flex items-center justify-between mb-space-md">
+<div class="w-8 h-8 rounded-lg bg-secondary-container/20 flex items-center justify-center text-secondary">
+<span class="material-symbols-outlined text-[20px]">rocket_launch</span>
+</div>
+<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-secondary-container/30 text-secondary-fixed font-code-sm text-code-sm font-medium">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary animate-pulse-dot"></span>
+<span>1 Running</span>
+</span>
+</div>
+<div class="flex items-center gap-2 mb-1">
+<span class="font-code-sm text-code-sm text-outline">STEP 03</span>
+<h2 class="font-headline-sm text-headline-sm text-on-surface">Deploy</h2>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant mb-space-lg">
+            Zero-configuration single-click release to Azure Container Apps with live telemetry streaming.
+          </p>
+</div>
+<button class="w-full flex items-center justify-center gap-space-xs py-2 px-space-md rounded-lg bg-surface-container-high hover:bg-surface-bright text-on-surface font-body-md text-body-md font-medium transition-colors" onclick="triggerImmediateDeploy(this)" type="button">
+<span class="material-symbols-outlined text-[16px] text-secondary">bolt</span>
+<span>Deploy now</span>
+</button>
+</div>
+</div>
+</section>
+<!-- Recent Profiles Workspace -->
+<section class="mb-space-xl">
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-space-sm mb-space-md">
+<div class="flex items-center gap-space-sm">
+<h2 class="font-headline-md text-headline-md text-on-surface">Recent profiles</h2>
+<span class="px-2 py-0.5 rounded-full bg-surface-container font-code-sm text-code-sm text-on-surface-variant">3 configured</span>
+</div>
+<!-- Quick Filter Bar -->
+<div class="flex items-center gap-space-xs bg-surface-container-low p-1 rounded-lg">
+<button class="px-2.5 py-1 rounded bg-surface-container text-on-surface font-body-sm text-body-sm font-medium" type="button">All (3)</button>
+<button class="px-2.5 py-1 rounded hover:bg-surface-container-high text-on-surface-variant font-body-sm text-body-sm transition-colors" type="button">Git Repos (1)</button>
+<button class="px-2.5 py-1 rounded hover:bg-surface-container-high text-on-surface-variant font-body-sm text-body-sm transition-colors" type="button">Local (2)</button>
+</div>
+</div>
+<!-- Profiles Table / Card Stack -->
+<div class="flex flex-col gap-space-xs">
+<!-- Profile 1: Git-backed, active deploying -->
+<div class="flex flex-col lg:flex-row lg:items-center justify-between gap-space-md p-space-md bg-surface-container rounded-xl hover:bg-surface-container-high transition-colors group">
+<div class="flex items-center gap-space-md min-w-0">
+<div class="w-10 h-10 rounded-lg bg-primary-container/20 flex items-center justify-center text-primary-fixed flex-shrink-0">
+<!-- GitHub SVG Branch Icon -->
+<svg class="w-5 h-5 fill-current" viewbox="0 0 24 24">
+<path clip-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" fill-rule="evenodd"></path>
+</svg>
+</div>
+<div class="flex flex-col min-w-0">
+<div class="flex items-center gap-space-sm flex-wrap">
+<span class="font-headline-sm text-body-lg font-semibold text-on-surface">orders-dev</span>
+<span class="inline-flex items-center gap-1 font-code-sm text-code-sm px-1.5 py-0.5 rounded bg-surface-container-highest text-secondary-fixed">
+<span class="material-symbols-outlined text-[13px]">commit</span>
+<span>5d3aed3</span>
+</span>
+<span class="inline-flex items-center gap-1 text-tertiary font-code-sm text-code-sm">
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary"></span>
+<span>Sync OK</span>
+</span>
+</div>
+<div class="flex items-center gap-space-md text-on-surface-variant font-code-sm text-code-sm mt-0.5 truncate">
+<span class="truncate">ADefWebserver/Blazor-Azure-Inventory@main</span>
+<span class="text-outline-variant">·</span>
+<span class="flex items-center gap-1 flex-shrink-0 text-secondary">
+<span class="material-symbols-outlined text-[14px]">cloud</span>
+<span>rg-orders-dev · eastus2</span>
+</span>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-space-sm self-end lg:self-center">
+<button class="p-2 rounded-lg bg-surface-container-high hover:bg-surface-bright text-on-surface-variant hover:text-on-surface transition-colors" title="View Manifest" type="button">
+<span class="material-symbols-outlined text-[18px]">terminal</span>
+</button>
+<button class="min-w-[130px] flex items-center justify-center gap-space-xs px-space-md py-1.5 rounded-lg bg-secondary-container/20 text-secondary-fixed hover:bg-secondary-container/30 transition-all font-body-md text-body-md font-semibold" id="btn-deploy-active" onclick="toggleDeploymentState(this)" type="button">
+<span class="material-symbols-outlined text-[16px] text-secondary animate-spin-slow">sync</span>
+<span>Deploying…</span>
+</button>
+</div>
+</div>
+<!-- Profile 2: Local Folder, Idle ready -->
+<div class="flex flex-col lg:flex-row lg:items-center justify-between gap-space-md p-space-md bg-surface-container rounded-xl hover:bg-surface-container-high transition-colors group">
+<div class="flex items-center gap-space-md min-w-0">
+<div class="w-10 h-10 rounded-lg bg-surface-container-highest flex items-center justify-center text-on-surface-variant flex-shrink-0">
+<span class="material-symbols-outlined text-[22px]">folder</span>
+</div>
+<div class="flex flex-col min-w-0">
+<div class="flex items-center gap-space-sm flex-wrap">
+<span class="font-headline-sm text-body-lg font-semibold text-on-surface">storefront-prod</span>
+<span class="inline-flex items-center gap-1 font-code-sm text-code-sm px-1.5 py-0.5 rounded bg-surface-container-highest text-on-surface-variant">
+<span>Production</span>
+</span>
+</div>
+<div class="flex items-center gap-space-md text-on-surface-variant font-code-sm text-code-sm mt-0.5 truncate">
+<span class="truncate">C:\src\eshop\AppHost</span>
+<span class="text-outline-variant">·</span>
+<span class="flex items-center gap-1 flex-shrink-0 text-secondary">
+<span class="material-symbols-outlined text-[14px]">cloud</span>
+<span>rg-storefront-prod · centralus</span>
+</span>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-space-sm self-end lg:self-center">
+<button class="p-2 rounded-lg bg-surface-container-high hover:bg-surface-bright text-on-surface-variant hover:text-on-surface transition-colors" title="View Manifest" type="button">
+<span class="material-symbols-outlined text-[18px]">terminal</span>
+</button>
+<button class="min-w-[130px] flex items-center justify-center gap-space-xs px-space-md py-1.5 rounded-lg bg-surface-container-high hover:bg-primary-container hover:text-on-primary text-on-surface transition-all font-body-md text-body-md font-semibold" onclick="triggerRowDeploy(this, 'storefront-prod')" type="button">
+<span class="material-symbols-outlined text-[16px]">play_arrow</span>
+<span>Deploy</span>
+</button>
+</div>
+</div>
+<!-- Profile 3: Local Repo, Idle ready -->
+<div class="flex flex-col lg:flex-row lg:items-center justify-between gap-space-md p-space-md bg-surface-container rounded-xl hover:bg-surface-container-high transition-colors group">
+<div class="flex items-center gap-space-md min-w-0">
+<div class="w-10 h-10 rounded-lg bg-surface-container-highest flex items-center justify-center text-on-surface-variant flex-shrink-0">
+<span class="material-symbols-outlined text-[22px]">folder_special</span>
+</div>
+<div class="flex flex-col min-w-0">
+<div class="flex items-center gap-space-sm flex-wrap">
+<span class="font-headline-sm text-body-lg font-semibold text-on-surface">azinv-test</span>
+<span class="inline-flex items-center gap-1 font-code-sm text-code-sm px-1.5 py-0.5 rounded bg-surface-container-highest text-on-surface-variant">
+<span>Staging</span>
+</span>
+</div>
+<div class="flex items-center gap-space-md text-on-surface-variant font-code-sm text-code-sm mt-0.5 truncate">
+<span class="truncate">C:\repos\inventory</span>
+<span class="text-outline-variant">·</span>
+<span class="flex items-center gap-1 flex-shrink-0 text-secondary">
+<span class="material-symbols-outlined text-[14px]">cloud</span>
+<span>rg-azinv-test · eastus2</span>
+</span>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-space-sm self-end lg:self-center">
+<button class="p-2 rounded-lg bg-surface-container-high hover:bg-surface-bright text-on-surface-variant hover:text-on-surface transition-colors" title="View Manifest" type="button">
+<span class="material-symbols-outlined text-[18px]">terminal</span>
+</button>
+<button class="min-w-[130px] flex items-center justify-center gap-space-xs px-space-md py-1.5 rounded-lg bg-surface-container-high hover:bg-primary-container hover:text-on-primary text-on-surface transition-all font-body-md text-body-md font-semibold" onclick="triggerRowDeploy(this, 'azinv-test')" type="button">
+<span class="material-symbols-outlined text-[16px]">play_arrow</span>
+<span>Deploy</span>
+</button>
+</div>
+</div>
+</div>
+</section>
+<!-- Technical Settings Diagnostics Block -->
+<section class="bg-surface-container-low rounded-xl p-space-lg mb-space-lg">
+<div class="flex flex-col md:flex-row md:items-center justify-between gap-space-sm mb-space-md">
+<div class="flex items-center gap-space-sm">
+<div class="w-7 h-7 rounded-lg bg-surface-container-high flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-[18px]">tune</span>
+</div>
+<div>
+<h2 class="font-headline-sm text-headline-sm text-on-surface">Settings configuration file</h2>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Local service store for Aspire profiles &amp; cloud tenancy</p>
+</div>
+</div>
+<div class="flex items-center gap-space-sm">
+<!-- Interactive State Variant Switcher -->
+<button class="flex items-center gap-1.5 px-space-sm py-1 rounded bg-surface-container-high hover:bg-surface-bright text-on-surface-variant hover:text-on-surface font-code-sm text-code-sm transition-colors" id="toggle-settings-state" onclick="toggleSettingsErrorState()" type="button">
+<span class="material-symbols-outlined text-[14px]">published_with_changes</span>
+<span id="state-toggle-label">Simulate File Error</span>
+</button>
+<!-- Dynamic State Pill -->
+<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-tertiary-container/40 text-on-tertiary-container font-code-sm text-code-sm font-medium" id="settings-status-pill">
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary"></span>
+<span>Loaded</span>
+</span>
+</div>
+</div>
+<!-- Active Path Bar with Copy -->
+<div class="flex items-center justify-between gap-space-sm p-space-sm px-space-md rounded-lg bg-surface-container-lowest font-code-sm text-code-sm text-on-surface mb-space-sm">
+<div class="flex items-center gap-2 truncate">
+<span class="material-symbols-outlined text-[16px] text-outline">description</span>
+<span class="truncate font-code-md text-code-md" id="settings-file-path">C:\Users\dev\AppData\Local\AspireDeployService\appsettings.Local.json</span>
+</div>
+<button class="flex items-center gap-1 text-on-surface-variant hover:text-primary transition-colors flex-shrink-0 font-code-sm text-code-sm px-2 py-0.5 rounded hover:bg-surface-container" onclick="copyFilePath(this)" type="button">
+<span class="material-symbols-outlined text-[14px]">content_copy</span>
+<span class="copy-text">Copy</span>
+</button>
+</div>
+<!-- Normal Loaded State Details Panel -->
+<div class="grid grid-cols-1 sm:grid-cols-3 gap-space-sm pt-space-xs" id="settings-normal-panel">
+<div class="p-space-sm rounded-lg bg-surface-container flex flex-col">
+<span class="font-code-sm text-code-sm text-outline">ENCRYPTION</span>
+<span class="font-headline-sm text-body-md text-on-surface mt-0.5">DPAPI (User Context)</span>
+</div>
+<div class="p-space-sm rounded-lg bg-surface-container flex flex-col">
+<span class="font-code-sm text-code-sm text-outline">LAST MODIFIED</span>
+<span class="font-headline-sm text-body-md text-on-surface mt-0.5">Today at 14:28:10</span>
+</div>
+<div class="p-space-sm rounded-lg bg-surface-container flex flex-col">
+<span class="font-code-sm text-code-sm text-outline">AZ TENANT ACTIVE</span>
+<span class="font-headline-sm text-body-md text-secondary mt-0.5 font-code-sm">72f988bf-86f1-41af</span>
+</div>
+</div>
+<!-- Error State Callout (Hidden by default, triggered by toggle button) -->
+<div class="hidden flex-col gap-space-sm p-space-md rounded-lg bg-error-container/30 text-on-error-container mt-space-sm" id="settings-error-callout">
+<div class="flex items-center gap-space-sm">
+<span class="material-symbols-outlined text-error text-[20px]">error</span>
+<span class="font-headline-sm text-body-lg font-semibold text-error">Cannot be read: Permission Denied or File Corrupt</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface leading-normal">
+        The orchestrator daemon failed to acquire a read lock on <code class="font-code-sm text-code-sm bg-surface-container-lowest px-1 py-0.5 rounded text-error">appsettings.Local.json</code>. Ensure the file is not currently locked by another Visual Studio or Aspire CLI instance.
+      </p>
+<div class="flex items-center gap-space-sm pt-1">
+<button class="px-space-md py-1 rounded bg-error-container text-on-error font-body-sm text-body-sm font-semibold hover:bg-on-error-container hover:text-error-container transition-colors" onclick="toggleSettingsErrorState()" type="button">
+          Recheck Access
+        </button>
+<span class="font-code-sm text-code-sm text-outline">Exit Code: 0x80070005 (E_ACCESSDENIED)</span>
+</div>
+</div>
+</section>
+<!-- Interactive Client Behaviors -->
+<script>
+    // Copy file path to clipboard
+    function copyFilePath(btn) {
+      const pathText = document.getElementById('settings-file-path').innerText;
+      navigator.clipboard.writeText(pathText).then(() => {
+        const textSpan = btn.querySelector('.copy-text');
+        const iconSpan = btn.querySelector('.material-symbols-outlined');
+        textSpan.textContent = 'Copied!';
+        iconSpan.textContent = 'check';
+        setTimeout(() => {
+          textSpan.textContent = 'Copy';
+          iconSpan.textContent = 'content_copy';
+        }, 1800);
+      });
+    }
+
+    // Toggle between loaded state and simulated error variant
+    function toggleSettingsErrorState() {
+      const normalPanel = document.getElementById('settings-normal-panel');
+      const errorCallout = document.getElementById('settings-error-callout');
+      const statusPill = document.getElementById('settings-status-pill');
+      const toggleLabel = document.getElementById('state-toggle-label');
+
+      const isError = normalPanel.classList.toggle('hidden');
+      errorCallout.classList.toggle('hidden');
+
+      if (isError) {
+        toggleLabel.textContent = 'Restore Normal State';
+        statusPill.className = 'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-error-container text-on-error-container font-code-sm text-code-sm font-semibold';
+        statusPill.innerHTML = '<span class="material-symbols-outlined text-[13px] text-error">warning</span><span>Unreadable</span>';
+      } else {
+        toggleLabel.textContent = 'Simulate File Error';
+        statusPill.className = 'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-tertiary-container/40 text-on-tertiary-container font-code-sm text-code-sm font-medium';
+        statusPill.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-tertiary"></span><span>Loaded</span>';
+      }
+    }
+
+    // Interactive button toggle for the deploying profile
+    function toggleDeploymentState(button) {
+      const isDeploying = button.innerHTML.includes('Deploying');
+      if (isDeploying) {
+        button.innerHTML = '<span class="material-symbols-outlined text-[16px]">play_arrow</span><span>Deploy</span>';
+        button.className = 'min-w-[130px] flex items-center justify-center gap-space-xs px-space-md py-1.5 rounded-lg bg-surface-container-high hover:bg-primary-container hover:text-on-primary text-on-surface transition-all font-body-md text-body-md font-semibold';
+      } else {
+        button.innerHTML = '<span class="material-symbols-outlined text-[16px] text-secondary animate-spin-slow">sync</span><span>Deploying…</span>';
+        button.className = 'min-w-[130px] flex items-center justify-center gap-space-xs px-space-md py-1.5 rounded-lg bg-secondary-container/20 text-secondary-fixed hover:bg-secondary-container/30 transition-all font-body-md text-body-md font-semibold';
+      }
+    }
+
+    // Interactive row deploy click
+    function triggerRowDeploy(button, profileName) {
+      button.innerHTML = '<span class="material-symbols-outlined text-[16px] text-secondary animate-spin-slow">sync</span><span>Deploying…</span>';
+      button.className = 'min-w-[130px] flex items-center justify-center gap-space-xs px-space-md py-1.5 rounded-lg bg-secondary-container/20 text-secondary-fixed hover:bg-secondary-container/30 transition-all font-body-md text-body-md font-semibold';
+      setTimeout(() => {
+        button.innerHTML = '<span class="material-symbols-outlined text-[16px] text-tertiary">check</span><span>Deployed</span>';
+        setTimeout(() => {
+          button.innerHTML = '<span class="material-symbols-outlined text-[16px]">play_arrow</span><span>Deploy</span>';
+          button.className = 'min-w-[130px] flex items-center justify-center gap-space-xs px-space-md py-1.5 rounded-lg bg-surface-container-high hover:bg-primary-container hover:text-on-primary text-on-surface transition-all font-body-md text-body-md font-semibold';
+        }, 2500);
+      }, 1500);
+    }
+
+    // Run checks button micro-interaction
+    function triggerCheckSimulation(button) {
+      const original = button.innerHTML;
+      button.innerHTML = '<span class="material-symbols-outlined text-[16px] animate-spin-slow text-tertiary">sync</span><span>Validating env...</span>';
+      button.disabled = true;
+      setTimeout(() => {
+        button.innerHTML = '<span class="material-symbols-outlined text-[16px] text-tertiary">done_all</span><span>All 7 Verified</span>';
+        setTimeout(() => {
+          button.innerHTML = original;
+          button.disabled = false;
+        }, 2000);
+      }, 900);
+    }
+
+    // Step 3 trigger deploy
+    function triggerImmediateDeploy(button) {
+      const original = button.innerHTML;
+      button.innerHTML = '<span class="material-symbols-outlined text-[16px] animate-spin-slow text-secondary">sync</span><span>Packaging ACA...</span>';
+      button.disabled = true;
+      setTimeout(() => {
+        button.innerHTML = '<span class="material-symbols-outlined text-[16px] text-tertiary">check_circle</span><span>Pushed to Azure</span>';
+        setTimeout(() => {
+          button.innerHTML = original;
+          button.disabled = false;
+        }, 2200);
+      }, 1200);
+    }
+  </script>
+</div></div></main><footer class="w-full bg-surface-container-lowest py-space-xs"><div class="max-w-[1100px] mx-auto px-margin flex items-center justify-between text-on-surface-variant font-code-sm text-code-sm"><div>Aspire CLI v13.6.1 · az login active · Cluster: Connected (eastus2)</div><div class="flex items-center gap-space-sm"><span>Desktop Runtime v2.4.0</span><span class="inline-block w-1.5 h-1.5 rounded-full bg-tertiary"></span></div></div></footer><script>const toggleBtn=document.getElementById('theme-toggle');const themeIcon=document.getElementById('theme-icon');if(toggleBtn){toggleBtn.addEventListener('click',function(){const html=document.documentElement;const isDark=html.classList.toggle('dark');if(themeIcon){themeIcon.textContent=isDark?'light_mode':'dark_mode';}});}</script></body></html>

@@ -4,9 +4,10 @@
 @inject IProfileService Profiles
 @inject RunCoordinator Runs
 
-<header class="ads-page-header ads-hero">
+@* docs/mockups/setup_checklist: a summary with a pass ring, then one card per check. *@
+<header class="ads-page-header">
     <div class="ads-page-text">
-        <div class="ads-eyebrow"><span class="ads-eyebrow-icon"><Icon Name="stethoscope" Size="16" /></span> Preflight diagnostics</div>
+        <div class="ads-eyebrow"><Icon Name="stethoscope" Size="14" /> Preflight · environment validation</div>
         <h1>Setup</h1>
         <p class="ads-lead">Checks the tools a deployment needs. With a profile, it also fetches the source and checks what its AppHost needs, and installs the matching Aspire CLI.</p>
     </div>
@@ -41,59 +42,84 @@
     var passed = checks.Count(c => c.State == CheckState.Pass);
     var warned = checks.Count(c => c.State == CheckState.Warn);
     var failed = checks.Count(c => c.State == CheckState.Fail);
-    <div class="ads-row mb-3">
-        <span class="ads-summary-chip ads-tone-pass"><Icon Name="check-circle" Size="14" /> @passed passed</span>
-        <span class="ads-summary-chip @(warned > 0 ? "ads-tone-warn" : "")"><Icon Name="alert-triangle" Size="14" /> @warned @(warned == 1 ? "warning" : "warnings")</span>
-        <span class="ads-summary-chip @(failed > 0 ? "ads-tone-fail" : "")"><Icon Name="x-circle" Size="14" /> @failed failed</span>
-        <span class="ads-spacer"></span>
-        @if (_run.Result is not null)
-        {
-            <span class="ads-meta"><span class="ads-pill-dot"></span> Last run: @_run.StartedUtc.ToLocalTime().ToString("t")</span>
-        }
+    var total = Math.Max(1, checks.Count);
+    var percent = (int)Math.Round(100.0 * passed / total);
+    <div class="ads-card ads-summary mb-3">
+        <div class="ads-summary-main">
+            <svg class="ads-ring @(failed > 0 ? "is-fail" : warned > 0 ? "is-warn" : "is-pass")" width="72" height="72" viewBox="0 0 72 72" role="img" aria-label="@percent percent passed">
+                <circle cx="36" cy="36" r="30" class="ads-ring-track" />
+                <circle cx="36" cy="36" r="30" class="ads-ring-value" stroke-dasharray="@($"{188.5 * passed / total:0.0} 188.5")" />
+                <text x="36" y="40" text-anchor="middle">@percent%</text>
+            </svg>
+            <div class="ads-summary-text">
+                <div class="ads-summary-counts">
+                    <span class="ads-pass-text">@passed passed</span>
+                    <span class="ads-summary-sep">·</span>
+                    <span class="@(warned > 0 ? "ads-warn-text" : "ads-subtle")">@warned @(warned == 1 ? "warning" : "warnings")</span>
+                    <span class="ads-summary-sep">·</span>
+                    <span class="@(failed > 0 ? "ads-fail-text" : "ads-subtle")">@failed failed</span>
+                </div>
+                <div class="ads-muted">
+                    @(failed > 0 ? "Fix the failed checks below before deploying." : warned > 0 ? "Ready to deploy; review the warnings below." : "Everything needed is in place.")
+                </div>
+            </div>
+            <span class="ads-spacer"></span>
+            @if (_run.Result is not null)
+            {
+                <div class="ads-summary-meta">
+                    <span class="ads-fact-label">Last run</span>
+                    <span class="ads-mono">@_run.StartedUtc.ToLocalTime().ToString("t")@(_profile is { Length: > 0 } scope ? $" · {scope}" : "")</span>
+                </div>
+            }
+        </div>
+        <div class="ads-progress" aria-hidden="true">
+            <span class="ads-progress-pass" style="width: @(100.0 * passed / total)%"></span>
+            <span class="ads-progress-warn" style="width: @(100.0 * warned / total)%"></span>
+            <span class="ads-progress-fail" style="width: @(100.0 * failed / total)%"></span>
+        </div>
     </div>
 
-    <div class="ads-table-wrap">
-        <table class="ads-table">
-            <thead><tr><th>Check</th><th>State</th><th>Detail</th><th class="ads-cell-end">Fix / action</th></tr></thead>
-            <tbody>
-                @foreach (var c in checks)
-                {
-                    <tr class="@(c.State switch { CheckState.Warn => "ads-row-warn", CheckState.Fail => "ads-row-fail", _ => "" })">
-                        <td class="ads-cell-name"><span class="ads-row gap-2 flex-nowrap"><Icon Name="@CheckIcon(c.Name)" Size="17" Class="ads-subtle" /> @c.Name</span></td>
-                        <td><span class="ads-pill @StatePill(c.State)">@c.State</span></td>
-                        <td class="ads-cell-mono">@c.Detail</td>
-                        <td class="ads-cell-end ads-fix">
-                            @if (c.Fix is { Length: > 0 } fix)
+    <div class="ads-checks">
+        @foreach (var c in checks)
+        {
+            var check = c;
+            <div class="ads-check @StateClass(c.State)">
+                <span class="ads-tile-icon ads-tile-sm @TileTone(c.State)"><Icon Name="@CheckIcon(c.Name)" Size="16" /></span>
+                <div class="ads-check-body">
+                    <div class="ads-check-title">
+                        <span class="ads-check-name">@c.Name</span>
+                        @if (Probe(c.Name) is { } probe)
+                        {
+                            <span class="ads-check-probe">@probe</span>
+                        }
+                    </div>
+                    <div class="ads-check-detail">@c.Detail</div>
+                    @if (c.Fix is { Length: > 0 } fix)
+                    {
+                        var (text, command) = SplitFix(fix);
+                        <div class="ads-check-fix">
+                            <Icon Name="zap" Size="14" />
+                            <span>@(text.Length > 0 ? text : "Recommended fix:")</span>
+                            @if (command is not null)
                             {
-                                var (text, command) = SplitFix(fix);
-                                @if (text.Length > 0)
-                                {
-                                    <div class="ads-small ads-muted">@text</div>
-                                }
-                                @if (command is not null)
-                                {
-                                    <span class="ads-cmd mt-1">
-                                        <span>@command</span>
-                                        <button class="btn btn-sm btn-ghost" title="Copy command" aria-label="Copy command" @onclick="() => CopyAsync(command)">
-                                            <Icon Name="@(_copied == command ? "check" : "copy")" Size="13" />
-                                        </button>
-                                    </span>
-                                }
+                                <code class="ads-check-cmd">@command</code>
+                                <span class="ads-spacer"></span>
+                                <button class="btn btn-sm btn-ghost" title="Copy command" @onclick="() => CopyAsync(command)">
+                                    <Icon Name="@(_copied == command ? "check" : "copy")" Size="13" /> @(_copied == command ? "Copied" : "Copy fix")
+                                </button>
                             }
-                            else
-                            {
-                                <span class="ads-yes ads-small"><Icon Name="check" Size="13" /> None needed</span>
-                            }
-                            @if (c.State is CheckState.Fail or CheckState.Warn)
-                            {
-                                var check = c;
-                                <div class="mt-1"><AIHelpButton GetContext="@(() => AIHelpContexts.FromCheck(check, _run))" Compact="true" /></div>
-                            }
-                        </td>
-                    </tr>
-                }
-            </tbody>
-        </table>
+                        </div>
+                    }
+                </div>
+                <div class="ads-check-end">
+                    <span class="ads-pill @StatePill(c.State)">@c.State</span>
+                    @if (c.State is CheckState.Fail or CheckState.Warn)
+                    {
+                        <AIHelpButton GetContext="@(() => AIHelpContexts.FromCheck(check, _run))" Compact="true" />
+                    }
+                </div>
+            </div>
+        }
     </div>
 }
 else if (_run is null)
@@ -159,6 +185,27 @@ else if (_run is null)
         CheckState.Pass => "ads-pill-pass",
         CheckState.Warn => "ads-pill-warn",
         _ => "ads-pill-fail"
+    };
+
+    private static string StateClass(CheckState s) => s switch { CheckState.Warn => "is-warn", CheckState.Fail => "is-fail", _ => "" };
+
+    private static string TileTone(CheckState s) => s switch
+    {
+        CheckState.Pass => "ads-tone-pass",
+        CheckState.Warn => "ads-tone-warn",
+        _ => "ads-tone-fail"
+    };
+
+    /// <summary>The command each check runs (PrerequisiteChecker), shown next to its name.</summary>
+    private static string? Probe(string name) => name switch
+    {
+        ".NET SDK" => "dotnet --list-sdks",
+        "Azure CLI sign-in" => "az account show",
+        "Container runtime" => "docker info",
+        "Node.js" => "node --version",
+        "GitHub CLI" => "gh --version",
+        "Aspire CLI" => "aspire --version",
+        _ => null
     };
 
     private static string CheckIcon(string name) => name switch
