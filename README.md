@@ -1,13 +1,13 @@
 # Aspire Deploy
 <img width="967" height="344" alt="image" src="https://github.com/user-attachments/assets/08a10f0f-e269-4a2c-95f8-eb2493ef940e" />
 
-## ▶️ [Watch the video walk-thru](https://www.youtube.com/watch?v=HAmORltSO1w)
+## ▶️ [Watch the video walk-thru](https://www.youtube.com/watch?v=zO7WvLdigsk)
 
-[![Walk-Thru: Aspire Deploy, Deploy Any Aspire Solution To Azure From A Blazor Desktop App](https://img.youtube.com/vi/HAmORltSO1w/maxresdefault.jpg)](https://www.youtube.com/watch?v=HAmORltSO1w)
+[![Walk-Thru: Aspire Deploy, Deploy Any Aspire Solution To Azure From A Blazor Desktop App](https://img.youtube.com/vi/zO7WvLdigsk/maxresdefault.jpg)](https://www.youtube.com/watch?v=zO7WvLdigsk)
 
-A 2-minute narrated tour of the app. The same walk-thru, with screenshots, is on the [Blazor Help Website](https://blazorhelpwebsite.com/ViewBlogPost/20096).
+A short narrated tour of the app. The same walk-thru, with screenshots, is on the [Blazor Help Website](https://blazorhelpwebsite.com/ViewBlogPost/20096).
 
-<img width="1591" height="1304" alt="image" src="https://github.com/user-attachments/assets/31de889f-bb99-4c78-bcf3-2071b5ed98b3" />
+![The Aspire Deploy home page](docs/images/00-home.png)
 
 
 A Windows desktop app (.NET MAUI Blazor Hybrid) that deploys **any Aspire 13.x solution**, from a local folder or a GitHub repository, to an Azure subscription with `aspire deploy`, using your own `az login`.
@@ -26,16 +26,23 @@ The full walkthrough is the **[user guide](docs/User-Guide.md)**, which is also 
 2. Start the app: open `AspireDeployService.slnx` in Visual Studio and run the **Windows Machine** profile, or run `aspire run` and start the `aspiredeployservice-windows` resource from the dashboard.
 3. Open **Setup** and run the general checks. Each tool shows Pass, Warn or Fail with the fix.
 
+![Setup: each tool shows Pass, Warn or Fail](docs/images/10-setup.png)
+
 Your AppHost needs an Azure compute environment, for example `builder.AddAzureContainerAppEnvironment("env");` with the `Aspire.Hosting.Azure.AppContainers` package.
 
 ### 2. Create a profile
 
 **Profiles → New profile**: pick the solution folder (or `<owner>/<repo>` on GitHub) and click **Scan**. The scan reads files only and shows the AppHost summary. Type a profile name and click **Build** (or **Trust and build `<commit>`** for GitHub, which builds exactly the commit the summary shows); a local folder with a name is scanned and built in one click. The app runs `aspire do publish-manifest`, and then shows the **Destination** and **Parameters** steps.
 
+![New profile: the AppHost summary after Scan](docs/images/08-scan-summary.png)
+
 ![New profile: the Destination step after the build](docs/images/05-new-profile-destination.png)
 
 - **Subscription, region and resource group** are read from your `az login`. A resource group is either an existing one or a new name that is created on the first deploy. If `az` is not signed in, **Sign in to Azure** runs `az login` from the app.
 - **Update an existing deployment** finds resource groups that already hold this AppHost's container apps (for example deployed from another machine). **Use this** fills the destination so the first deploy updates them in place.
+
+  ![Update an existing deployment: Find searches the subscription for the AppHost's container apps](docs/images/09-update-existing.png)
+
 - **Container apps** (bottom of the card) previews each compute resource of the AppHost as **New**, **Updates existing** or **Conflict**, by comparing it with what is already in Azure. A conflict (for example an app with that name already running in another environment) blocks the deploy.
 - Fill in the **Parameters** step and **Save profile**.
 
@@ -52,10 +59,6 @@ By default Aspire creates its own container registry, Container Apps environment
 **Create new** registry (with its SKU) and environment (with where its logs go):
 
 ![Destination card with a new registry and a new environment](docs/images/03-destination-new.png)
-
-**Use existing** registry, environment and ACR pull identity, in a shared resource group:
-
-![Destination card using an existing registry, environment and pull identity](docs/images/02-destination-existing.png)
 
 - The lists come from `az`. If `az` cannot list something (or the subscription has none), type the name and resource group instead.
 - **ACR pull identity** is only available with an existing registry. Pick a user-assigned identity that already has `AcrPull` on it, and the deploy creates no identity and no role assignment.

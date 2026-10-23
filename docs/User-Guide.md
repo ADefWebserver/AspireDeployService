@@ -89,8 +89,6 @@ The **Destination** card has a section for each resource. The resource group has
 
 ![Create new registry and environment](images/03-destination-new.png)
 
-![Use existing registry, environment and pull identity](images/02-destination-existing.png)
-
 ```mermaid
 flowchart TD
     M{"Section mode"} -- "Let Aspire create" --> A["aspire deploy creates it<br/>in the profile's group"]
