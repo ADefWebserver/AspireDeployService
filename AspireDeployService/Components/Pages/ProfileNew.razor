@@ -88,7 +88,9 @@
     <div class="ads-stack mb-3">
         <AppHostSummary Result="@(data?.Discovery ?? scan.Scan)" Spec="scan.Spec" />
 
-        @foreach (var w in data is not null ? data.Draft.Warnings.Concat(data.Discovery.Warnings) : scan.Scan.Warnings)
+        @* The refusal callout below already says what the scanner's own "no Azure compute environment" warning says. *@
+        @foreach (var w in (data is not null ? data.Draft.Warnings.Concat(data.Discovery.Warnings) : scan.Scan.Warnings)
+                     .Where(w => scan.Scan.AppHost.HasAzureTarget || !w.StartsWith("No Azure compute environment", StringComparison.Ordinal)))
         {
             <div class="ads-callout ads-callout-warn">
                 <Icon Name="alert-triangle" Size="17" />

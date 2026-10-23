@@ -57,7 +57,7 @@ public static class ManifestRunner
             throw new DeployerException(OutcomeCode.DiscoveryFailed,
                 $"Discovery failed: aspire do publish-manifest exited with {result.ExitCode}. The end of its output:\n{Tail(result.OutputTail)}");
 
-        return ManifestParser.Parse(await File.ReadAllTextAsync(manifestPath, ct));
+        return ManifestParser.Parse(await File.ReadAllTextAsync(manifestPath, ct), Path.GetDirectoryName(manifestPath));
     }
 
     private static string Tail(string text) => string.Join('\n', text.Split('\n').TakeLast(20));

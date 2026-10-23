@@ -184,6 +184,31 @@ public class AzureResourceProvisionerTests : IDisposable
     }
 
     [Fact]
+    public async Task Adopted_profile_without_overlay_is_refused_when_its_group_is_gone()
+    {
+        // Wizard plan T0: aspire deploy creates a missing group even with AllowResourceGroupCreation=false.
+        On("group exists", "false");
+        var ex = await Assert.ThrowsAsync<DeployerException>(async () =>
+            await _provisioner.PlanAsync(await ProfileAsync(d => d.AllowResourceGroupCreation = false), _run, CancellationToken.None));
+        Assert.Equal("Resource group rg-shop does not exist and the profile does not allow creating it.", ex.Message);
+    }
+
+    [Fact]
+    public async Task Adopted_profile_without_overlay_plans_nothing_when_its_group_exists()
+    {
+        On("group exists", "true");
+        Assert.Empty(await _provisioner.PlanAsync(await ProfileAsync(d => d.AllowResourceGroupCreation = false), _run, CancellationToken.None));
+        Assert.Single(Calls, c => c.StartsWith("group exists", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task Plain_profile_that_may_create_its_group_reads_nothing()
+    {
+        Assert.Empty(await _provisioner.PlanAsync(await ProfileAsync(_ => { }), _run, CancellationToken.None));
+        Assert.DoesNotContain(Calls, c => c.StartsWith("group exists", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public async Task Taken_registry_name_is_refused_before_anything_is_created()
     {
         On("group exists", "true");

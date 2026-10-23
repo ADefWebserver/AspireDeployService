@@ -1,0 +1,15 @@
+[
+  {
+    "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-azinv-test",
+    "location": "eastus2",
+    "managedBy": null,
+    "name": "rg-azinv-test",
+    "properties": {
+      "provisioningState": "Succeeded"
+    },
+    "tags": {
+      "aspire": "true"
+    },
+    "type": "Microsoft.Resources/resourceGroups"
+  }
+]

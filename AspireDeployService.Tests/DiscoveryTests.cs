@@ -268,6 +268,52 @@ public class ManifestParserTests
         Assert.Contains(m.Warnings, w => w.Contains("unknown resource type"));
     }
 
+    [Fact]
+    public void Renamed_container_app_is_read_from_its_bicep_module()
+    {
+        // The shape of Blazor-Azure-Inventory's AppHost: PublishAsAzureContainerApp((_, app) => app.Name = "azinventory-web").
+        using var dir = new TempDir();
+        dir.Write("web-containerapp.module.bicep", """
+            param location string = resourceGroup().location
+            resource blazorazureinventory 'Microsoft.App/containerApps@2025-10-02-preview' = {
+              name: 'azinventory-web'
+              location: location
+            }
+            """);
+        dir.Write("mcp-containerapp.module.bicep", """
+            resource azure_mcp 'Microsoft.App/containerApps@2025-07-01' = {
+              name: 'azure-mcp'
+            }
+            """);
+        dir.Write("computed-containerapp.module.bicep", """
+            resource api 'Microsoft.App/containerApps@2025-07-01' = {
+              name: '${prefix}-api'
+            }
+            """);
+        var json = """
+            { "resources": {
+              "BlazorAzureInventory": { "type": "project.v1", "path": "a.csproj",
+                "deployment": { "type": "azure.bicep.v0", "path": "web-containerapp.module.bicep" } },
+              "azure-mcp": { "type": "dockerfile.v0", "path": "Dockerfile",
+                "deployment": { "type": "azure.bicep.v0", "path": "mcp-containerapp.module.bicep" } },
+              "api": { "type": "project.v1", "path": "b.csproj",
+                "deployment": { "type": "azure.bicep.v0", "path": "computed-containerapp.module.bicep" } },
+              "missing": { "type": "project.v1", "path": "c.csproj",
+                "deployment": { "type": "azure.bicep.v0", "path": "nope.bicep" } } } }
+            """;
+
+        var r = ManifestParser.Parse(json, dir.Path).Resources.ToDictionary(x => x.Name);
+        Assert.Equal("azinventory-web", r["BlazorAzureInventory"].AppName);
+        Assert.Equal("azure-mcp", r["azure-mcp"].AppName);
+        Assert.Null(r["api"].ContainerAppName); // computed names fall back to the resource name
+        Assert.Equal("missing", r["missing"].AppName);
+
+        Assert.Equal("blazorazureinventory", ManifestParser.Parse(json).Resources.Single(x => x.Name == "BlazorAzureInventory").AppName);
+
+        var plan = Core.Deploy.ContainerAppPlanner.Plan(r.Values.ToList(), new Core.Deploy.AppPlanInput("rg", null, [], []));
+        Assert.Contains(plan, row => row.Resource == "BlazorAzureInventory" && row.AppName == "azinventory-web");
+    }
+
     [Theory]
     [InlineData("{ not json")]
     [InlineData("{ \"x\": 1 }")]

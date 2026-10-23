@@ -208,7 +208,7 @@ Run this before a release. Rows marked **(Azure)** create real resources; delete
 | 36 | Sign in with **Use a device code** | The code line appears in the log, and signing in on another device completes it. |
 | 37 | Uninstall or rename `az`, open New profile | The error shows with no sign-in button. |
 | 38 | **(Azure)** On a second machine (or after deleting `~/.aspire/deployments`), adopt the starter deployment with **Update an existing deployment** and deploy | The candidate shows all apps found and origin aspire deploy. The preview shows every app as **Updates existing**. The deploy succeeds, and the `az resource list -g <rg>` count is unchanged. |
-| 39 | **(Azure)** Adopt, then delete the group in the portal, then deploy | The deploy fails with resource group not found, and no group is created. |
+| 39 | **(Azure)** Adopt, then delete the group in the portal, then deploy | Refused before the confirmation with "Resource group `<rg>` does not exist and the profile does not allow creating it."; no group is created. |
 | 40 | Visit `/discover` | The NotFound page shows. Nav has no Discover tab, and Home shows three steps. |
 | 30 | **(Azure)** Existing registry plus an existing identity with `AcrPull` | Deploy succeeds; the registry's access control shows no new role assignment. |
 | 31 | **(Azure)** New environment with logs to an existing workspace | Logs arrive in that workspace's `ContainerAppConsoleLogs` table. |

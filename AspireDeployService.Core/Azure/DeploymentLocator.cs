@@ -125,9 +125,9 @@ public static class DeploymentLocator
         return Rank(subscriptionId, compute, discovery.AppHost.ContainerAppEnvironmentNames, apps, environments, groups);
     }
 
-    /// <summary>The container app names Aspire gives the AppHost's compute resources: the resource name, lowercased.</summary>
+    /// <summary>The container app names Aspire gives the AppHost's compute resources (<see cref="DiscoveredResource.AppName"/>), lowercased.</summary>
     public static IReadOnlyList<string> ComputeNames(DiscoveryResult discovery) =>
-        discovery.Resources.Where(ContainerAppPlanner.IsCompute).Select(r => r.Name.ToLowerInvariant()).Distinct().ToList();
+        discovery.Resources.Where(ContainerAppPlanner.IsCompute).Select(r => r.AppName.ToLowerInvariant()).Distinct().ToList();
 
     /// <summary>
     /// One short line for a failed search (after BlazorDataDeploymentWebsite's ArmErrors.Describe, keyed on

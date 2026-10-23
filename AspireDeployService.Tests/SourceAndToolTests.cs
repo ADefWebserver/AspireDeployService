@@ -138,6 +138,34 @@ public class GitHubSourceTests : IDisposable
         Assert.Contains("Authorization: Bearer secret-token", seen[0]);
         Assert.DoesNotContain("Authorization", seen[1]);
     }
+
+    [Fact]
+    public async Task Replacing_src_waits_while_the_old_folder_is_still_in_the_way()
+    {
+        // Stands in for a just-deleted src that another process still holds (delete pending).
+        var from = Directory.CreateDirectory(_h.Dir.Combine("inner")).FullName;
+        File.WriteAllText(Path.Combine(from, "a.txt"), "x");
+        var to = Directory.CreateDirectory(_h.Dir.Combine("src-moved")).FullName;
+        var release = Task.Run(async () =>
+        {
+            await Task.Delay(1500);
+            Directory.Delete(to);
+        });
+
+        await GitHubSource.MoveWithRetriesAsync(from, to, CancellationToken.None);
+        await release;
+        Assert.True(File.Exists(Path.Combine(to, "a.txt")));
+    }
+
+    [Fact]
+    public async Task Replacing_src_gives_up_with_a_clear_message()
+    {
+        var from = Directory.CreateDirectory(_h.Dir.Combine("inner2")).FullName;
+        var to = Directory.CreateDirectory(_h.Dir.Combine("src-busy")).FullName;
+        var ex = await Assert.ThrowsAsync<DeployerException>(() => GitHubSource.MoveWithRetriesAsync(from, to, CancellationToken.None, attempts: 2));
+        Assert.Equal(OutcomeCode.DiscoveryFailed, ex.Code);
+        Assert.Contains("still in use", ex.Message);
+    }
 }
 
 public class GitHubTokenResolverTests : IDisposable

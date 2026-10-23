@@ -171,8 +171,11 @@ public sealed class DeployService(
                         + "AddAzureContainerAppEnvironment. Set them back to Let Aspire create.");
                 overlay = AppHostOverlay.Prepare(OverlayRequestFor(profile, prepared, workKey, overlayRunId));
                 await run.Log.InfoAsync("AppHost overlay prepared: " + string.Join(", ", overlay.Files), ct);
-                plan = await provisioner.PlanAsync(profile, run, ct);
             }
+            // Also without an overlay: a profile that must not create its group (an adopted deployment) is checked here,
+            // because aspire deploy creates a missing group anyway (wizard plan T0).
+            if (d.NeedsOverlay || d.AllowResourceGroupCreation == false)
+                plan = await provisioner.PlanAsync(profile, run, ct);
 
             var compute = prepared.Manifest!.Resources.Where(ContainerAppPlanner.IsCompute).ToList();
             var preview = compute.Count == 0 || !prepared.Scan.AppHost.DeclaredTargets.Contains(DeploymentTarget.AzureContainerApps)

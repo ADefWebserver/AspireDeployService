@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using AspireDeployService.Core.Outcomes;
 
 namespace AspireDeployService.Core.Discovery;
@@ -6,9 +7,11 @@ namespace AspireDeployService.Core.Discovery;
 public sealed record ManifestContents(IReadOnlyList<DiscoveredParameter> Parameters, IReadOnlyList<DiscoveredResource> Resources, IReadOnlyList<string> Warnings);
 
 /// <summary>Turns <c>aspire-manifest.json</c> into parameters and resources (source plan §6.5 mapping table).</summary>
-public static class ManifestParser
+public static partial class ManifestParser
 {
-    public static ManifestContents Parse(string json)
+    /// <param name="manifestDirectory">The folder of the manifest, to read each compute resource's Bicep module for its
+    /// container app name; null skips that.</param>
+    public static ManifestContents Parse(string json, string? manifestDirectory = null)
     {
         JsonDocument doc;
         try
@@ -43,13 +46,16 @@ public static class ManifestParser
                         break;
                     case "project.v0" or "project.v1":
                         // Projects are built into container images for Azure compute (assumed; plan T0b (d)).
-                        found.Add(new DiscoveredResource(name, type, null, String(r, "path"), false, true));
+                        found.Add(new DiscoveredResource(name, type, null, String(r, "path"), false, true)
+                            { ContainerAppName = ContainerAppNameOf(r, manifestDirectory) });
                         break;
                     case "container.v0" or "container.v1":
-                        found.Add(new DiscoveredResource(name, type, String(r, "image"), null, false, r.TryGetProperty("build", out _)));
+                        found.Add(new DiscoveredResource(name, type, String(r, "image"), null, false, r.TryGetProperty("build", out _))
+                            { ContainerAppName = ContainerAppNameOf(r, manifestDirectory) });
                         break;
                     case "dockerfile.v0":
-                        found.Add(new DiscoveredResource(name, type, null, String(r, "path"), false, true));
+                        found.Add(new DiscoveredResource(name, type, null, String(r, "path"), false, true)
+                            { ContainerAppName = ContainerAppNameOf(r, manifestDirectory) });
                         break;
                     case "azure.bicep.v0" or "azure.bicep.v1":
                         found.Add(new DiscoveredResource(name, type, null, null, true, false));
@@ -69,6 +75,31 @@ public static class ManifestParser
             }
 
             return new ManifestContents(parameters, found, warnings);
+        }
+    }
+
+    // resource web 'Microsoft.App/containerApps@2025-07-01' = {
+    //   name: 'azinventory-web'
+    [GeneratedRegex(@"resource\s+\w+\s+'Microsoft\.App/containerApps@[^']+'\s*=\s*\{\s*name:\s*'([^'$]+)'", RegexOptions.IgnoreCase)]
+    private static partial Regex ContainerAppNamePattern();
+
+    /// <summary>The literal container app name in the resource's <c>deployment</c> Bicep module; null when absent or computed.</summary>
+    internal static string? ContainerAppNameOf(JsonElement resource, string? manifestDirectory)
+    {
+        if (manifestDirectory is null || !resource.TryGetProperty("deployment", out var deployment) || deployment.ValueKind != JsonValueKind.Object
+            || String(deployment, "path") is not { Length: > 0 } path)
+            return null;
+        try
+        {
+            var file = Path.GetFullPath(Path.Combine(manifestDirectory, path));
+            if (!File.Exists(file))
+                return null;
+            var m = ContainerAppNamePattern().Match(File.ReadAllText(file));
+            return m.Success ? m.Groups[1].Value : null;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
+        {
+            return null;
         }
     }
 

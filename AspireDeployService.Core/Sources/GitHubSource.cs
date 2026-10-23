@@ -68,7 +68,7 @@ public sealed partial class GitHubSource(IHttpClientFactory httpFactory) : ISour
             }
 
             await DeleteWithRetriesAsync(src, ct);
-            Directory.Move(inner, src);
+            await MoveWithRetriesAsync(inner, src, ct);
             await File.WriteAllTextAsync(Path.Combine(src, ShaMarker), sha, ct);
         }
         finally
@@ -177,6 +177,30 @@ public sealed partial class GitHubSource(IHttpClientFactory httpFactory) : ISour
                 if (attempt >= 3)
                     throw new DeployerException(OutcomeCode.DiscoveryFailed,
                         $"Files in {dir} are in use (an editor, terminal or running app may hold them). Close it and try again.", ErrorCategory.Source, ex);
+                await Task.Delay(TimeSpan.FromSeconds(1), ct);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Right after a delete or an extraction, Windows can refuse the move for a few seconds: a just-deleted folder stays
+    /// "delete pending" while another process (an MSBuild node of the last build, an antivirus scan) still holds a handle.
+    /// </summary>
+    internal static async Task MoveWithRetriesAsync(string from, string to, CancellationToken ct, int attempts = 15)
+    {
+        for (var attempt = 1; ; attempt++)
+        {
+            try
+            {
+                Directory.Move(from, to);
+                return;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                if (attempt >= attempts)
+                    throw new DeployerException(OutcomeCode.DiscoveryFailed,
+                        $"Could not replace {to}: files there are still in use (a build server, editor or virus scan may hold them). Try again in a minute.",
+                        ErrorCategory.Source, ex);
                 await Task.Delay(TimeSpan.FromSeconds(1), ct);
             }
         }

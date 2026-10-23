@@ -377,6 +377,7 @@
         if (CurrentSub is { } s)
             D.TenantId = s.TenantId;
         await LoadForSubscriptionAsync(refresh: false);
+        await ResourcesChanged.InvokeAsync(); // the container apps preview depends on the subscription
     }
 
     /// <summary>Regions and resource groups for the chosen subscription; both reload when it changes.</summary>
@@ -438,12 +439,13 @@
         }
     }
 
-    private void PickGroup(string? name)
+    private async Task PickGroup(string? name)
     {
         D.ResourceGroup = name;
         // Like the reference wizard: an empty region takes the group's region.
         if (string.IsNullOrEmpty(D.Location) && CurrentGroup is { } g)
             D.Location = g.Location;
+        await ResourcesChanged.InvokeAsync(); // and on the resource group
     }
 
     private async Task SetAdoptAsync(bool adopt)

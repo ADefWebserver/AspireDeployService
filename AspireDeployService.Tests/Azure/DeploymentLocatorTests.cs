@@ -176,6 +176,23 @@ public class DeploymentLocatorTests
         Assert.Equal(["apiservice", "webfrontend"], c.Found);
     }
 
+    [Fact]
+    public void Captured_aspire_deploy_of_Blazor_Azure_Inventory_is_found()
+    {
+        // T0: a real aspire deploy (13.6.1) of ADefWebserver/Blazor-Azure-Inventory. Its AppHost renames the web app to
+        // azinventory-web and names its environment "aca-env"; Aspire tags the group aspire=true.
+        var apps = AzureAccountService.ParseContainerApps(AzureAccountListTests.Az("containerapp-list-captured.json"));
+        var envs = AzureAccountService.ParseEnvironments(AzureAccountListTests.Az("containerapp-env-list-captured.json"));
+        var groups = AzureAccountService.ParseResourceGroups(AzureAccountListTests.Az("group-list-captured.json"));
+
+        var c = Assert.Single(DeploymentLocator.Rank(Sub, ["azure-mcp", "azinventory-web"], ["aca-env"], apps, envs, groups));
+        Assert.Equal(("rg-azinv-test", "eastus2", "acaenvzd3n7pq724i34"), (c.ResourceGroup, c.Location, c.EnvironmentName));
+        Assert.Equal(DeploymentOrigin.AspireDeploy, c.Origin);
+        Assert.Equal(2, c.Found.Count);
+        Assert.False(c.PinEnvironment);
+        Assert.Empty(c.Warnings);
+    }
+
     [Theory]
     [InlineData("az containerapp list failed: ERROR: (AuthorizationFailed) The client does not have authorization", "Reader access")]
     [InlineData("az containerapp list failed: ERROR: AADSTS50076: use multi-factor authentication.", "not signed in")]

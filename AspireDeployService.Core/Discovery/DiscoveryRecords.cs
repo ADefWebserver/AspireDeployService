@@ -50,7 +50,18 @@ public sealed record DiscoveredParameter(string Name, bool Secret, bool HasDefau
     public bool NeedsValue => !HasDefault && !Generated;
 }
 
-public sealed record DiscoveredResource(string Name, string Type, string? Image, string? ProjectPath, bool IsAzure, bool NeedsContainerRuntime);
+public sealed record DiscoveredResource(string Name, string Type, string? Image, string? ProjectPath, bool IsAzure, bool NeedsContainerRuntime)
+{
+    /// <summary>
+    /// The container app name from the resource's generated Bicep module, when the AppHost renames the app (for example
+    /// <c>PublishAsAzureContainerApp((_, app) =&gt; app.Name = "web")</c>); null when the module was not read.
+    /// </summary>
+    public string? ContainerAppName { get; init; }
+
+    /// <summary>The name of the container app Aspire deploys for this resource: the Bicep name, else the resource name lowercased.</summary>
+    [JsonIgnore]
+    public string AppName => ContainerAppName ?? Name.ToLowerInvariant();
+}
 
 public sealed record DiscoveryResult(
     AppHostInfo AppHost,

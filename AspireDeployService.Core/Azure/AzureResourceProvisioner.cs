@@ -48,14 +48,16 @@ public sealed class AzureResourceProvisioner(ProfileStore store, IAzureAccountSe
     public async Task<IReadOnlyList<ProvisionStep>> PlanAsync(DeployProfile profile, RunContext run, CancellationToken ct)
     {
         var d = profile.Destination;
-        if (!d.NeedsOverlay)
+        var anyNew = d.RegistryMode == ResourceMode.New || d.EnvironmentMode == ResourceMode.New;
+        // aspire deploy (13.6.1) creates a missing group even with Azure:AllowResourceGroupCreation=false (wizard plan T0),
+        // so the app checks it itself whenever creation is off, overlay or not.
+        if (!anyNew && d.AllowResourceGroupCreation != false && !d.NeedsOverlay)
             return [];
         var sub = d.SubscriptionId!;
         var rg = d.ResourceGroup!;
         var steps = new List<ProvisionStep>();
 
-        var anyNew = d.RegistryMode == ResourceMode.New || d.EnvironmentMode == ResourceMode.New;
-        if (anyNew)
+        if (anyNew || d.AllowResourceGroupCreation == false)
         {
             var exists = await RunAsync(["group", "exists", "--name", rg, "--subscription", sub, "--output", "json"], run, ShowTimeout, ct);
             Fail(exists, "resource group", rg);
@@ -67,6 +69,8 @@ public sealed class AzureResourceProvisioner(ProfileStore store, IAzureAccountSe
                 steps.Add(new(AzureResourceKind.ResourceGroup, rg, rg, ProvisionAction.Create, d.Location));
             }
         }
+        if (!d.NeedsOverlay)
+            return steps;
 
         ProvisionStep? registry = null;
         if (d.ContainerRegistry is { } r && r.EffectiveMode != ResourceMode.AspireDefault)

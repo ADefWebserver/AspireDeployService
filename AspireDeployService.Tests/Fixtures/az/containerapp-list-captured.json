@@ -1,0 +1,26 @@
+[
+  {
+    "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-azinv-test/providers/Microsoft.App/containerapps/azure-mcp",
+    "location": "East US 2",
+    "name": "azure-mcp",
+    "properties": {
+      "environmentId": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-azinv-test/providers/Microsoft.App/managedEnvironments/acaenvzd3n7pq724i34",
+      "managedEnvironmentId": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-azinv-test/providers/Microsoft.App/managedEnvironments/acaenvzd3n7pq724i34",
+      "provisioningState": "Succeeded"
+    },
+    "resourceGroup": "rg-azinv-test",
+    "type": "Microsoft.App/containerApps"
+  },
+  {
+    "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-azinv-test/providers/Microsoft.App/containerapps/azinventory-web",
+    "location": "East US 2",
+    "name": "azinventory-web",
+    "properties": {
+      "environmentId": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-azinv-test/providers/Microsoft.App/managedEnvironments/acaenvzd3n7pq724i34",
+      "managedEnvironmentId": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-azinv-test/providers/Microsoft.App/managedEnvironments/acaenvzd3n7pq724i34",
+      "provisioningState": "Succeeded"
+    },
+    "resourceGroup": "rg-azinv-test",
+    "type": "Microsoft.App/containerApps"
+  }
+]

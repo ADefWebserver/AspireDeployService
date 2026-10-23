@@ -29,8 +29,9 @@ public static class ContainerAppPlanner
         var rows = new List<AppPlanRow>();
         foreach (var resource in compute.Where(IsCompute))
         {
-            // Aspire names each container app after its AppHost resource, lowercased (T0 confirmed on 13.6.2).
-            var app = resource.Name.ToLowerInvariant();
+            // Aspire names each container app after its AppHost resource, lowercased (T0 confirmed on 13.6.2), unless the
+            // AppHost renames it; the name is then read from the resource's Bicep module.
+            var app = resource.AppName;
             rows.Add(Row(resource.Name, app, input));
         }
         return rows;

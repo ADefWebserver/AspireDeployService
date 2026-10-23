@@ -1,0 +1,8 @@
+[
+  {
+    "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-azinv-test/providers/Microsoft.App/managedEnvironments/acaenvzd3n7pq724i34",
+    "location": "East US 2",
+    "name": "acaenvzd3n7pq724i34",
+    "resourceGroup": "rg-azinv-test"
+  }
+]

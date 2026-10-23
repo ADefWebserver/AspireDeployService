@@ -329,6 +329,21 @@ public class DeployServiceResourceTests : IDisposable
         Assert.Equal(OutcomeCode.InvalidInput, ex.Code);
         Assert.Contains("apply to Azure Container Apps only", ex.Message);
     }
+
+    [Fact]
+    public async Task Adopted_profile_whose_group_is_gone_never_starts_aspire_deploy()
+    {
+        // Wizard plan T0: aspire deploy 13.6.1 created rg-azinv-gone although AllowResourceGroupCreation was false.
+        await _h.AddProfileAsync(change: p => p.Destination.AllowResourceGroupCreation = false);
+        On("group exists", "false");
+        On("containerapp list", "[]");
+
+        var ex = await Assert.ThrowsAsync<DeployerException>(() => DeployAsync());
+
+        Assert.Equal("Resource group rg-shop does not exist and the profile does not allow creating it.", ex.Message);
+        Assert.Empty(_h.DeploySpecs);
+        Assert.Empty(_h.Interaction.Asked);
+    }
 }
 
 [CollectionDefinition("AppHostLock", DisableParallelization = true)]
