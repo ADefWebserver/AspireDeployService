@@ -732,7 +732,7 @@ Driven through the running app (WebView2 remote debugging) on the branch, with a
 | Signed-out `az`, reach Destination | Pass on the wizard and the profile edit page: error with **Retry** and **Sign in to Azure**; Parameters stay usable. Signing in from the edit page loaded the subscriptions. A signed-out `az` answers `az account list` with `[]`, so the message now reads "not signed in, or it sees no subscriptions". |
 | Sign in, then **Cancel** | Pass: "Sign-in was canceled.", no `az` process left. |
 | Device code | Pass: the code line appeared in the log and entering it on another device completed the sign-in. Note: the app gives up after 5 minutes, while the code itself is valid for 15; a slower user would see the timeout message. |
-| `az` not installed | Not run: the app re-reads PATH from the registry and finds `az.cmd` in the machine PATH, so hiding it needs an admin rename of `C:\Program Files\Microsoft SDKs\Azure\CLI2\wbinz.cmd`. Covered by unit tests. |
+| `az` not installed | Not run: the app re-reads PATH from the registry and finds `az.cmd` in the machine PATH, so hiding it needs an admin rename of `C:\Program Files\Microsoft SDKs\Azure\CLI2\wbin\az.cmd`. Covered by unit tests. |
 | **(Azure)** Adopt with no deploy state, then deploy | Pass (see §15). |
 | **(Azure)** Adopt, group gone, deploy | Failed before F-1 (the group was created); passes after it: refused, no group created. |
 | Generated secret in update mode (T10) | Pass: "Not asked" in new mode, **Values from the existing deployment** in update mode; the typed value is saved and listed as secret. |
