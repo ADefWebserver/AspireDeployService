@@ -87,7 +87,8 @@ public sealed partial class AzureAccountService(ProfileStore store, IRunContextF
             var json = await RunAzAsync(["account", "list", "--output", "json"], observer, ct);
             var list = ParseSubscriptions(json);
             if (list.Count == 0)
-                throw new DeployerException(OutcomeCode.MissingPrerequisite, "The Azure CLI is signed in but sees no subscriptions. Run: az login",
+                // A signed-out az (2.6x) also answers [] with exit code 0, so this covers both cases.
+                throw new DeployerException(OutcomeCode.MissingPrerequisite, "The Azure CLI is not signed in, or it sees no subscriptions. Run: az login",
                     ErrorCategory.Permissions);
             return list;
         });

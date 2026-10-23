@@ -696,8 +696,8 @@ Run on 2026-10-23 against a test subscription with `ADefWebserver/Blazor-Azure-I
 
 | Check | Result |
 |---|---|
-| `az login` from the app (browser) | The hidden process starts and waits for the browser; **Cancel** kills it and leaves no `az` process. Finishing a browser sign-in was not done (needs a person at the browser). |
-| `az login --use-device-code` from the app | Works with a closed stdin and `AZURE_CORE_LOGIN_EXPERIENCE_V2=off`: the line "To sign in, use a web browser to open the page https://login.microsoft.com/device and enter the code … to authenticate." reaches the run log. |
+| `az login` from the app (browser) | **Works.** From the hidden process with stdin closed, `az login --tenant <profile tenant> --output json` opened the browser, did not wait on stdin, and finished about 7 s after the user signed in ("Signed in as … (4 subscriptions)"); the subscriptions then loaded. **Cancel** kills it and leaves no `az` process. |
+| `az login --use-device-code` from the app | **Works** with a closed stdin and `AZURE_CORE_LOGIN_EXPERIENCE_V2=off`: the line "To sign in, use a web browser to open the page https://login.microsoft.com/device and enter the code … to authenticate." reaches the run log, and the sign-in finished 70 s after the code was shown. R1's fallbacks are not needed. |
 | Redeploy into an existing group with no state file | **Updates in place.** A second profile (own work folder, so no deploy state) adopted `rg-azinv-test`; the confirmation listed both apps as "(update)", the deploy succeeded, and `az resource list -g rg-azinv-test` had the same 8 resources before and after. D8 holds. |
 | Resource group tags written by `aspire deploy` | `aspire` = `true` (D10's assumed tag is right). |
 | `location` field name in `az containerapp list` | `location`, in display form (`East US 2`); `DeploymentLocator` normalizes it to `eastus2`. |
@@ -723,16 +723,16 @@ Driven through the running app (WebView2 remote debugging) on the branch, with a
 | This repository's folder, no name, **Scan** | Pass: summary 13.6.3, refusal callout, no build button, nothing run. With a name: same refusal. |
 | Local folder with a name, **Scan** | Pass: one run scanned and built; details panel lists 3 parameters and 6 resources; Copy JSON copied the discovery JSON. |
 | Public GitHub repo, **Scan** | Pass: no dialog, "Trust and build 5d3aed3", disabled until a name is typed. |
-| Branch moved between scan and build | Not run (would need a push to the repository). Covered by unit tests and by building an older, untrusted SHA: "Trusted commit 246fb12 from the scan result", no dialog, trust recorded. |
+| Branch moved between scan and build | Pass. Temporary branch `ads-test-moved` scanned at `5d3aed3`, then an empty commit (`36c89cf`) pushed to it; **Trust and build 5d3aed3** built `@5d3aed3` (log: "Source …@5d3aed309da4… is already downloaded"), the saved profile kept `Ref: ads-test-moved`, and a later dry run asked "Run code from GitHub? … at 36c89cf…" (declined, code 7). The branch was deleted afterwards. Also: an older, untrusted SHA built with "Trusted commit 246fb12 from the scan result" and no dialog. |
 | Navigate away during a build and after a failed (canceled) build | Pass: summary shown during and after; **Trust and build** offered again. |
 | Change the location after a scan | Pass: summary and build button disappear. |
 | Failed build, AI Help on the banner | Pass: the reply named `AppHost.cs` line 7, column 59. |
 | AI Help open, then a GitHub deploy that asks for trust | Pass: the trust dialog takes focus, the panel is inert; declining gives code 7. |
 | AI Help on a New profile callout | Pass: "Page: New profile". |
-| Signed-out `az`, reach Destination | Pass on the wizard and the profile edit page: error with **Retry** and **Sign in to Azure**; Parameters stay usable. Completing a sign-in was not done (needs a person). |
+| Signed-out `az`, reach Destination | Pass on the wizard and the profile edit page: error with **Retry** and **Sign in to Azure**; Parameters stay usable. Signing in from the edit page loaded the subscriptions. A signed-out `az` answers `az account list` with `[]`, so the message now reads "not signed in, or it sees no subscriptions". |
 | Sign in, then **Cancel** | Pass: "Sign-in was canceled.", no `az` process left. |
-| Device code | Pass up to the code line in the log; completing it was not done. |
-| `az` not installed | Not run (the app reads PATH from the registry); covered by unit tests. |
+| Device code | Pass: the code line appeared in the log and entering it on another device completed the sign-in. Note: the app gives up after 5 minutes, while the code itself is valid for 15; a slower user would see the timeout message. |
+| `az` not installed | Not run: the app re-reads PATH from the registry and finds `az.cmd` in the machine PATH, so hiding it needs an admin rename of `C:\Program Files\Microsoft SDKs\Azure\CLI2\wbinz.cmd`. Covered by unit tests. |
 | **(Azure)** Adopt with no deploy state, then deploy | Pass (see §15). |
 | **(Azure)** Adopt, group gone, deploy | Failed before F-1 (the group was created); passes after it: refused, no group created. |
 | Generated secret in update mode (T10) | Pass: "Not asked" in new mode, **Values from the existing deployment** in update mode; the typed value is saved and listed as secret. |
