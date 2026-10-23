@@ -22,7 +22,9 @@ internal static class AzCli
     public static readonly TimeSpan DefaultTimeout = TimeSpan.FromMinutes(2);
 
     /// <summary>Throws <see cref="DeployerException"/> (MissingPrerequisite) only when az is not installed.</summary>
-    public static async Task<AzResult> RunAsync(IReadOnlyList<string> args, RunContext run, TimeSpan timeout, CancellationToken ct)
+    /// <param name="environment">Overrides for the child environment (wizard plan §6.3); a null value removes the variable.</param>
+    public static async Task<AzResult> RunAsync(IReadOnlyList<string> args, RunContext run, TimeSpan timeout, CancellationToken ct,
+        IReadOnlyDictionary<string, string?>? environment = null)
     {
         ProcessResult result;
         try
@@ -31,7 +33,8 @@ internal static class AzCli
             {
                 CaptureStdOut = true,
                 LogStdOut = false,
-                Timeout = timeout
+                Timeout = timeout,
+                Environment = environment ?? new Dictionary<string, string?>()
             };
             result = await run.Runner.RunAsync(spec, run.Log, ct);
         }

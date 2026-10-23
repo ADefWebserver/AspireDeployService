@@ -49,11 +49,28 @@ flowchart LR
 <a id="profile"></a>
 ## 1. Create a profile
 
-A profile says what to deploy and where. **Profiles → New profile** walks through three steps:
+A profile says what to deploy and where. **Profiles → New profile** walks through four steps:
 
-1. **Source**: a local folder (used in place) or a GitHub repository `<owner>/<repo>`. Click **Discover**: the app finds the AppHost, its Aspire version, its parameters and its resources.
-2. **Destination**: subscription, tenant, region and resource group, then the container registry, Container Apps environment and ACR pull identity (next section). The wizard shows which container apps will be **new** and which **update** an existing app.
-3. **Parameters**: a value for each AppHost parameter that has no default. Tick **AppHost supplies it** when the AppHost's own configuration provides it.
+1. **Source**: a local folder (used in place) or a GitHub repository `<owner>/<repo>`. Click **Scan**; it needs only the source. The scan reads files only, builds and runs nothing, and shows the **AppHost summary**: path, kind, Aspire SDK, `global.json` SDK, the source with its commit, and the declared targets, plus any warnings. An AppHost without an Azure compute environment is refused here, before anything is built.
+2. **Scan**: type a profile name, then click **Build** (local folder) or **Trust and build `<commit>`** (GitHub). The build runs `aspire do publish-manifest` on exactly the commit the summary shows, even if the branch moved since; the profile still follows the branch you typed. A local folder with a profile name is scanned and built in one click. **AppHost details** then lists the parameters and resources, with **Copy JSON**.
+3. **Destination**: subscription, tenant, region and resource group, then the container registry, Container Apps environment and ACR pull identity (next section). The wizard shows which container apps will be **new** and which **update** an existing app. Choose **Update an existing deployment** to point the profile at a deployment that already exists (below).
+4. **Parameters**: a value for each AppHost parameter that has no default. Tick **AppHost supplies it** when the AppHost's own configuration provides it.
+
+If `az` is not signed in (or its sign-in expired), the subscription field shows the error with **Retry** and **Sign in to Azure**. That runs `az login` from the app: a browser opens, and the subscriptions load when you finish. Under **Options**, tick **Use a device code** where no browser can open (the code appears in the log), or type a tenant for a guest directory (Microsoft Entra ID → Overview → Tenant ID). **Cancel** stops the sign-in. The same button is on the profile page.
+
+### Update an existing deployment
+
+To take over an AppHost that was already deployed, for example with `aspire deploy` from another machine, choose **Update an existing deployment** on the Destination step, pick the subscription, and click **Find**. The app lists the resource groups that hold container apps named like the AppHost's compute resources:
+
+| Column | Meaning |
+|---|---|
+| Apps found | How many of the AppHost's apps are there; hover for the missing ones, which the deploy creates. |
+| Origin | From the resource group's tags: **aspire deploy**, **azd**, or **unknown**. For information only. |
+| Warnings | When the environment was not named by Aspire for this AppHost, or the group has apps in several environments, the profile uses that environment as **Use existing**. An azd deployment whose names do not match also says to add `.WithAzdResourceNaming()` to `AddAzureContainerAppEnvironment` in the AppHost. |
+
+**Use this** fills the subscription, tenant, resource group and region and turns off **Create the resource group again**, so a deleted or mistyped group fails instead of starting a new deployment. The registry and environment stay on **Let Aspire create**: Aspire names them from the AppHost and the resource group, so the first deploy updates them in place. The container apps preview then shows each found app as **Updates existing**. Switching back to **New deployment** restores `rg-<profile>`.
+
+A new machine has none of the generated values of the old deployment (for example a database password), so Aspire would generate new ones. In update mode they are listed under **Values from the existing deployment**. Copy each one from `~/.aspire/deployments/<hash>/<environment>.json` on the machine that deployed it, or leave it empty to generate a new value.
 
 Profiles are saved in `appsettings.Local.json` (see the README).
 
@@ -167,7 +184,7 @@ When a section is **Use existing** or **Create new**, the deploy runs your AppHo
 | File-based C# (`apphost.cs`) | A temporary folder `.ads-deploy` is created **next to** your file, holding a patched copy with the same name (`.ads-deploy/apphost.cs`), for the length of the deploy, and removed afterwards. |
 | TypeScript (`apphost.ts`, `apphost.mts`) | The same: `.ads-deploy/apphost.mts` (or `.ts`) next to your file. The Aspire CLI may also write its generated modules into that folder; they go with it. |
 
-The copy's first line is `// ads-deploy-temp: written by Aspire Deploy during a deploy; safe to delete.` If the app was killed mid-deploy, the next deploy, the next Discover and the next app start remove the `.ads-deploy` folder. A `.ads-deploy` folder whose AppHost copy lacks the marker line is never deleted; the deploy stops instead. While a deploy runs the folder shows in `git status`: do not commit it. Add `.ads-deploy/` to `.gitignore` if you like. The first overlay deploy of a file-based or TypeScript AppHost does not reuse Aspire's deploy cache of a plain deploy.
+The copy's first line is `// ads-deploy-temp: written by Aspire Deploy during a deploy; safe to delete.` If the app was killed mid-deploy, the next deploy, the next scan and the next app start remove the `.ads-deploy` folder. A `.ads-deploy` folder whose AppHost copy lacks the marker line is never deleted; the deploy stops instead. While a deploy runs the folder shows in `git status`: do not commit it. Add `.ads-deploy/` to `.gitignore` if you like. The first overlay deploy of a file-based or TypeScript AppHost does not reuse Aspire's deploy cache of a plain deploy.
 
 <a id="deploy"></a>
 ## 3. Deploy and watch
@@ -220,6 +237,10 @@ Existing resources picked from **other** resource groups (registry, environment,
 | `<kind>` `<name>` exists but its creation failed. Delete it in the Azure portal or choose another name. | Delete the failed resource in the portal, or choose another name. |
 | The environment was created, but its logs could not be sent to `<ws>`: `<az error>`. Add a diagnostic setting in the portal. | Add a diagnostic setting on the environment that sends `allLogs` to the workspace. The profile has already switched to Use existing, so deploying again does not re-create the environment. |
 | `<kind>` `<name>` was created by another run; deploy again. | Another deploy created the same name at the same time. Deploy again. |
+| Sign-in timed out after 5 minutes. Try again, or tick Use a device code. | The browser sign-in did not finish. Sign in again, or open **Options** and tick **Use a device code**, then enter the code from the log at the address it names. |
+| Sign-in did not finish: `<az error>` | Read the az error. For a guest directory or another organization, type the tenant under **Options**. |
+| Created by azd with its own names. Add .WithAzdResourceNaming() to AddAzureContainerAppEnvironment in the AppHost, or the deploy will likely be refused. | The azd deployment's resources do not follow Aspire's names. Add `.WithAzdResourceNaming()` to the environment in the AppHost, scan and build again, then **Find** again. |
+| Your Azure account cannot read this subscription. You need at least Reader access. | Ask an owner for Reader access on the subscription, or choose another subscription. |
 | You are not allowed to create `<kind>` `<name>` in `<rg>`: `<az error>`. Creating needs Contributor on the resource group (or the subscription for a new group). | Ask for **Contributor** (see [Before you start](#before)), or choose **Use existing**. |
 | You are not allowed to read `<what>` `<name>`: `<az error>`. Reading needs Reader on the subscription. | Ask for **Reader** on the subscription. |
 | `<az error>` followed by "Run: az provider register --namespace Microsoft.App" | The subscription has not registered the Container Apps provider. Run the command once. |

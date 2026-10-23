@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.ComponentModel;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using AspireDeployService.Core.Errors;
 using AspireDeployService.Core.Infrastructure;
 using AspireDeployService.Core.Outcomes;
 using AspireDeployService.Core.Processes;
@@ -21,12 +22,13 @@ public sealed record AzureSubscription(string Id, string Name, string TenantId, 
 /// <param name="SupportsContainerApps">Whether Microsoft.App offers managed environments there; null when that could not be read.</param>
 public sealed record AzureLocation(string Name, string DisplayName, string? Geography, bool? SupportsContainerApps);
 
-public sealed record AzureResourceGroup(string Name, string Location);
+/// <param name="Tags">The group's string tags (wizard plan D10); null when it has none.</param>
+public sealed record AzureResourceGroup(string Name, string Location, IReadOnlyDictionary<string, string>? Tags = null);
 
 // Resource pickers plan §6.3.
 public sealed record AzureContainerRegistry(string Name, string ResourceGroup, string Location, string LoginServer, string Sku);
 public sealed record AzureContainerAppEnvironment(string Id, string Name, string ResourceGroup, string Location);
-public sealed record AzureContainerApp(string Name, string ResourceGroup, string? EnvironmentId);
+public sealed record AzureContainerApp(string Name, string ResourceGroup, string? EnvironmentId, string? Location = null);
 public sealed record NameAvailability(bool Available, string? Reason);
 public sealed record AzureManagedIdentity(string Id, string Name, string ResourceGroup, string PrincipalId);
 public sealed record AzureLogAnalyticsWorkspace(string Id, string Name, string ResourceGroup, string Location);
@@ -52,6 +54,9 @@ public interface IAzureAccountService
 
     /// <summary>Drops every cached list for that subscription; called after a create.</summary>
     void Invalidate(string subscriptionId);
+
+    /// <summary>Drops every cached list, including subscriptions; called after a sign-in.</summary>
+    void InvalidateAll();
 
     /// <summary>The subscriptions visible to the developer's <c>az login</c>. Code 3 when not signed in.</summary>
     Task<IReadOnlyList<AzureSubscription>> ListSubscriptionsAsync(IRunObserver observer, CancellationToken ct, bool refresh = false);
@@ -82,7 +87,8 @@ public sealed partial class AzureAccountService(ProfileStore store, IRunContextF
             var json = await RunAzAsync(["account", "list", "--output", "json"], observer, ct);
             var list = ParseSubscriptions(json);
             if (list.Count == 0)
-                throw new DeployerException(OutcomeCode.MissingPrerequisite, "The Azure CLI is signed in but sees no subscriptions. Run: az login");
+                throw new DeployerException(OutcomeCode.MissingPrerequisite, "The Azure CLI is signed in but sees no subscriptions. Run: az login",
+                    ErrorCategory.Permissions);
             return list;
         });
 
@@ -153,6 +159,8 @@ public sealed partial class AzureAccountService(ProfileStore store, IRunContextF
         }
     }
 
+    public void InvalidateAll() => _cache.Clear();
+
     internal static IReadOnlyList<AzureContainerRegistry> ParseRegistries(string json) => Parse(json, "az acr list", root =>
         root.EnumerateArray()
             .Select(r => new AzureContainerRegistry(Text(r, "name"), Text(r, "resourceGroup"), Text(r, "location"), Text(r, "loginServer"),
@@ -177,7 +185,8 @@ public sealed partial class AzureAccountService(ProfileStore store, IRunContextF
                 if (a.TryGetProperty("properties", out var props) && props.ValueKind == JsonValueKind.Object)
                     envId = Text(props, "managedEnvironmentId") is { Length: > 0 } m ? m : Text(props, "environmentId") is { Length: > 0 } e ? e : null;
                 envId ??= Text(a, "managedEnvironmentId") is { Length: > 0 } top ? top : null;
-                return new AzureContainerApp(Text(a, "name"), Text(a, "resourceGroup"), envId);
+                return new AzureContainerApp(Text(a, "name"), Text(a, "resourceGroup"), envId,
+                    Text(a, "location") is { Length: > 0 } location ? location : null);
             })
             .Where(a => a.Name.Length > 0)
             .OrderBy(a => a.Name, StringComparer.OrdinalIgnoreCase)
@@ -236,10 +245,21 @@ public sealed partial class AzureAccountService(ProfileStore store, IRunContextF
 
     internal static IReadOnlyList<AzureResourceGroup> ParseResourceGroups(string json) => Parse(json, "az group list", root =>
         root.EnumerateArray()
-            .Select(g => new AzureResourceGroup(Text(g, "name"), Text(g, "location")))
+            .Select(g => new AzureResourceGroup(Text(g, "name"), Text(g, "location"), Tags(g)))
             .Where(g => g.Name.Length > 0)
             .OrderBy(g => g.Name, StringComparer.OrdinalIgnoreCase)
             .ToList());
+
+    /// <summary>The string values of a <c>tags</c> object; null when absent, <c>null</c>, or empty.</summary>
+    private static IReadOnlyDictionary<string, string>? Tags(JsonElement e)
+    {
+        if (!e.TryGetProperty("tags", out var tags) || tags.ValueKind != JsonValueKind.Object)
+            return null;
+        var map = tags.EnumerateObject()
+            .Where(p => p.Value.ValueKind == JsonValueKind.String)
+            .ToDictionary(p => p.Name, p => p.Value.GetString() ?? "", StringComparer.OrdinalIgnoreCase);
+        return map.Count == 0 ? null : map;
+    }
 
     /// <summary>Microsoft.App's managedEnvironments locations, squashed for comparison; null when unknown.</summary>
     private static HashSet<string>? ContainerAppsRegions(string? json)
@@ -314,9 +334,12 @@ public sealed partial class AzureAccountService(ProfileStore store, IRunContextF
     {
         if (result.Succeeded)
             return result.StdOut;
+        // Wizard plan D15: sign-in failures carry Permissions, so the editor can offer Sign in to Azure.
         if (args[0] == "account" && args[1] == "list")
-            throw new DeployerException(OutcomeCode.MissingPrerequisite, "The Azure CLI is not signed in. Run: az login");
+            throw new DeployerException(OutcomeCode.MissingPrerequisite, "The Azure CLI is not signed in. Run: az login", ErrorCategory.Permissions);
         var message = $"{AzCli.Describe(args)} failed: {result.ErrorLine}";
+        if (result.Kind == AzErrorKind.NotSignedIn)
+            throw new DeployerException(OutcomeCode.MissingPrerequisite, message + "\nSign in to Azure again.", ErrorCategory.Permissions);
         if (result.Kind == AzErrorKind.ProviderNotRegistered)
             message += "\n" + AzCli.ProviderFix;
         throw new DeployerException(OutcomeCode.MissingPrerequisite, message);

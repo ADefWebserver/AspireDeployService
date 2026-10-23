@@ -9,7 +9,10 @@ using AspireDeployService.Core.Sources;
 namespace AspireDeployService.Core.Services;
 
 /// <param name="ProfileName">When set, the profile's work key and token are used; <paramref name="Source"/> still decides what is scanned.</param>
-public sealed record DiscoverRequest(SourceSpec Source, string? ProfileName, bool StaticOnly, bool AssumeTrusted = false);
+/// <param name="TrustedCommitSha">The commit the user agreed to on the scan result (wizard plan D3). When the resolved SHA equals it,
+/// trust is recorded without asking; otherwise the usual prompt names the resolved SHA. Ignored for local folders.</param>
+public sealed record DiscoverRequest(SourceSpec Source, string? ProfileName, bool StaticOnly, bool AssumeTrusted = false,
+    string? TrustedCommitSha = null);
 
 public interface IDiscoveryService
 {
@@ -34,7 +37,7 @@ public sealed class DiscoveryService(ProfileStore store, IRunContextFactory runs
         var result = await pipeline.RunAsync(request.Source, profile?.Source.GitHubToken, profile?.EnvironmentName ?? "Production",
             options, workKey, run,
             request.StaticOnly ? DiscoveryPipeline.Stop.AfterScan : DiscoveryPipeline.Stop.AfterManifest,
-            request.AssumeTrusted, ct);
+            request.AssumeTrusted, ct, request.TrustedCommitSha);
 
         var discovery = result.ToDiscoveryResult();
         await run.Log.InfoAsync(discovery.ManifestRan

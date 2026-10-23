@@ -12,7 +12,7 @@ A 2-minute narrated tour of the app. The same walk-thru, with screenshots, is on
 
 A Windows desktop app (.NET MAUI Blazor Hybrid) that deploys **any Aspire 13.x solution**, from a local folder or a GitHub repository, to an Azure subscription with `aspire deploy`, using your own `az login`.
 
-It **discovers** what the AppHost needs first (AppHost kind, Aspire version, parameters, resources, deployment targets) and keeps per-developer **deploy profiles** in a git-ignored `appsettings.Local.json`.
+It **scans** the AppHost first for what it needs (AppHost kind, Aspire version, parameters, resources, deployment targets) and keeps per-developer **deploy profiles** in a git-ignored `appsettings.Local.json`.
 
 Design: [docs/AspireDeployService-Implementation-Plan.md](docs/AspireDeployService-Implementation-Plan.md), which builds on [docs/Aspire-Project-Deployer-Plan.md](docs/Aspire-Project-Deployer-Plan.md).
 
@@ -30,11 +30,12 @@ Your AppHost needs an Azure compute environment, for example `builder.AddAzureCo
 
 ### 2. Create a profile
 
-**Profiles → New profile**: give it a name, pick the solution folder (or `<owner>/<repo>` on GitHub), and click **Discover**. The app reads the AppHost, runs `aspire do publish-manifest`, and then shows the **Destination** and **Parameters** steps.
+**Profiles → New profile**: pick the solution folder (or `<owner>/<repo>` on GitHub) and click **Scan**. The scan reads files only and shows the AppHost summary. Type a profile name and click **Build** (or **Trust and build `<commit>`** for GitHub, which builds exactly the commit the summary shows); a local folder with a name is scanned and built in one click. The app runs `aspire do publish-manifest`, and then shows the **Destination** and **Parameters** steps.
 
-![New profile: the Destination step after Discover](docs/images/05-new-profile-destination.png)
+![New profile: the Destination step after the build](docs/images/05-new-profile-destination.png)
 
-- **Subscription, region and resource group** are read from your `az login`. A resource group is either an existing one or a new name that is created on the first deploy.
+- **Subscription, region and resource group** are read from your `az login`. A resource group is either an existing one or a new name that is created on the first deploy. If `az` is not signed in, **Sign in to Azure** runs `az login` from the app.
+- **Update an existing deployment** finds resource groups that already hold this AppHost's container apps (for example deployed from another machine). **Use this** fills the destination so the first deploy updates them in place.
 - **Container apps** (bottom of the card) previews each compute resource of the AppHost as **New**, **Updates existing** or **Conflict**, by comparing it with what is already in Azure. A conflict (for example an app with that name already running in another environment) blocks the deploy.
 - Fill in the **Parameters** step and **Save profile**.
 
@@ -141,7 +142,7 @@ The values live under `AspireDeploy:AI` in `appsettings.Local.json` (see the exa
 
 The app itself never writes into your source, but the Aspire tooling it runs does: `bin/` and `obj/` from the build, and for TypeScript AppHosts `.aspire/modules/` and `node_modules/`, and possibly `aspire.config.json`. Deploy output goes to the work folder, not your source.
 
-When a profile uses an existing or new registry, environment or pull identity, a **file-based C# or TypeScript AppHost** gets a temporary `.ads-deploy` folder next to its entry file, holding a patched copy (`.ads-deploy/apphost.cs`, `.ads-deploy/apphost.mts`) whose first line says it was written by Aspire Deploy. It is removed after the deploy, and after a crash by the next deploy, Discover or app start. Do not commit it (`*.ads-deploy*` / `.ads-deploy/` in `.gitignore` is fine). A project AppHost gets its patched copy in the work folder instead, so nothing is written into the source.
+When a profile uses an existing or new registry, environment or pull identity, a **file-based C# or TypeScript AppHost** gets a temporary `.ads-deploy` folder next to its entry file, holding a patched copy (`.ads-deploy/apphost.cs`, `.ads-deploy/apphost.mts`) whose first line says it was written by Aspire Deploy. It is removed after the deploy, and after a crash by the next deploy, scan or app start. Do not commit it (`*.ads-deploy*` / `.ads-deploy/` in `.gitignore` is fine). A project AppHost gets its patched copy in the work folder instead, so nothing is written into the source.
 
 ## Shared code
 
@@ -170,9 +171,9 @@ Run this before a release. Rows marked **(Azure)** create real resources; delete
 | # | Check | Expected |
 |---|---|---|
 | 1 | Setup, general checks | Each tool shows Pass, Warn or Fail with a fix. |
-| 2 | Discover this repository's own folder | AppHost 13.6.3, and a "no Azure compute environment" warning. |
-| 3 | New profile from this repository | Refused with result code 4 and the line to add. |
-| 4 | Discover an `aspire-starter` app that has `AddAzureContainerAppEnvironment` | Its parameters and resources are listed. |
+| 2 | New profile, this repository's folder, no name, **Scan** | The AppHost summary shows 13.6.3, a refusal callout says there is no Azure compute environment, and no build starts. |
+| 3 | New profile from this repository with a name, **Scan** | The same refusal with the line to add; nothing is built. |
+| 4 | New profile, `aspire-starter` folder that has `AddAzureContainerAppEnvironment`, name typed, **Scan** | One run scans and builds. **AppHost details** lists parameters and resources, and Copy JSON copies. |
 | 5 | New profile for that app, then **Dry run** | The confirmation names the tenant, subscription and resource group; the steps are listed; no secret appears in the log. |
 | 6 | Start a dry run, open Settings, come back | The log re-attaches. |
 | 7 | Start `/debug/runs` → ping, close the window | Asks first; after "Stop and close", no `ping` process is left. |
@@ -185,11 +186,11 @@ Run this before a release. Rows marked **(Azure)** create real resources; delete
 | 14 | With no AI settings, visit every page | No AI Help button anywhere. |
 | 15 | Settings → AI assistant: save, test and make active each provider you have a key for; switch between them | Test succeeds; each keeps its values; buttons appear after Save without a restart. |
 | 16 | Change a saved Foundry or Azure OpenAI endpoint without typing the key | Test, model list and Save are refused with "Type the API key again". |
-| 17 | Fail a Discover (for example the NU1605 package downgrade), click **AI Help** on the banner, ask "How do I fix it?" | The panel opens beside the page; the reply streams; it names the `.csproj` and the package version. |
+| 17 | Fail a build in New profile (for example the NU1605 package downgrade), click **AI Help** on the banner, ask "How do I fix it?" | The panel opens beside the page; the reply streams; it names the `.csproj` and the package version. |
 | 18 | Start a long run, open AI Help, ask something | The log keeps streaming beside the panel; Cancel works; the window never freezes. |
 | 19 | In the panel: Enter, Shift+Enter, Stop, a code block's Copy, Escape, Tab | Sends; new line; stops with "(stopped)"; copies; closes; Tab stays usable. |
-| 20 | Open AI Help, then start a GitHub discover that asks for trust | The trust dialog takes focus over the panel. |
-| 21 | AI Help on a failing Setup row, a Discover warning, an error callout and the log toolbar | Each opens with the right title; **Context sent** shows no profile secret, GitHub token or AI key (search for each value). |
+| 20 | Open AI Help, then start a deploy of a GitHub profile whose branch moved | The trust dialog takes focus over the panel. |
+| 21 | AI Help on a failing Setup row, a scan warning in New profile, an error callout and the log toolbar | Each opens with the right title ("New profile" for the scan warning); **Context sent** shows no profile secret, GitHub token or AI key (search for each value). |
 | 22 | With Anthropic or Google AI active | Chat works; the panel says file tools are not available. |
 | 23 | Profile page: registry and environment sections, each in **Let Aspire create**, **Use existing** and **Create new** | Lists load (and refresh); a typed name is checked after a short pause; an environment in another region shows **Other region** and cannot be picked; the pull-identity section is disabled until the registry is Use existing; `existing-workspace` shows a workspace picker. |
 | 24 | Profile page with `az` signed out | Each section shows the error with **Retry** and a box to type the name. |
@@ -198,6 +199,17 @@ Run this before a release. Rows marked **(Azure)** create real resources; delete
 | 27 | AI Help from a plain error callout: "How do I use an existing registry?" | The panel shows "Read the guide: 2. Choose Azure resources" and the reply follows the guide. |
 | 28 | **(Azure)** Starter AppHost with an existing registry and a **Create new** environment | The confirmation lists the create and each app as new; deploy succeeds; the profile page then shows the environment as **Use existing**. |
 | 29 | **(Azure)** Deploy it again | Every app shows **update**; nothing is created; `git status` in the source folder is clean. |
+| 30 | New profile, public GitHub repo, **Scan** | No dialog. The summary shows the SHA, and **Trust and build** is disabled until a name is typed. |
+| 31 | Push a commit to the branch between **Scan** and **Trust and build** | The log names the scanned SHA as the one built. The saved profile's `Ref` is the branch. |
+| 32 | Navigate to Settings during a scan, a build and after a failed build, then come back | The page shows the same state, including the summary during and after a failed build. |
+| 33 | Change the location after a scan | The summary and the build button disappear. |
+| 34 | `az logout`, open New profile, build, reach Destination | The subscription error shows with **Retry** and **Sign in to Azure**. Sign-in opens the browser, and the subscriptions load afterwards. |
+| 35 | Sign in, then **Cancel** before finishing in the browser | The run stops, and no `az` process is left. |
+| 36 | Sign in with **Use a device code** | The code line appears in the log, and signing in on another device completes it. |
+| 37 | Uninstall or rename `az`, open New profile | The error shows with no sign-in button. |
+| 38 | **(Azure)** On a second machine (or after deleting `~/.aspire/deployments`), adopt the starter deployment with **Update an existing deployment** and deploy | The candidate shows all apps found and origin aspire deploy. The preview shows every app as **Updates existing**. The deploy succeeds, and the `az resource list -g <rg>` count is unchanged. |
+| 39 | **(Azure)** Adopt, then delete the group in the portal, then deploy | The deploy fails with resource group not found, and no group is created. |
+| 40 | Visit `/discover` | The NotFound page shows. Nav has no Discover tab, and Home shows three steps. |
 | 30 | **(Azure)** Existing registry plus an existing identity with `AcrPull` | Deploy succeeds; the registry's access control shows no new role assignment. |
 | 31 | **(Azure)** New environment with logs to an existing workspace | Logs arrive in that workspace's `ContainerAppConsoleLogs` table. |
 | 32 | **(Azure)** File-based C# and TypeScript AppHosts with an existing environment and registry; also kill the app mid-deploy and restart it | Deploy succeeds; no `.ads-deploy` folder remains afterwards. |

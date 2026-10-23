@@ -641,17 +641,17 @@ Each task is one PR.
   - (c) Capture `az group list` and `az containerapp list` fixtures. Record the exact `tags` keys on the group from (b), the `location` field name, and the environment name Aspire chose. Replace IDs and names with placeholders.
   - Record results in §15.
   - **Done when** §15 has the results and the fixtures are committed under `Fixtures/az/`. If (a) fails, switch D6 to R1's fallback before T6. If (b) shows new resources, stop and revisit D8 with the owner.
-- [ ] **T1 Pinned, trusted SHA in the pipeline.** §6.1 and its three unit tests. **Done when** the tests pass and the existing trust tests ([SourceAndToolTests.cs:205-243](../AspireDeployService.Tests/SourceAndToolTests.cs#L205)) still pass.
-- [ ] **T2 Extract `AppHostSummary` and `DiscoveryDetails`.** Move the markup out of Discover.razor and make Discover.razor use the two components (no visible change yet). **Done when** the Discover page looks the same as before in light and dark themes.
-- [ ] **T3 Wizard runs.** §6.2 records, the three run kinds, the tag restore, the page rules, and removing `ListSubscriptionsAsync` from the run (D7). Keep the current markup, adding only the build buttons. **Done when** the first six F1 manual checks pass.
-- [ ] **T4 Wizard UI.** Summary, details panel, refusal callouts, and the new stepper and `StepClass`. **Done when** each §6.2 table row renders as described, in light and dark themes.
-- [ ] **T5 Remove the Discover page.** Delete Discover.razor. Update NavMenu, Home (three steps), and the comments in SourcePicker, OutcomeBanner and SiblingOverlay. **Done when** the `/discover` check passes and `grep -rn "discover:"` in `AspireDeployService/` finds nothing.
-- [ ] **T6 Sign-in service.** The `AzCli` environment parameter, `AzureSignInService`, `InvalidateAll` (and `SpyAccount`), the `Permissions` category on the subscription errors and in `Require` (D15), DI registration, and the unit tests. **Done when** the seven sign-in and category tests pass.
-- [ ] **T7 Sign-in button.** `AzureSignInButton` in `AzureDestinationEditor`, used by both the wizard and the edit page. **Done when** the four sign-in manual checks pass on the wizard and on the profile edit page.
-- [ ] **T8 Tags, region and the locator.** §6.4 parsing and `DeploymentLocator`, adapting `<bdw>`'s `GroupCandidates` and copying its ID helpers and test shapes (§4.1, D16). **Done when** all the locator and parser tests pass, and the file headers name the `<bdw>` source.
-- [ ] **T9 Finder and ApplyCandidate.** The editor segment, `ExistingDeploymentFinder`, and `ApplyCandidate` (D14). **Done when**, with a test subscription that has two groups holding same-name apps, **Find** lists both, **Use this** fills the fields and the preview, switching back restores `rg-<name>`, and changing the subscription clears the table.
-- [ ] **T10 Update-mode parameters.** §6.6 through `AdoptModeChanged`. **Done when** a starter with a generated database password shows it in update mode and not in new mode, and a typed value is saved as a secret. Then run the two **(Azure)** adopt checks.
-- [ ] **T11 Docs.** The Guide page, `docs/User-Guide.md`, and the README quick start and checklist (§10). **Done when** both guides describe Scan, Trust and build, Sign in and Update an existing deployment, and no doc outside `docs/*-Plan.md` and `docs/stitch-ui-prompt.md` mentions the Discover page.
+- [x] **T1 Pinned, trusted SHA in the pipeline.** §6.1 and its three unit tests. **Done when** the tests pass and the existing trust tests ([SourceAndToolTests.cs:205-243](../AspireDeployService.Tests/SourceAndToolTests.cs#L205)) still pass.
+- [x] **T2 Extract `AppHostSummary` and `DiscoveryDetails`.** Move the markup out of Discover.razor and make Discover.razor use the two components (no visible change yet). **Done when** the Discover page looks the same as before in light and dark themes.
+- [x] **T3 Wizard runs.** §6.2 records, the three run kinds, the tag restore, the page rules, and removing `ListSubscriptionsAsync` from the run (D7). Keep the current markup, adding only the build buttons. **Done when** the first six F1 manual checks pass.
+- [x] **T4 Wizard UI.** Summary, details panel, refusal callouts, and the new stepper and `StepClass`. **Done when** each §6.2 table row renders as described, in light and dark themes.
+- [x] **T5 Remove the Discover page.** Delete Discover.razor. Update NavMenu, Home (three steps), and the comments in SourcePicker, OutcomeBanner and SiblingOverlay. **Done when** the `/discover` check passes and `grep -rn "discover:"` in `AspireDeployService/` finds nothing.
+- [x] **T6 Sign-in service.** The `AzCli` environment parameter, `AzureSignInService`, `InvalidateAll` (and `SpyAccount`), the `Permissions` category on the subscription errors and in `Require` (D15), DI registration, and the unit tests. **Done when** the seven sign-in and category tests pass.
+- [x] **T7 Sign-in button.** `AzureSignInButton` in `AzureDestinationEditor`, used by both the wizard and the edit page. **Done when** the four sign-in manual checks pass on the wizard and on the profile edit page.
+- [x] **T8 Tags, region and the locator.** §6.4 parsing and `DeploymentLocator`, adapting `<bdw>`'s `GroupCandidates` and copying its ID helpers and test shapes (§4.1, D16). **Done when** all the locator and parser tests pass, and the file headers name the `<bdw>` source.
+- [x] **T9 Finder and ApplyCandidate.** The editor segment, `ExistingDeploymentFinder`, and `ApplyCandidate` (D14). **Done when**, with a test subscription that has two groups holding same-name apps, **Find** lists both, **Use this** fills the fields and the preview, switching back restores `rg-<name>`, and changing the subscription clears the table.
+- [x] **T10 Update-mode parameters.** §6.6 through `AdoptModeChanged`. **Done when** a starter with a generated database password shows it in update mode and not in new mode, and a typed value is saved as a secret. Then run the two **(Azure)** adopt checks.
+- [x] **T11 Docs.** The Guide page, `docs/User-Guide.md`, and the README quick start and checklist (§10). **Done when** both guides describe Scan, Trust and build, Sign in and Update an existing deployment, and no doc outside `docs/*-Plan.md` and `docs/stitch-ui-prompt.md` mentions the Discover page.
 
 ## 12. Risks and Mitigations
 
@@ -700,4 +700,4 @@ Each task is one PR.
 | Resource group tags written by `aspire deploy` | _pending_ |
 | `location` field name in `az containerapp list` | _pending_ |
 | Environment name Aspire chose for `env` | _pending_ |
-| Fixtures captured | _pending_ |
+| Fixtures captured | _pending_. `group-list-tags.json`, `containerapp-list-located.json` and `login.json` are hand-written with placeholders in the shapes §6.4 assumes; replace them with captured output. |

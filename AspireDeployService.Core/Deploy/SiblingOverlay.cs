@@ -45,7 +45,7 @@ public static class SiblingOverlay
 
     /// <summary>
     /// Deletes every <c>.ads-deploy</c> folder under <paramref name="root"/> that <see cref="IsOurs"/>. Called at the start
-    /// of each deploy and each Discover, and when the app starts. Returns the deleted folders for the log.
+    /// of each deploy and each scan, and when the app starts. Returns the deleted folders for the log.
     /// </summary>
     public static IReadOnlyList<string> CleanupLeftovers(string root)
     {

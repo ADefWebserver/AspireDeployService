@@ -1,0 +1,177 @@
+@using AspireDeployService.Core.Azure
+@implements IDisposable
+@inject RunCoordinator Runs
+@inject IAzureAccountService Azure
+
+@*
+    Wizard plan F2b, §6.5: finds resource groups that already hold this AppHost's container apps, in the chosen
+    subscription, and offers each as a candidate. Nothing is applied without Use this. Behaviour and wording after
+    BlazorDataDeploymentWebsite's Import installation page, under a RunCoordinator run with a log and Cancel.
+*@
+<div class="ads-finder">
+    <div class="ads-row gap-2 flex-wrap">
+        <span class="fw-semibold">Find the existing deployment</span>
+        <span class="ads-muted ads-small">Looks for container apps named @string.Join(", ", ComputeNames) in the subscription below.</span>
+        <span class="ads-spacer"></span>
+        @if (_run is { IsRunning: true } running)
+        {
+            <span class="ads-spinner ads-spinner-sm"></span>
+            <button type="button" class="btn btn-sm btn-outline-danger" disabled="@running.CancelRequested" @onclick="running.Cancel">
+                <Icon Name="x" Size="13" /> @(running.CancelRequested ? "Stopping…" : "Cancel")
+            </button>
+        }
+        else
+        {
+            <button type="button" class="btn btn-sm btn-primary" disabled="@(!HasSubscription || ComputeNames.Count == 0)" @onclick="Find">
+                <Icon Name="search" Size="13" /> Find
+            </button>
+        }
+    </div>
+    @if (!HasSubscription)
+    {
+        <div class="form-text">Choose a subscription first.</div>
+    }
+
+    @if (Shown is { } run && run.Result is { Succeeded: false } failed)
+    {
+        @if (failed.Category == ErrorCategory.Canceled)
+        {
+            <div class="form-text">The search was canceled.</div>
+        }
+        else
+        {
+            <div class="form-text text-warning ads-pre-line">
+                @DeploymentLocator.DescribeFailure(failed.Message)
+                <button type="button" class="btn btn-link btn-sm p-0 align-baseline" @onclick="Find">Retry</button>
+            </div>
+            @if (failed.Category == ErrorCategory.Permissions)
+            {
+                <AzureSignInButton IdPrefix="@($"{IdPrefix}-find")" TenantHint="@Profile.Destination.TenantId" SignedIn="OnSignedInAsync" />
+            }
+        }
+    }
+    else if (Candidates is { } list)
+    {
+        @if (list.Count == 0)
+        {
+            <div class="form-text">
+                No container apps named @string.Join(", ", ComputeNames) were found in this subscription.
+                Choose another subscription, or pick the resource group by hand below.
+            </div>
+        }
+        else
+        {
+            <div class="ads-table-wrap mt-2">
+                <table class="ads-table">
+                    <thead><tr><th>Resource group</th><th>Region</th><th>Environment</th><th>Apps found</th><th>Origin</th><th>Warnings</th><th></th></tr></thead>
+                    <tbody>
+                        @foreach (var c in list)
+                        {
+                            var locked = LockReason(c);
+                            <tr>
+                                <td class="ads-cell-mono ads-cell-name">@c.ResourceGroup</td>
+                                <td class="ads-cell-mono">@c.Location</td>
+                                <td class="ads-cell-mono">@(c.EnvironmentName ?? "—")</td>
+                                <td title="@(c.Missing.Count == 0 ? "All apps found" : "Not found (will be created): " + string.Join(", ", c.Missing))">
+                                    @c.Found.Count of @(c.Found.Count + c.Missing.Count)
+                                </td>
+                                <td>@OriginText(c.Origin)</td>
+                                <td class="ads-small">
+                                    @foreach (var w in c.Warnings)
+                                    {
+                                        <div class="text-warning">@w</div>
+                                    }
+                                </td>
+                                <td>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" disabled="@(locked is not null)" title="@locked"
+                                            @onclick="() => Applied.InvokeAsync(c)">Use this</button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    }
+
+    @if (Shown is { } logRun && (logRun.IsRunning || logRun.Result is { Succeeded: false }))
+    {
+        <div class="mt-2">
+            <LogViewer Run="logRun" Page="New profile" StartCollapsed="true" />
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public DeployProfile Profile { get; set; } = default!;
+    [Parameter, EditorRequired] public DiscoveryResult Discovery { get; set; } = default!;
+    [Parameter] public string IdPrefix { get; set; } = "dest";
+
+    /// <summary>Use this was clicked; the editor applies the candidate.</summary>
+    [Parameter] public EventCallback<DeploymentCandidate> Applied { get; set; }
+
+    /// <summary>Raised after a sign-in started from here succeeds.</summary>
+    [Parameter] public EventCallback SignedIn { get; set; }
+
+    private ActiveRun? _run;
+
+    /// <summary>What a search looked for, so a scan or build that changes the compute names clears the table.</summary>
+    private sealed record LocateInput(string SubscriptionId, string ComputeKey);
+
+    private string? Sub => Guid.TryParse(Profile.Destination.SubscriptionId, out _) ? Profile.Destination.SubscriptionId : null;
+    private bool HasSubscription => Sub is not null;
+    private IReadOnlyList<string> ComputeNames => DeploymentLocator.ComputeNames(Discovery);
+    private string ComputeKey => string.Join(',', ComputeNames);
+    private static string Key(string sub) => "azure:locate:" + sub.ToLowerInvariant();
+
+    /// <summary>Only a run for the current subscription and compute names is shown.</summary>
+    private ActiveRun? Shown => _run?.Tag is LocateInput t && Sub is { } s
+        && string.Equals(t.SubscriptionId, s, StringComparison.OrdinalIgnoreCase) && t.ComputeKey == ComputeKey ? _run : null;
+
+    private IReadOnlyList<DeploymentCandidate>? Candidates => Shown?.ValueAs<IReadOnlyList<DeploymentCandidate>>();
+
+    protected override void OnInitialized() => Runs.RunsChanged += OnRunsChanged;
+
+    protected override void OnParametersSet()
+    {
+        // On creation and on each subscription change, re-attach to that subscription's search.
+        if (Sub is { } sub && _run?.Key != Key(sub))
+            _run = Runs.TryGet(Key(sub));
+    }
+
+    private void Find()
+    {
+        if (Sub is not { } sub)
+            return;
+        var discovery = Discovery;
+        _run = Runs.Start(Key(sub), "Find existing deployment",
+            (observer, ct) => DeploymentLocator.FindAsync(Azure, sub, discovery, observer, ct),
+            list => OperationResult.Ok(list.Count == 0 ? "No existing deployment found." : $"Found {list.Count} candidate resource groups."),
+            tag: new LocateInput(sub, ComputeKey));
+    }
+
+    private async Task OnSignedInAsync()
+    {
+        await SignedIn.InvokeAsync();
+        Find();
+    }
+
+    private string? LockReason(DeploymentCandidate c) => c.PinEnvironment && Discovery.AppHost.EnvironmentLocked
+        ? "The AppHost already chooses its own environment, so this deployment's environment cannot be used." : null;
+
+    private static string OriginText(DeploymentOrigin origin) => origin switch
+    {
+        DeploymentOrigin.AspireDeploy => "aspire deploy",
+        DeploymentOrigin.Azd => "azd",
+        _ => "unknown"
+    };
+
+    private void OnRunsChanged() => _ = InvokeAsync(() =>
+    {
+        if (Sub is { } sub)
+            _run = Runs.TryGet(Key(sub)) ?? _run;
+        StateHasChanged();
+    });
+
+    public void Dispose() => Runs.RunsChanged -= OnRunsChanged;
+}

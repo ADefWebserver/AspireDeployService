@@ -1,0 +1,24 @@
+[
+  {
+    "cloudName": "AzureCloud",
+    "homeTenantId": "00000000-0000-0000-0000-0000000000aa",
+    "id": "00000000-0000-0000-0000-000000000001",
+    "isDefault": true,
+    "managedByTenants": [],
+    "name": "<subscription>",
+    "state": "Enabled",
+    "tenantId": "00000000-0000-0000-0000-0000000000aa",
+    "user": { "name": "dev@contoso.example", "type": "user" }
+  },
+  {
+    "cloudName": "AzureCloud",
+    "homeTenantId": "00000000-0000-0000-0000-0000000000aa",
+    "id": "00000000-0000-0000-0000-000000000002",
+    "isDefault": false,
+    "managedByTenants": [],
+    "name": "<other-subscription>",
+    "state": "Enabled",
+    "tenantId": "00000000-0000-0000-0000-0000000000aa",
+    "user": { "name": "dev@contoso.example", "type": "user" }
+  }
+]

@@ -84,6 +84,25 @@ public class AzureAccountListTests : IDisposable
     }
 
     [Fact]
+    public void ParseResourceGroups_reads_tags()
+    {
+        var groups = AzureAccountService.ParseResourceGroups(Az("group-list-tags.json"));
+        Assert.Equal(["rg-azd", "rg-plain", "rg-starter"], groups.Select(g => g.Name));
+        Assert.Equal("dev", groups[0].Tags!["azd-env-name"]);
+        Assert.False(groups[0].Tags!.ContainsKey("count")); // string values only
+        Assert.Null(groups[1].Tags);
+        Assert.Equal("true", groups[2].Tags!["aspire"]);
+    }
+
+    [Fact]
+    public void ParseContainerApps_reads_location()
+    {
+        var apps = AzureAccountService.ParseContainerApps(Az("containerapp-list-located.json"));
+        Assert.Equal("East US 2", apps.Single(a => a.Name == "apiservice").Location);
+        Assert.Null(apps.Single(a => a.Name == "webfrontend").Location);
+    }
+
+    [Fact]
     public async Task Container_apps_in_a_missing_group_are_an_empty_list() =>
         Assert.Empty(await _service.ListContainerAppsAsync(Sub, "nope", NullRunObserver.Instance, CancellationToken.None));
 

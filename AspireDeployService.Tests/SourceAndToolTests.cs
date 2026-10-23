@@ -240,6 +240,46 @@ public class DiscoveryServiceTests : IDisposable
         Assert.Empty(_h.Interaction.Asked);
         Assert.Contains("\"configKey\": \"ConnectionStrings:db\"", full.ToJson());
     }
+
+    [Fact]
+    public async Task Static_scan_never_prompts_for_trust_on_github()
+    {
+        _h.ServeRepository();
+        var scan = await _h.Discovery().DiscoverAsync(new DiscoverRequest(GitHub, null, StaticOnly: true), _h.Observer, CancellationToken.None);
+        Assert.False(scan.ManifestRan);
+        Assert.Equal(Harness.Sha, scan.Source.CommitSha);
+        Assert.Empty(_h.Interaction.Asked);
+        Assert.False(File.Exists(TrustStore.FilePath(_h.WorkRoot)));
+    }
+
+    [Fact]
+    public async Task Trusted_sha_from_scan_records_trust_without_prompt()
+    {
+        _h.ServeRepository();
+        var pinned = GitHub with { Ref = Harness.Sha };
+        var result = await _h.Discovery().DiscoverAsync(
+            new DiscoverRequest(pinned, null, StaticOnly: false, TrustedCommitSha: Harness.Sha.ToUpperInvariant()),
+            _h.Observer, CancellationToken.None);
+        Assert.True(result.ManifestRan);
+        Assert.Empty(_h.Interaction.Asked);
+        Assert.True(new TrustStore().IsTrusted(_h.WorkRoot, "owner/repo", Harness.Sha));
+        Assert.Contains(_h.Runner.Specs, s => FakeProcessRunner.Is(s, "do", "publish-manifest"));
+    }
+
+    [Fact]
+    public async Task Different_sha_still_prompts()
+    {
+        _h.ServeRepository();
+        _h.Interaction = new FakeUserInteraction(answer: false);
+        var scanned = new string('a', 40);
+        var ex = await Assert.ThrowsAsync<DeployerException>(() => _h.Discovery().DiscoverAsync(
+            new DiscoverRequest(GitHub with { Ref = scanned }, null, StaticOnly: false, TrustedCommitSha: scanned),
+            _h.Observer, CancellationToken.None));
+        Assert.Equal(OutcomeCode.Declined, ex.Code);
+        Assert.Equal(7, (int)ex.Code);
+        Assert.Contains(Harness.Sha, Assert.Single(_h.Interaction.Asked).Message);
+        Assert.DoesNotContain(_h.Runner.Specs, s => FakeProcessRunner.Is(s, "do", "publish-manifest"));
+    }
 }
 
 public class DeployEnvironmentTests

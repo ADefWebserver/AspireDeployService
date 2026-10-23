@@ -49,12 +49,16 @@
 
         <section id="profile" class="ads-guide-section">
             <h2>1. Create a profile</h2>
-            <p><a href="profiles">Profiles</a> → <strong>New profile</strong> has three steps:</p>
+            <p><a href="profiles">Profiles</a> → <strong>New profile</strong> has four steps:</p>
             <ol>
-                <li><strong>Source</strong>: a local folder (used in place) or a GitHub repository. <strong>Discover</strong> finds the AppHost, its Aspire version, parameters and resources.</li>
-                <li><strong>Destination</strong>: subscription, tenant, region, resource group, then the container registry, Container Apps environment and ACR pull identity. The wizard shows which container apps will be new and which update an existing app.</li>
+                <li><strong>Source</strong>: a local folder (used in place) or a GitHub repository. <strong>Scan</strong> needs only the source: it reads files, builds and runs nothing, and shows the AppHost summary (path, kind, Aspire SDK, source with its commit, declared targets) and any warnings.</li>
+                <li><strong>Scan</strong>: type a profile name, then click <strong>Build</strong> (local folder) or <strong>Trust and build &lt;commit&gt;</strong> (GitHub). The build runs <code class="ads-code">aspire do publish-manifest</code> on exactly the commit the summary shows, even if the branch moved since. A local folder with a name is scanned and built in one click. <strong>AppHost details</strong> then lists the parameters and resources, with Copy JSON.</li>
+                <li><strong>Destination</strong>: subscription, tenant, region, resource group, then the container registry, Container Apps environment and ACR pull identity. The wizard shows which container apps will be new and which update an existing app. If <code class="ads-code">az</code> is not signed in, <strong>Sign in to Azure</strong> runs <code class="ads-code">az login</code> from the app (a browser opens; tick <strong>Use a device code</strong> where no browser can open, and set a tenant for a guest directory).</li>
                 <li><strong>Parameters</strong>: a value for each parameter without a default, or tick <strong>AppHost supplies it</strong>.</li>
             </ol>
+            <h3>Update an existing deployment</h3>
+            <p>To take over an AppHost that was already deployed (for example with <code class="ads-code">aspire deploy</code> from another machine), choose <strong>Update an existing deployment</strong> on the Destination step and click <strong>Find</strong>. The app lists the resource groups in the chosen subscription that hold container apps named like the AppHost's compute resources, with the apps found, the origin (<em>aspire deploy</em>, <em>azd</em> or unknown) and warnings. <strong>Use this</strong> fills the subscription, resource group and region and turns off resource group creation, so the first deploy updates those apps in place and never creates a new group. Where Aspire's names would not match (for example an azd deployment), the existing environment is also set to <strong>Use existing</strong>.</p>
+            <p>A new machine has none of the generated values (for example a database password), so Aspire would generate new ones. In update mode they are listed under <strong>Values from the existing deployment</strong>: copy them from <code class="ads-code">~/.aspire/deployments/&lt;hash&gt;/&lt;environment&gt;.json</code> on the machine that deployed it, or leave them empty to generate new values.</p>
         </section>
 
         <section id="azure-resources" class="ads-guide-section">
@@ -120,7 +124,7 @@
                 <li><strong>Project AppHost</strong>: the copy lives in the profile's work folder and is swapped in for the build of the AppHost project only. A normal build afterwards compiles your own file again.</li>
                 <li><strong>File-based C# and TypeScript AppHosts</strong>: a temporary <code class="ads-code">.ads-deploy</code> folder next to your AppHost holds a patched copy with the same name (for example <code class="ads-code">.ads-deploy/apphost.cs</code>) for the length of the deploy, and is removed afterwards.</li>
             </ul>
-            <p>The copy's first line says it was written by Aspire Deploy and is safe to delete. After a crash the folder is removed by the next deploy, the next Discover or the next app start; a copy without the marker line is never deleted. The folder shows in <code class="ads-code">git status</code> during a deploy: do not commit it.</p>
+            <p>The copy's first line says it was written by Aspire Deploy and is safe to delete. After a crash the folder is removed by the next deploy, the next scan or the next app start; a copy without the marker line is never deleted. The folder shows in <code class="ads-code">git status</code> during a deploy: do not commit it.</p>
         </section>
 
         <section id="deploy" class="ads-guide-section">

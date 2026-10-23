@@ -1,0 +1,20 @@
+[
+  {
+    "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-starter/providers/Microsoft.App/containerapps/apiservice",
+    "location": "East US 2",
+    "name": "apiservice",
+    "resourceGroup": "rg-starter",
+    "properties": {
+      "managedEnvironmentId": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-starter/providers/Microsoft.App/managedEnvironments/envabc123def4567",
+      "provisioningState": "Succeeded"
+    }
+  },
+  {
+    "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-starter/providers/Microsoft.App/containerapps/webfrontend",
+    "name": "webfrontend",
+    "resourceGroup": "rg-starter",
+    "properties": {
+      "managedEnvironmentId": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-starter/providers/Microsoft.App/managedEnvironments/envabc123def4567"
+    }
+  }
+]

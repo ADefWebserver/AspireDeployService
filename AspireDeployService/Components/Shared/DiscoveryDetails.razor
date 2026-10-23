@@ -1,0 +1,119 @@
+@*
+    The Parameters and Resources tables and Copy JSON, moved from the Discover page (wizard plan D4). The wizard shows
+    them after the build, collapsed by default.
+*@
+<div class="ads-card">
+    <div class="ads-card-header">
+        <button type="button" class="btn btn-link p-0 ads-row gap-2 text-reset text-decoration-none" aria-expanded="@_open" @onclick="() => _open = !_open">
+            <Icon Name="@(_open ? "chevron-down" : "chevron-right")" Size="16" />
+            <h2 class="mb-0">AppHost details</h2>
+        </button>
+        <span class="ads-spacer"></span>
+        <span class="ads-meta">@Result.Parameters.Count @(Result.Parameters.Count == 1 ? "parameter" : "parameters") · @Result.Resources.Count @(Result.Resources.Count == 1 ? "resource" : "resources")</span>
+    </div>
+    @if (_open)
+    {
+        <div class="ads-stack">
+            <div>
+                <div class="ads-row gap-2 mb-2">
+                    <Icon Name="key" Size="16" />
+                    <span class="fw-semibold">Parameters</span>
+                    <span class="ads-muted ads-small">Values the AppHost needs when it is provisioned.</span>
+                </div>
+                @if (Result.Parameters.Count == 0)
+                {
+                    <p class="ads-muted mb-0">None.</p>
+                }
+                else
+                {
+                    <div class="ads-table-wrap">
+                        <table class="ads-table">
+                            <thead><tr><th>Name</th><th>Secret</th><th>Default</th><th>Generated</th><th>Configuration key</th></tr></thead>
+                            <tbody>
+                                @foreach (var p in Result.Parameters)
+                                {
+                                    <tr>
+                                        <td class="ads-cell-mono ads-cell-name">@p.Name</td>
+                                        <td>@if (p.Secret) { <span class="ads-chip ads-chip-primary"><Icon Name="lock" Size="12" /> Yes</span> } else { <span class="ads-no">—</span> }</td>
+                                        <td>@YesNo(p.HasDefault)</td>
+                                        <td>@YesNo(p.Generated)</td>
+                                        <td class="ads-cell-mono">@p.ConfigKey</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </div>
+
+            <div>
+                <div class="ads-row gap-2 mb-2">
+                    <Icon Name="box" Size="16" />
+                    <span class="fw-semibold">Resources</span>
+                    <span class="ads-muted ads-small">What the manifest declares, and what each one needs.</span>
+                </div>
+                <div class="ads-table-wrap">
+                    <table class="ads-table">
+                        <thead><tr><th>Name</th><th>Type</th><th>Image or project</th><th>Azure</th><th>Needs container runtime</th></tr></thead>
+                        <tbody>
+                            @foreach (var r in Result.Resources)
+                            {
+                                <tr>
+                                    <td class="ads-cell-mono ads-cell-name"><span class="ads-row gap-2 flex-nowrap"><Icon Name="@ResourceIcon(r)" Size="15" Class="ads-subtle" /> @r.Name</span></td>
+                                    <td><span class="ads-chip">@r.Type</span></td>
+                                    <td class="ads-cell-mono ads-cell-wrap" style="color: var(--ads-primary-text)">@(r.Image ?? r.ProjectPath)</td>
+                                    <td>@YesNo(r.IsAzure)</td>
+                                    <td>@if (r.NeedsContainerRuntime) { <span class="ads-pill ads-pill-run ads-pill-nodot"><Icon Name="layers" Size="11" /> Yes</span> } else { <span class="ads-no">—</span> }</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="ads-row">
+                <span class="ads-meta">
+                    <span class="ads-yes"><Icon Name="check" Size="14" /></span>
+                    AppHost built and its manifest read.
+                </span>
+                <span class="ads-spacer"></span>
+                @if (_copied)
+                {
+                    <span class="ads-toast"><Icon Name="check" Size="13" /> Copied</span>
+                }
+                <button class="btn btn-outline-secondary" @onclick="CopyJsonAsync"><Icon Name="copy" Size="14" /> Copy JSON</button>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public DiscoveryResult Result { get; set; } = default!;
+
+    [Parameter] public bool StartOpen { get; set; }
+
+    private bool _open;
+    private bool _copied;
+
+    protected override void OnInitialized() => _open = StartOpen;
+
+    private async Task CopyJsonAsync()
+    {
+        await Clipboard.Default.SetTextAsync(Result.ToJson());
+        _copied = true;
+    }
+
+    private static RenderFragment YesNo(bool b) => b
+        ? @<span class="ads-yes"><Icon Name="check-circle" Size="14" /> Yes</span>
+        : @<span class="ads-no">—</span>;
+
+    private static string ResourceIcon(DiscoveredResource r) => r switch
+    {
+        { ProjectPath: not null } => "terminal",
+        _ when r.Type.Contains("postgres", StringComparison.OrdinalIgnoreCase) || r.Type.Contains("sql", StringComparison.OrdinalIgnoreCase)
+            || r.Type.Contains("redis", StringComparison.OrdinalIgnoreCase) || r.Type.Contains("cosmos", StringComparison.OrdinalIgnoreCase) => "database",
+        { IsAzure: true } => "cloud",
+        { Image: not null } => "layers",
+        _ => "box"
+    };
+}

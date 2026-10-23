@@ -1,0 +1,29 @@
+[
+  {
+    "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-starter",
+    "location": "eastus2",
+    "managedBy": null,
+    "name": "rg-starter",
+    "properties": { "provisioningState": "Succeeded" },
+    "tags": { "aspire": "true" },
+    "type": "Microsoft.Resources/resourceGroups"
+  },
+  {
+    "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-azd",
+    "location": "westeurope",
+    "managedBy": null,
+    "name": "rg-azd",
+    "properties": { "provisioningState": "Succeeded" },
+    "tags": { "azd-env-name": "dev", "count": 3 },
+    "type": "Microsoft.Resources/resourceGroups"
+  },
+  {
+    "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-plain",
+    "location": "westus",
+    "managedBy": null,
+    "name": "rg-plain",
+    "properties": { "provisioningState": "Succeeded" },
+    "tags": null,
+    "type": "Microsoft.Resources/resourceGroups"
+  }
+]

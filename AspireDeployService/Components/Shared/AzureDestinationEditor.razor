@@ -5,8 +5,24 @@
     The Destination card's fields as pickers, read from the developer's own az login (modelled on
     BlazorDataDeploymentWebsite's installation wizard): subscription → tenant, regions and resource groups cascade from
     it; a resource group is either an existing one or a new name. Every list falls back to typing when az cannot list it.
+    In the wizard (AllowAdopt), the destination can also be an existing deployment of the same AppHost (wizard plan F2b, D14).
 *@
 <div class="ads-form-grid">
+    @if (AllowAdopt && Discovery is { } discovery)
+    {
+        <div class="ads-span-12">
+            <span class="ads-seg" role="radiogroup" aria-label="Deployment">
+                <button type="button" role="radio" aria-checked="@(!_adopt)" class="@(!_adopt ? "is-on" : "")" @onclick="() => SetAdoptAsync(false)">New deployment</button>
+                <button type="button" role="radio" aria-checked="@_adopt" class="@(_adopt ? "is-on" : "")" @onclick="() => SetAdoptAsync(true)">Update an existing deployment</button>
+            </span>
+        </div>
+        @if (_adopt)
+        {
+            <div class="ads-span-12">
+                <ExistingDeploymentFinder Profile="Profile" Discovery="discovery" IdPrefix="@IdPrefix" Applied="ApplyCandidateAsync" SignedIn="RefreshAllAsync" />
+            </div>
+        }
+    }
     <div class="ads-span-8">
         <label class="form-label" for="@($"{IdPrefix}-sub")">
             Subscription
@@ -43,6 +59,11 @@
         else if (!_subsLoading && _subs.Count > 0 && Guid.TryParse(D.SubscriptionId, out _) && CurrentSub is null)
         {
             <div class="form-text text-warning">Your az login does not see this subscription.</div>
+        }
+        @* Wizard plan D15: only a sign-in failure offers sign-in; "az is not installed" does not. *@
+        @if (SignInNeeded)
+        {
+            <AzureSignInButton IdPrefix="@IdPrefix" TenantHint="@D.TenantId" SignedIn="RefreshAllAsync" />
         }
     </div>
     <div class="ads-span-4">
@@ -227,6 +248,12 @@
     /// <summary>Raised when a resource section changes (the wizard refreshes its container apps preview).</summary>
     [Parameter] public EventCallback ResourcesChanged { get; set; }
 
+    /// <summary>Wizard plan D14: offer New deployment / Update an existing deployment (needs <see cref="Discovery"/>).</summary>
+    [Parameter] public bool AllowAdopt { get; set; }
+
+    /// <summary>Raised with true when Update an existing deployment is chosen, false when switched back (wizard plan §6.6).</summary>
+    [Parameter] public EventCallback<bool> AdoptModeChanged { get; set; }
+
     private bool DeployedBefore => Profile.LastDeployedAspireVersion is not null;
 
     private bool ShowResourceSections => Discovery is null || Discovery.AppHost.DeclaredTargets.Contains(DeploymentTarget.AzureContainerApps);
@@ -273,12 +300,17 @@
     private IReadOnlyList<AzureResourceGroup> _groups = [];
     private bool _subsLoading, _locLoading, _groupsLoading, _groupsLoaded;
     private string? _subsError, _locError, _groupsError;
+    private ErrorCategory _subsCategory, _locCategory, _groupsCategory;
+    private bool _adopt;
     private bool _typeSub;
     private bool _newGroup;
     private string? _loadedFor;
 
     private ProfileDestination D => Profile.Destination;
     private bool Busy => _subsLoading || _locLoading || _groupsLoading;
+    private bool SignInNeeded => (_subsError is not null && _subsCategory == ErrorCategory.Permissions)
+        || (_locError is not null && _locCategory == ErrorCategory.Permissions)
+        || (_groupsError is not null && _groupsCategory == ErrorCategory.Permissions);
     private AzureSubscription? CurrentSub => _subs.FirstOrDefault(s => string.Equals(s.Id, D.SubscriptionId, StringComparison.OrdinalIgnoreCase));
     private AzureLocation? CurrentLocation => _locations.FirstOrDefault(l => l.Name == D.Location);
     private AzureResourceGroup? CurrentGroup => _groups.FirstOrDefault(g => string.Equals(g.Name, D.ResourceGroup, StringComparison.OrdinalIgnoreCase));
@@ -318,7 +350,7 @@
     private async Task LoadSubscriptionsAsync(bool refresh)
     {
         _subsLoading = true;
-        _subsError = null;
+        (_subsError, _subsCategory) = (null, ErrorCategory.None);
         StateHasChanged();
         try
         {
@@ -331,7 +363,7 @@
         }
         catch (DeployerException ex)
         {
-            (_subs, _subsError) = ([], ex.Message);
+            (_subs, _subsError, _subsCategory) = ([], ex.Message, ex.Category);
         }
         finally
         {
@@ -371,7 +403,7 @@
         }
         catch (DeployerException ex)
         {
-            (_locations, _locError) = ([], ex.Message);
+            (_locations, _locError, _locCategory) = ([], ex.Message, ex.Category);
         }
         try
         {
@@ -384,7 +416,7 @@
         }
         catch (DeployerException ex)
         {
-            (_groups, _groupsLoaded, _groupsError, _newGroup) = ([], false, ex.Message, true);
+            (_groups, _groupsLoaded, _groupsError, _groupsCategory, _newGroup) = ([], false, ex.Message, ex.Category, true);
         }
         if (_loadedFor == sub)
             (_locLoading, _groupsLoading) = (false, false);
@@ -412,6 +444,46 @@
         // Like the reference wizard: an empty region takes the group's region.
         if (string.IsNullOrEmpty(D.Location) && CurrentGroup is { } g)
             D.Location = g.Location;
+    }
+
+    private async Task SetAdoptAsync(bool adopt)
+    {
+        if (_adopt == adopt)
+            return;
+        _adopt = adopt;
+        if (!adopt)
+        {
+            // Back to a new deployment: Aspire's defaults in rg-<name>.
+            D.ResourceGroup = Suggestion;
+            D.AllowResourceGroupCreation = null;
+            (D.ContainerRegistry, D.ContainerAppEnvironment, D.AcrPullIdentity) = (null, null, null);
+            _newGroup = true;
+            await ResourcesChanged.InvokeAsync();
+        }
+        await AdoptModeChanged.InvokeAsync(adopt);
+    }
+
+    /// <summary>
+    /// Wizard plan §6.5: point the profile at an existing deployment. Aspire's own names then update it in place (D8);
+    /// the environment is pinned only where those names would not match (D10).
+    /// </summary>
+    private async Task ApplyCandidateAsync(DeploymentCandidate c)
+    {
+        D.SubscriptionId = c.SubscriptionId;
+        if (CurrentSub is { } s)
+            D.TenantId = s.TenantId;
+        D.ResourceGroup = c.ResourceGroup;
+        if (c.Location.Length > 0)
+            D.Location = c.Location;
+        D.AllowResourceGroupCreation = false;
+        (D.ContainerRegistry, D.AcrPullIdentity) = (null, null);
+        D.ContainerAppEnvironment = c.PinEnvironment
+            ? new ResourceChoice { Mode = ResourceMode.Existing, Name = c.EnvironmentName, ResourceGroup = c.EnvironmentResourceGroup }
+            : null;
+        _newGroup = false;
+        _loadedFor = null;
+        await LoadForSubscriptionAsync(refresh: true);
+        await ResourcesChanged.InvokeAsync();
     }
 
     private static string? NullIfEmpty(string? value) => string.IsNullOrWhiteSpace(value) ? null : value;

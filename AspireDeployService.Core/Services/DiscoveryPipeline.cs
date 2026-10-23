@@ -26,7 +26,7 @@ public sealed record PipelineResult(SourceIdentity Source, ScanResult Scan, Aspi
 }
 
 /// <summary>
-/// The steps Discover, Setup and Deploy share (flows §7.1 and SP §7.3): materialize the source, scan it,
+/// The steps the New profile wizard, Setup and Deploy share (flows §7.1 and SP §7.3): materialize the source, scan it,
 /// ask for trust before running GitHub code, ensure the Aspire CLI, and run the manifest. The caller holds the
 /// work key lock and owns the <see cref="RunContext"/>.
 /// </summary>
@@ -44,7 +44,8 @@ public sealed class DiscoveryPipeline(
 
     public async Task<PipelineResult> RunAsync(
         SourceSpec source, string? profileGitHubToken, string environmentName, AspireDeployOptions options,
-        string workKeyDir, RunContext run, Stop stop, bool assumeTrusted, CancellationToken ct)
+        string workKeyDir, RunContext run, Stop stop, bool assumeTrusted, CancellationToken ct,
+        string? trustedCommitSha = null)
     {
         ISourceProvider provider = source.Kind switch
         {
@@ -71,11 +72,21 @@ public sealed class DiscoveryPipeline(
         if (source.Kind == SourceKind.GitHub && !assumeTrusted && identity.CommitSha is { } sha
             && !trust.IsTrusted(options.WorkRoot, source.Location, sha))
         {
-            var ok = await interaction.ConfirmAsync("Run code from GitHub?",
-                $"This builds and runs code from {source.Location} at {sha} on this machine. Continue?", "Trust and continue", ct);
-            ct.ThrowIfCancellationRequested();
-            if (!ok)
-                throw new DeployerException(OutcomeCode.Declined, "Stopped: the commit was not trusted, so nothing was built or run.");
+            // Wizard plan D3: the user already agreed to this exact commit on the scan result.
+            if (trustedCommitSha is not null && string.Equals(trustedCommitSha, sha, StringComparison.OrdinalIgnoreCase))
+            {
+                await run.Log.InfoAsync($"Trusted commit {Short(sha)} from the scan result.", ct);
+            }
+            else
+            {
+                if (trustedCommitSha is not null)
+                    await run.Log.InfoAsync($"GitHub returned {Short(sha)} instead of the scanned {Short(trustedCommitSha)}.", ct);
+                var ok = await interaction.ConfirmAsync("Run code from GitHub?",
+                    $"This builds and runs code from {source.Location} at {sha} on this machine. Continue?", "Trust and continue", ct);
+                ct.ThrowIfCancellationRequested();
+                if (!ok)
+                    throw new DeployerException(OutcomeCode.Declined, "Stopped: the commit was not trusted, so nothing was built or run.");
+            }
             await trust.AddAsync(options.WorkRoot, source.Location, sha, ct);
         }
 
@@ -91,6 +102,8 @@ public sealed class DiscoveryPipeline(
         }
         return new PipelineResult(identity, scan, cli, manifest);
     }
+
+    private static string Short(string sha) => sha.Length > 7 ? sha[..7] : sha;
 
     internal static TimeSpan AppHostLockTimeout { get; set; } = TimeSpan.FromSeconds(10);
 

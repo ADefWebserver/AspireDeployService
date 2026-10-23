@@ -37,6 +37,7 @@ public static class ServiceCollectionExtensions
         services.TryAddSingleton<PrerequisiteChecker>();
         services.TryAddSingleton<DiscoveryPipeline>();
         services.TryAddSingleton<IAzureAccountService, AzureAccountService>();
+        services.TryAddSingleton<IAzureSignInService, AzureSignInService>();
         services.TryAddSingleton<IAzureResourceProvisioner, AzureResourceProvisioner>();
         services.TryAddSingleton<IDiscoveryService, DiscoveryService>();
         services.TryAddSingleton<ISetupService, SetupService>();

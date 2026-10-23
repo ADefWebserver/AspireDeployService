@@ -1,0 +1,122 @@
+@using AspireDeployService.Core.Azure
+@implements IDisposable
+@inject RunCoordinator Runs
+@inject IAzureSignInService SignIn
+
+@*
+    Wizard plan F2, §6.3: runs az login from the app, in its own run with a log and Cancel. az opens the browser (or prints
+    a device code into the log) and keeps its own token cache; the app passes no secret and reads none.
+*@
+<div class="ads-signin mt-2">
+    <div class="ads-row gap-2 flex-wrap">
+        @if (_run is { IsRunning: true } running)
+        {
+            <span class="ads-spinner ads-spinner-sm"></span>
+            <span class="ads-small">Waiting for the sign-in to finish@(UsesDeviceCode(running) ? "; the code is in the log below" : " in the browser")…</span>
+            <button type="button" class="btn btn-sm btn-outline-danger" disabled="@running.CancelRequested" @onclick="running.Cancel">
+                <Icon Name="x" Size="13" /> @(running.CancelRequested ? "Stopping…" : "Cancel")
+            </button>
+        }
+        else
+        {
+            <button type="button" class="btn btn-sm btn-primary" @onclick="Start"><Icon Name="log-in" Size="13" /> @(_deviceCode ? "Sign in with a code" : "Sign in to Azure")</button>
+            <button type="button" class="btn btn-link btn-sm p-0" aria-expanded="@_options" @onclick="() => _options = !_options">Options</button>
+        }
+    </div>
+
+    @if (_options && _run is not { IsRunning: true })
+    {
+        <div class="ads-form-grid mt-2">
+            <div class="ads-span-8">
+                <label class="form-label" for="@($"{IdPrefix}-tenant-signin")">Tenant <span class="ads-label-hint">optional</span></label>
+                <input id="@($"{IdPrefix}-tenant-signin")" class="form-control ads-mono-input" placeholder="tenant ID or contoso.onmicrosoft.com" @bind="_tenant" />
+                <div class="form-text">For a guest directory or another organization. In the Azure portal: Microsoft Entra ID → Overview → Tenant ID.</div>
+            </div>
+            <div class="ads-span-4 d-flex align-items-center">
+                <div class="form-check mb-0">
+                    <input id="@($"{IdPrefix}-devicecode")" class="form-check-input" type="checkbox" @bind="_deviceCode" />
+                    <label class="form-check-label" for="@($"{IdPrefix}-devicecode")">Use a device code</label>
+                </div>
+            </div>
+        </div>
+    }
+
+    @if (_run?.Result is { } result)
+    {
+        @if (result.Succeeded)
+        {
+            <div class="form-text text-success">@result.Message</div>
+        }
+        else if (result.Category == ErrorCategory.Canceled)
+        {
+            <div class="form-text">Sign-in was canceled.</div>
+        }
+        else
+        {
+            <div class="form-text text-warning ads-pre-line">@result.Message</div>
+        }
+    }
+
+    @if (_run is { } run && (run.IsRunning || run.Result is { Succeeded: false }))
+    {
+        <div class="mt-2">
+            <LogViewer Run="run" Page="Sign in to Azure" />
+        </div>
+    }
+</div>
+
+@code {
+    public const string RunKey = "azure:signin";
+
+    [Parameter] public string IdPrefix { get; set; } = "dest";
+
+    /// <summary>Prefills the tenant box (the profile's tenant).</summary>
+    [Parameter] public string? TenantHint { get; set; }
+
+    /// <summary>Raised once when a sign-in finishes successfully; the editor reloads its lists.</summary>
+    [Parameter] public EventCallback SignedIn { get; set; }
+
+    private ActiveRun? _run;
+    private ActiveRun? _notified;
+    private string? _tenant;
+    private bool _deviceCode;
+    private bool _options;
+
+    protected override void OnInitialized()
+    {
+        Runs.RunsChanged += OnRunsChanged;
+        // A second click or a revisit shows the same run.
+        _run = Runs.TryGet(RunKey);
+        _notified = _run is { IsRunning: false } ? _run : null;
+        if (_run?.Tag is SignInInput input)
+            (_tenant, _deviceCode) = (input.Tenant, input.DeviceCode);
+        else
+            _tenant = TenantHint;
+    }
+
+    private sealed record SignInInput(string? Tenant, bool DeviceCode);
+
+    private void Start()
+    {
+        var (tenant, deviceCode) = (string.IsNullOrWhiteSpace(_tenant) ? null : _tenant.Trim(), _deviceCode);
+        _run = Runs.Start(RunKey, "Azure sign-in",
+            (observer, ct) => SignIn.SignInAsync(tenant, deviceCode, observer, ct),
+            r => OperationResult.Ok(r.Account is { } name ? $"Signed in as {name}." : "Signed in."),
+            tag: new SignInInput(tenant, deviceCode));
+    }
+
+    private static bool UsesDeviceCode(ActiveRun run) => run.Tag is SignInInput { DeviceCode: true };
+
+    private void OnRunsChanged() => _ = InvokeAsync(async () =>
+    {
+        _run = Runs.TryGet(RunKey) ?? _run;
+        if (_run is { IsRunning: false, Result.Succeeded: true } done && !ReferenceEquals(done, _notified))
+        {
+            _notified = done;
+            await SignedIn.InvokeAsync();
+        }
+        StateHasChanged();
+    });
+
+    public void Dispose() => Runs.RunsChanged -= OnRunsChanged;
+}

@@ -497,6 +497,7 @@ public class AzureResourceProvisionerTests : IDisposable
     {
         public List<string> Invalidated { get; } = [];
         public void Invalidate(string subscriptionId) => Invalidated.Add(subscriptionId);
+        public void InvalidateAll() => Invalidated.Add("*");
         public Task<IReadOnlyList<AzureSubscription>> ListSubscriptionsAsync(IRunObserver o, CancellationToken ct, bool r = false) => throw new NotSupportedException();
         public Task<IReadOnlyList<AzureLocation>> ListLocationsAsync(string s, IRunObserver o, CancellationToken ct, bool r = false) => throw new NotSupportedException();
         public Task<IReadOnlyList<AzureResourceGroup>> ListResourceGroupsAsync(string s, IRunObserver o, CancellationToken ct, bool r = false) => throw new NotSupportedException();

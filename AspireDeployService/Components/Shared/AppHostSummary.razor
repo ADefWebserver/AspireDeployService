@@ -1,0 +1,53 @@
+@* The AppHost card, moved from the Discover page (wizard plan D4). Shown after the scan. *@
+<div class="ads-card">
+    <div class="ads-card-header">
+        <Icon Name="layers" Size="18" />
+        <h2>AppHost</h2>
+        <span class="ads-spacer"></span>
+        <span class="ads-pill @(Result.ManifestRan ? "ads-pill-pass" : "")">@(Result.ManifestRan ? "Manifest parsed" : "Static scan")</span>
+    </div>
+    <dl class="ads-defs">
+        <div class="ads-def-wide"><dt>Path</dt><dd class="ads-mono">@App.AppHostPath</dd></div>
+        <div><dt>Kind</dt><dd>@KindText(App.Kind)</dd></div>
+        <div><dt>Aspire SDK</dt><dd class="ads-mono" style="color: var(--ads-azure-text)">@App.AspireSdkVersion</dd></div>
+        <div><dt>Source</dt><dd class="ads-mono">@SourceText</dd></div>
+        <div><dt>global.json SDK</dt><dd class="ads-mono">@(App.DotnetSdkFromGlobalJson ?? "—")</dd></div>
+        <div class="ads-def-wide">
+            <dt>Declared targets</dt>
+            <dd class="ads-row gap-2">
+                @if (App.DeclaredTargets.Count == 0)
+                {
+                    <span class="ads-subtle">none</span>
+                }
+                @foreach (var t in App.DeclaredTargets)
+                {
+                    <span class="ads-chip @(t.IsAzure() ? "ads-chip-azure" : "")"><Icon Name="@(t.IsAzure() ? "cloud" : "box")" Size="12" /> @TargetText(t)</span>
+                }
+            </dd>
+        </div>
+    </dl>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public DiscoveryResult Result { get; set; } = default!;
+
+    /// <summary>The spec as the user typed it, so a GitHub source shows the branch with the scanned SHA (wizard plan R9).</summary>
+    [Parameter] public SourceSpec? Spec { get; set; }
+
+    private AppHostInfo App => Result.AppHost;
+
+    private string SourceText => Spec is { Kind: SourceKind.GitHub } s && Result.Source.CommitSha is { } sha
+        ? $"{s.Location}@{s.Ref ?? "default branch"} ({sha[..Math.Min(7, sha.Length)]})"
+        : Result.Source.Display;
+
+    private static string KindText(AppHostKind kind) => kind switch
+    {
+        AppHostKind.ProjectCsproj => "C# project",
+        AppHostKind.FileBasedCs => "File-based C#",
+        _ => "TypeScript"
+    };
+
+    /// <summary>"AzureContainerApps" → "azure-container-apps", as in the mockups.</summary>
+    private static string TargetText(DeploymentTarget t) =>
+        string.Concat(t.ToString().Select((c, i) => char.IsUpper(c) && i > 0 ? "-" + char.ToLowerInvariant(c) : char.ToLowerInvariant(c).ToString()));
+}
