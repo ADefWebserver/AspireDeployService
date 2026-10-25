@@ -20,7 +20,7 @@
         <MauiXamlInflator>SourceGen</MauiXamlInflator>
 
         <!-- Display name -->
-        <ApplicationTitle>AspireDeployService</ApplicationTitle>
+        <ApplicationTitle>Aspire Deploy</ApplicationTitle>
 
         <!-- App Identifier -->
         <ApplicationId>com.companyname.aspiredeployservice</ApplicationId>
@@ -29,7 +29,8 @@
         <ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
         <ApplicationVersion>1</ApplicationVersion>
 
-        <!-- To develop, package, and publish an app to the Microsoft Store, see: https://aka.ms/MauiTemplateUnpackaged -->
+        <!-- Unpackaged for F5 and `aspire run`. The Microsoft Store build is an MSIX made with the
+             MSIX-Store-* publish profiles (Properties/PublishProfiles), which set WindowsPackageType=MSIX. -->
         <WindowsPackageType>None</WindowsPackageType>
         <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">10.0.17763.0</SupportedOSPlatformVersion>
         <TargetPlatformMinVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">10.0.17763.0</TargetPlatformMinVersion>
