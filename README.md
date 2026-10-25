@@ -1,6 +1,12 @@
 # Aspire Deploy
 <img width="967" height="344" alt="image" src="https://github.com/user-attachments/assets/08a10f0f-e269-4a2c-95f8-eb2493ef940e" />
 
+## ⬇️ [Get it from the Microsoft Store](https://apps.microsoft.com/detail/9P2TFLHH3RM2)
+
+<a href="https://apps.microsoft.com/detail/9P2TFLHH3RM2"><img src="https://get.microsoft.com/images/en-us%20dark.svg" width="200" alt="Get Aspire Deploy from the Microsoft Store" /></a>
+
+Windows 10 (1809) or later, x64 or Arm64. The Store version installs and updates itself; you still need the [prerequisites](#prerequisites) and `az login`. [Privacy policy](docs/PRIVACY.md).
+
 ## ▶️ [Watch the video walk-thru](https://www.youtube.com/watch?v=zO7WvLdigsk)
 
 [![Walk-Thru: Aspire Deploy, Deploy Any Aspire Solution To Azure From A Blazor Desktop App](https://img.youtube.com/vi/zO7WvLdigsk/maxresdefault.jpg)](https://www.youtube.com/watch?v=zO7WvLdigsk)
@@ -23,7 +29,7 @@ The full walkthrough is the **[user guide](docs/User-Guide.md)**, which is also 
 ### 1. Start the app and check your tools
 
 1. Install the [prerequisites](#prerequisites), then run `az login`.
-2. Start the app: open `AspireDeployService.slnx` in Visual Studio and run the **Windows Machine** profile, or run `aspire run` and start the `aspiredeployservice-windows` resource from the dashboard.
+2. Start the app: install it from the [Microsoft Store](https://apps.microsoft.com/detail/9P2TFLHH3RM2), or open `AspireDeployService.slnx` in Visual Studio and run the **Windows Machine** profile, or run `aspire run` and start the `aspiredeployservice-windows` resource from the dashboard.
 3. Open **Setup** and run the general checks. Each tool shows Pass, Warn or Fail with the fix.
 
 ![Setup: each tool shows Pass, Warn or Fail](docs/images/10-setup.png)
@@ -112,7 +118,7 @@ Profiles live in `appsettings.Local.json`, found in this order (shown on the **S
 
 1. the `ADS_SETTINGS` environment variable;
 2. `AspireDeployService/appsettings.Local.json` next to the project file, when running from the source tree (Visual Studio or `aspire run`);
-3. `%LOCALAPPDATA%\AspireDeployService\appsettings.Local.json` for a published copy.
+3. `%LOCALAPPDATA%\AspireDeployService\appsettings.Local.json` for a published copy. The Microsoft Store version is packaged, so Windows keeps its `%LOCALAPPDATA%` files under `%LOCALAPPDATA%\Packages\41860Defwebs.com.AspireDeploy_vnfg3yn7dyp0w\LocalCache\Local` instead, and removes them when the app is uninstalled.
 
 `.gitignore` excludes it everywhere. [appsettings.Local.example.json](AspireDeployService/appsettings.Local.example.json) shows the shape with placeholders. Values, including secrets, are **plain text**, like Aspire's own `~/.aspire/deployments` cache. If you edit the file by hand and break the JSON, the app turns read-only and never overwrites it. Comments are read, but they are not kept when the app saves.
 
@@ -164,6 +170,20 @@ dotnet build AspireDeployService.slnx
 ```bash
 dotnet test AspireDeployService.Tests/AspireDeployService.Tests.csproj
 ```
+
+### Microsoft Store package
+
+F5 and `aspire run` use the unpackaged app. The Store build is an unsigned MSIX (the Store signs it), one per architecture, made with the publish profiles in `AspireDeployService/Properties/PublishProfiles`:
+
+```bash
+dotnet publish AspireDeployService/AspireDeployService.csproj -f net10.0-windows10.0.19041.0 -p:PublishProfile=MSIX-Store-x64
+```
+
+```bash
+dotnet publish AspireDeployService/AspireDeployService.csproj -f net10.0-windows10.0.19041.0 -p:PublishProfile=MSIX-Store-arm64
+```
+
+The packages land in `AspireDeployService/bin/AppPackages/<arch>/`. Upload both to the **Aspire Deploy** product (Store ID `9P2TFLHH3RM2`) in Partner Center. For each update, raise `ApplicationDisplayVersion` in both profiles (for example `1.0.1`); `ApplicationVersion` stays `0` because the Store requires the last part of the package version to be 0. The package identity is in `Platforms/Windows/Package.appxmanifest`.
 
 The debug-only page `/debug/runs` (not in the menu) runs the infrastructure checks: a 5-minute `ping`, a 20,000-line flood, and two dialogs at once.
 
