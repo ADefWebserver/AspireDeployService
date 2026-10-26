@@ -269,16 +269,18 @@ public sealed class AzureResourceProvisioner(ProfileStore store, IAzureAccountSe
         {
             case ResourceMode.Existing:
                 environmentId = plan?.FirstOrDefault(s => s.Kind == AzureResourceKind.ContainerAppEnvironment)?.ResourceId;
-                if (environmentId is null)
+                // The editor switches to Use existing before an environment is picked; there is nothing to look up yet.
+                if (environmentId is null && d.ContainerAppEnvironment is { Name: { Length: > 0 } } e)
                 {
-                    var e = d.ContainerAppEnvironment!;
-                    var show = await RunAsync(["containerapp", "env", "show", "--name", e.Name!, "--resource-group",
+                    var show = await RunAsync(["containerapp", "env", "show", "--name", e.Name, "--resource-group",
                         e.ResourceGroup is { Length: > 0 } g ? g : rg, "--subscription", sub, "--output", "json"], run, ShowTimeout, ct);
                     environmentId = show.Succeeded ? IdOf(show.StdOut) : null;
                 }
                 break;
+            case ResourceMode.New when d.ContainerAppEnvironment is { Name: { Length: > 0 } newName }:
+                environmentId = $"/subscriptions/{sub}/resourceGroups/{rg}/providers/Microsoft.App/managedEnvironments/{newName}";
+                break;
             case ResourceMode.New:
-                environmentId = $"/subscriptions/{sub}/resourceGroups/{rg}/providers/Microsoft.App/managedEnvironments/{d.ContainerAppEnvironment!.Name}";
                 break;
             default:
                 var ids = inGroup?.Select(a => a.EnvironmentId).Where(i => i is not null).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
