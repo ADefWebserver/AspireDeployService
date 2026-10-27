@@ -47,6 +47,7 @@ public sealed class DeployService(
         if (!snapshot.Document.AspireDeploy.Profiles.TryGetValue(request.ProfileName, out var stored))
             throw new DeployerException(OutcomeCode.InvalidInput, $"Profile '{request.ProfileName}' does not exist.");
         var profile = stored.Clone();
+        ProfileRules.Normalize(profile);
         var errors = ProfileRules.Validate(profile);
         if (errors.Count > 0)
             throw new DeployerException(OutcomeCode.InvalidInput, "Fix the profile first:\n" + string.Join('\n', errors));

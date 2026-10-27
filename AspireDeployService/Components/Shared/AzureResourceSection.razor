@@ -402,7 +402,7 @@
         if (hit.Name is null)
             return;
         var c = Ensure();
-        c.Name = hit.Name;
+        c.Name = AsName(hit.Name);
         c.ResourceGroup = hit.ResourceGroup;
         await Changed.InvokeAsync();
     }
@@ -410,7 +410,7 @@
     private async Task SetTyped(string? name, string? group)
     {
         var c = Ensure();
-        c.Name = NullIfEmpty(name);
+        c.Name = AsName(NullIfEmpty(name));
         c.ResourceGroup = NullIfEmpty(group);
         await Changed.InvokeAsync();
     }
@@ -418,12 +418,16 @@
     private async Task OnNameInput(string? value)
     {
         var c = Ensure();
-        c.Name = NullIfEmpty(value?.Trim());
+        c.Name = AsName(NullIfEmpty(value?.Trim()));
         _nameTaken = null;
         await Changed.InvokeAsync();
         if (Kind == AzureResourceKind.ContainerRegistry)
             await CheckNameDebouncedAsync(c.Name, autoRetry: false);
     }
+
+    /// <summary>Registry names are case-insensitive in Azure but must be lowercase in the profile.</summary>
+    private string? AsName(string? name) =>
+        Kind == AzureResourceKind.ContainerRegistry ? name?.Trim().ToLowerInvariant() : name;
 
     private async Task UseSuggestionAsync()
     {
