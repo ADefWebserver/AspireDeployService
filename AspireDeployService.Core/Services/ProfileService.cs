@@ -82,6 +82,7 @@ public sealed class ProfileService(ProfileStore store) : IProfileService
     public Task SaveAsync(string name, DeployProfile profile, bool overwrite, CancellationToken ct)
     {
         ProfileRules.EnsureValidName(name);
+        ProfileRules.Normalize(profile);
         var errors = ProfileRules.Validate(profile);
         if (errors.Count > 0)
             throw new DeployerException(OutcomeCode.InvalidInput, "The profile is not valid:\n" + string.Join('\n', errors));
@@ -101,6 +102,7 @@ public sealed class ProfileService(ProfileStore store) : IProfileService
             var profile = Require(doc, name);
             var edited = profile.Clone();
             change(edited);
+            ProfileRules.Normalize(edited);
             var errors = ProfileRules.Validate(edited);
             if (errors.Count > 0)
                 throw new DeployerException(OutcomeCode.InvalidInput, "Nothing was saved:\n" + string.Join('\n', errors));

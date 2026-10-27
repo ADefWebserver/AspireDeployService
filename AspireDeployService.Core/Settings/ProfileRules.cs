@@ -66,6 +66,13 @@ public static partial class ProfileRules
         return errors;
     }
 
+    /// <summary>Lowercases the registry name: Azure keeps the casing it was created with, but names are case-insensitive.</summary>
+    public static void Normalize(DeployProfile p)
+    {
+        if (p.Destination.ContainerRegistry is { Name: { } name } r)
+            r.Name = name.Trim().ToLowerInvariant();
+    }
+
     /// <summary>Resource pickers plan D12: the overlay's own parameters.</summary>
     public static bool IsReservedParameterName(string name) =>
         name.StartsWith("adsExisting", StringComparison.OrdinalIgnoreCase) || name.StartsWith("adsOverlay", StringComparison.OrdinalIgnoreCase);
@@ -183,7 +190,7 @@ public static partial class ProfileRules
                 break;
             case "Environment": p.Environment = NullIfEmpty(value); break;
             case "Destination:ContainerRegistry:Mode": Choice(p, Section.Registry).Mode = ParseMode(key, value); break;
-            case "Destination:ContainerRegistry:Name": Choice(p, Section.Registry).Name = NullIfEmpty(value); break;
+            case "Destination:ContainerRegistry:Name": Choice(p, Section.Registry).Name = NullIfEmpty(value?.Trim().ToLowerInvariant()); break;
             case "Destination:ContainerRegistry:ResourceGroup": Choice(p, Section.Registry).ResourceGroup = NullIfEmpty(value); break;
             case "Destination:ContainerRegistry:Sku": Choice(p, Section.Registry).Sku = NullIfEmpty(value); break;
             case "Destination:ContainerAppEnvironment:Mode": Choice(p, Section.Environment).Mode = ParseMode(key, value); break;
