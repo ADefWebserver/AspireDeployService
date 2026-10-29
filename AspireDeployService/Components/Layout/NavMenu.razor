@@ -29,23 +29,64 @@
                 @ActiveCount running
             </span>
         }
-        @if (_account is { } a)
+        @if (_account is not null || _signedOut)
         {
-            <span class="ads-account" title="@($"az login: {a.User ?? "(unknown user)"}, tenant {a.TenantId}, default subscription {a.Name}")">
-                <span class="ads-account-avatar">@Initial(a.User)</span>
-                <span class="ads-account-text">
-                    <span class="ads-account-name">@(a.User ?? a.Name) <span class="ads-account-dot" aria-hidden="true"></span></span>
-                    <span class="ads-account-sub">@a.Name · @Short(a.TenantId)</span>
-                </span>
-            </span>
+            @* The account menu: who az deploys as, and a sign-in to switch to (or add) another account. *@
+            <div class="ads-account-menu">
+                @if (_account is { } a)
+                {
+                    <button type="button" class="ads-account" aria-expanded="@_menuOpen" aria-haspopup="dialog" @onclick="() => _menuOpen = !_menuOpen"
+                            title="@($"az login: {a.User ?? "(unknown user)"}, tenant {a.TenantId}, default subscription {a.Name}")">
+                        <span class="ads-account-avatar">@Initial(a.User)</span>
+                        <span class="ads-account-text">
+                            <span class="ads-account-name">@(a.User ?? a.Name) <span class="ads-account-dot" aria-hidden="true"></span></span>
+                            <span class="ads-account-sub">@a.Name · @Short(a.TenantId)</span>
+                        </span>
+                        <Icon Name="chevron-down" Size="13" />
+                    </button>
+                }
+                else
+                {
+                    <button type="button" class="ads-account is-off" aria-expanded="@_menuOpen" aria-haspopup="dialog" title="@_accountError" @onclick="() => _menuOpen = !_menuOpen">
+                        <span class="ads-account-avatar"><Icon Name="cloud" Size="14" /></span>
+                        <span class="ads-account-text">
+                            <span class="ads-account-name">Not signed in</span>
+                            <span class="ads-account-sub">Click to sign in</span>
+                        </span>
+                    </button>
+                }
+                @if (_menuOpen)
+                {
+                    <div class="ads-account-backdrop" @onclick="() => _menuOpen = false"></div>
+                    <div class="ads-account-pop" role="dialog" aria-label="Azure account">
+                        @if (_account is { } acc)
+                        {
+                            <div class="ads-account-pop-head">Deploys sign in as</div>
+                            <dl class="ads-account-facts">
+                                <dt>Account</dt><dd>@(acc.User ?? "(unknown)")</dd>
+                                <dt>Subscription</dt><dd>@acc.Name</dd>
+                                <dt>Tenant</dt><dd class="ads-mono">@acc.TenantId</dd>
+                            </dl>
+                            <p class="ads-account-pop-text">To deploy as someone else, sign in with that account. az keeps every account you sign in with, and the last one becomes the default.</p>
+                            <AzureSignInButton IdPrefix="top" Label="Sign in with another account" />
+                        }
+                        else
+                        {
+                            <div class="ads-account-pop-head">The Azure CLI is not signed in</div>
+                            <p class="ads-account-pop-text">Sign in to list subscriptions and deploy.</p>
+                            <AzureSignInButton IdPrefix="top" />
+                        }
+                    </div>
+                }
+            </div>
         }
         else if (_accountError is not null)
         {
             <a class="ads-account is-off" href="setup" title="@_accountError">
                 <span class="ads-account-avatar"><Icon Name="cloud" Size="14" /></span>
                 <span class="ads-account-text">
-                    <span class="ads-account-name">@(_signedOut ? "Not signed in" : "Azure CLI")</span>
-                    <span class="ads-account-sub">@(_signedOut ? "Sign in from a profile" : "Not available")</span>
+                    <span class="ads-account-name">Azure CLI</span>
+                    <span class="ads-account-sub">Not available</span>
                 </span>
             </a>
         }
@@ -61,7 +102,7 @@
     private AzureSubscription? _account;
     private string? _accountError;
     private bool _signedOut;
-    private ActiveRun? _signInSeen;
+    private bool _menuOpen;
 
     private int ActiveCount => Runs.Active.Count(r => !r.Key.StartsWith("debug:", StringComparison.Ordinal));
 
@@ -71,7 +112,7 @@
     {
         Nav.LocationChanged += OnLocationChanged;
         Runs.RunsChanged += OnRunsChanged;
-        _signInSeen = Runs.TryGet(AzureSignInButton.RunKey);
+        Azure.Changed += OnAccountChanged;
         _ = LoadAccountAsync();
     }
 
@@ -81,7 +122,7 @@
         try
         {
             var subs = await Task.Run(() => Azure.ListSubscriptionsAsync(NullRunObserver.Instance, CancellationToken.None));
-            (_account, _accountError) = (subs.FirstOrDefault(s => s.IsDefault) ?? subs.FirstOrDefault(), null);
+            (_account, _accountError, _signedOut) = (subs.FirstOrDefault(s => s.IsDefault) ?? subs.FirstOrDefault(), null, false);
         }
         catch (DeployerException ex)
         {
@@ -121,16 +162,10 @@
         }
     }
 
-    private void OnRunsChanged()
-    {
-        // A finished sign-in changes who is signed in.
-        if (Runs.TryGet(AzureSignInButton.RunKey) is { IsRunning: false } signIn && !ReferenceEquals(signIn, _signInSeen))
-        {
-            _signInSeen = signIn;
-            _ = LoadAccountAsync();
-        }
-        _ = InvokeAsync(StateHasChanged);
-    }
+    private void OnRunsChanged() => _ = InvokeAsync(StateHasChanged);
+
+    /// <summary>A sign-in or a new az default changes who deploys.</summary>
+    private void OnAccountChanged() => _ = LoadAccountAsync();
 
     /// <summary>Plan §6.1: a live indicator next to pages that have an active run.</summary>
     private RenderFragment? Running(params string[] prefixes) =>
@@ -143,6 +178,7 @@
     public void Dispose()
     {
         Runs.RunsChanged -= OnRunsChanged;
+        Azure.Changed -= OnAccountChanged;
         Nav.LocationChanged -= OnLocationChanged;
     }
 }

@@ -19,7 +19,7 @@
         }
         else
         {
-            <button type="button" class="btn btn-sm btn-primary" @onclick="Start"><Icon Name="log-in" Size="13" /> @(_deviceCode ? "Sign in with a code" : "Sign in to Azure")</button>
+            <button type="button" class="btn btn-sm btn-primary" @onclick="Start"><Icon Name="log-in" Size="13" /> @(_deviceCode ? "Sign in with a code" : Label)</button>
             <button type="button" class="btn btn-link btn-sm p-0" aria-expanded="@_options" @onclick="() => _options = !_options">Options</button>
         }
     </div>
@@ -69,6 +69,9 @@
     public const string RunKey = "azure:signin";
 
     [Parameter] public string IdPrefix { get; set; } = "dest";
+
+    /// <summary>The button text; "Sign in with another account" where someone is already signed in.</summary>
+    [Parameter] public string Label { get; set; } = "Sign in to Azure";
 
     /// <summary>Prefills the tenant box (the profile's tenant).</summary>
     [Parameter] public string? TenantHint { get; set; }

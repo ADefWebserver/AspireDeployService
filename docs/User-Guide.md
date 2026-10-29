@@ -58,6 +58,23 @@ A profile says what to deploy and where. **Profiles → New profile** walks thro
 
 If `az` is not signed in (or its sign-in expired), the subscription field shows the error with **Retry** and **Sign in to Azure**. That runs `az login` from the app: a browser opens, and the subscriptions load when you finish. Under **Options**, tick **Use a device code** where no browser can open (the code appears in the log), or type a tenant for a guest directory (Microsoft Entra ID → Overview → Tenant ID). **Cancel** stops the sign-in. The same button is on the profile page.
 
+### Use another Azure account
+
+Deploys sign in as the Azure CLI's default account, which is shown at the top right. To deploy as someone else:
+
+- Click the account at the top right and choose **Sign in with another account**, or
+- On the Destination step (or the profile page), click **Another account** next to the subscription, then **Sign in with another account**.
+
+Either one runs `az login`, with the same **Options** (tenant, device code) and **Cancel**. Sign in with the other account in the browser. `az` keeps every account you sign in with: their subscriptions join the subscription list (each one names its account once there is more than one), and the account you signed in with last becomes the default that deploys use.
+
+If you then pick a subscription that belongs to an account other than the default, the subscription field says so. Click **Use `<account>` for deploys** to make that subscription `az`'s default (`az account set`), so the deploy signs in as the account that can see it. The top bar follows the change.
+
+Accounts stay signed in to `az` after you switch; choosing a subscription (and, when asked, **Use `<account>` for deploys**) decides which one a deploy uses.
+
+![The account menu at the top right, with Sign in with another account](images/11-account-menu.png)
+
+![Another account on the Destination step](images/12-destination-another-account.png)
+
 ### Update an existing deployment
 
 To take over an AppHost that was already deployed, for example with `aspire deploy` from another machine, choose **Update an existing deployment** on the Destination step, pick the subscription, and click **Find**. The app lists the resource groups that hold container apps named like the AppHost's compute resources:
@@ -235,6 +252,7 @@ Existing resources picked from **other** resource groups (registry, environment,
 | `<kind>` `<name>` exists but its creation failed. Delete it in the Azure portal or choose another name. | Delete the failed resource in the portal, or choose another name. |
 | The environment was created, but its logs could not be sent to `<ws>`: `<az error>`. Add a diagnostic setting in the portal. | Add a diagnostic setting on the environment that sends `allLogs` to the workspace. The profile has already switched to Use existing, so deploying again does not re-create the environment. |
 | `<kind>` `<name>` was created by another run; deploy again. | Another deploy created the same name at the same time. Deploy again. |
+| This subscription belongs to `<account>`, but deploys sign in as az's default account, `<default account>`. | Click **Use `<account>` for deploys**, or choose a subscription of the default account. |
 | Sign-in timed out after 5 minutes. Try again, or tick Use a device code. | The browser sign-in did not finish. Sign in again, or open **Options** and tick **Use a device code**, then enter the code from the log at the address it names. |
 | Sign-in did not finish: `<az error>` | Read the az error. For a guest directory or another organization, type the tenant under **Options**. |
 | Created by azd with its own names. Add .WithAzdResourceNaming() to AddAzureContainerAppEnvironment in the AppHost, or the deploy will likely be refused. | The azd deployment's resources do not follow Aspire's names. Add `.WithAzdResourceNaming()` to the environment in the AppHost, scan and build again, then **Find** again. |

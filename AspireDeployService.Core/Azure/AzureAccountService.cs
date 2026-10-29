@@ -56,8 +56,17 @@ public interface IAzureAccountService
     /// <summary>Drops every cached list for that subscription; called after a create.</summary>
     void Invalidate(string subscriptionId);
 
-    /// <summary>Drops every cached list, including subscriptions; called after a sign-in.</summary>
+    /// <summary>Drops every cached list, including subscriptions, and raises <see cref="Changed"/>; called after a sign-in.</summary>
     void InvalidateAll();
+
+    /// <summary>Raised by <see cref="InvalidateAll"/>: who is signed in, or az's default subscription, may have changed.</summary>
+    event Action? Changed;
+
+    /// <summary>
+    /// Runs <c>az account set</c>, so the account that sees this subscription becomes az's default, the one deploys sign
+    /// in as. Then drops every cached list.
+    /// </summary>
+    Task SetDefaultSubscriptionAsync(string subscriptionId, IRunObserver observer, CancellationToken ct);
 
     /// <summary>The subscriptions visible to the developer's <c>az login</c>. Code 3 when not signed in.</summary>
     Task<IReadOnlyList<AzureSubscription>> ListSubscriptionsAsync(IRunObserver observer, CancellationToken ct, bool refresh = false);
@@ -161,7 +170,19 @@ public sealed partial class AzureAccountService(ProfileStore store, IRunContextF
         }
     }
 
-    public void InvalidateAll() => _cache.Clear();
+    public event Action? Changed;
+
+    public void InvalidateAll()
+    {
+        _cache.Clear();
+        Changed?.Invoke();
+    }
+
+    public async Task SetDefaultSubscriptionAsync(string subscriptionId, IRunObserver observer, CancellationToken ct)
+    {
+        await RunAzAsync(["account", "set", "--subscription", RequireGuid(subscriptionId)], observer, ct);
+        InvalidateAll();
+    }
 
     internal static IReadOnlyList<AzureContainerRegistry> ParseRegistries(string json) => Parse(json, "az acr list", root =>
         root.EnumerateArray()
