@@ -27,6 +27,15 @@ public class AppHostScannerLockTests : IDisposable
         Assert.False(info.RegistryLocked);
         Assert.False(info.IdentityLocked);
         Assert.Equal(["env"], info.ContainerAppEnvironmentNames);
+        Assert.True(info.CallsAddContainerAppEnvironment);
+    }
+
+    [Fact]
+    public void AppHost_without_the_environment_call_says_so()
+    {
+        var info = Scan("var builder = DistributedApplication.CreateBuilder(args);\nbuilder.Build().Run();\n");
+        Assert.False(info.CallsAddContainerAppEnvironment);
+        Assert.Empty(info.ContainerAppEnvironmentNames);
     }
 
     [Fact]

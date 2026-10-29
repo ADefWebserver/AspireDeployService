@@ -170,6 +170,11 @@ public sealed class DeployService(
                     throw new DeployerException(OutcomeCode.InvalidInput,
                         "The registry, environment and pull identity choices apply to Azure Container Apps only, and this AppHost does not declare "
                         + "AddAzureContainerAppEnvironment. Set them back to Let Aspire create.");
+                if (!prepared.Scan.AppHost.CallsAddContainerAppEnvironment)
+                    throw new DeployerException(OutcomeCode.InvalidInput,
+                        "The profile chooses its own registry, environment or pull identity, but the AppHost never calls "
+                        + "AddAzureContainerAppEnvironment, so there is no environment to apply them to. Add "
+                        + "builder.AddAzureContainerAppEnvironment(\"env\"); before builder.Build(), then deploy again.");
                 overlay = AppHostOverlay.Prepare(OverlayRequestFor(profile, prepared, workKey, overlayRunId));
                 await run.Log.InfoAsync("AppHost overlay prepared: " + string.Join(", ", overlay.Files), ct);
             }

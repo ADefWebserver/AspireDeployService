@@ -104,7 +104,10 @@ public static partial class ProfileRules
             {
                 if (string.IsNullOrWhiteSpace(e.Name))
                     errors.Add($"{env}:Name: choose or enter an environment.");
-                else if (AzureNameRules.Problem(AzureResourceKind.ContainerAppEnvironment, e.Name) is { } problem)
+                // Azure keeps an existing environment's name as it was created, capitals included, and matches it
+                // case-insensitively; only a new name must be lowercase.
+                else if (AzureNameRules.Problem(AzureResourceKind.ContainerAppEnvironment,
+                             e.EffectiveMode == ResourceMode.Existing ? e.Name.ToLowerInvariant() : e.Name) is { } problem)
                     errors.Add($"{env}:Name: {problem}");
                 if (e.EffectiveMode == ResourceMode.Existing && e.ResourceGroup is { Length: > 0 } rg && !IsValidResourceGroup(rg))
                     errors.Add($"{env}:ResourceGroup: {AzureNameRules.ResourceGroupRule}");

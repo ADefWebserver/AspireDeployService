@@ -261,6 +261,28 @@ public class DeployServiceResourceTests : IDisposable
         }
     }
 
+    [Fact]
+    public async Task Existing_choices_without_an_environment_call_stop_before_aspire_runs()
+    {
+        // The Container Apps package is referenced, but the environment line is missing.
+        _h.Dir.Write("src/apphost.cs", "#:sdk Aspire.AppHost.Sdk@13.6.1\n#:package Aspire.Hosting.Azure.AppContainers@13.6.1\n"
+            + "var builder = DistributedApplication.CreateBuilder(args);\nbuilder.Build().Run();\n");
+        await _h.AddProfileAsync(change: p =>
+        {
+            p.Source.AppHostPath = "apphost.cs";
+            p.Destination.ContainerAppEnvironment = Existing("cae-shared");
+        });
+        ExistingInAzure();
+        var ran = false;
+        _h.OnDeploy = (_, _) => { ran = true; return Task.FromResult(FakeProcessRunner.Ok("")); };
+
+        var ex = await Assert.ThrowsAsync<DeployerException>(() => DeployAsync());
+
+        Assert.Equal(OutcomeCode.InvalidInput, ex.Code);
+        Assert.Contains("never calls AddAzureContainerAppEnvironment", ex.Message);
+        Assert.False(ran);
+    }
+
     [Theory]
     [InlineData(true)]
     [InlineData(false)]

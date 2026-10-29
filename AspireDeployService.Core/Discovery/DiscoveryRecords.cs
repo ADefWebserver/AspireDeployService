@@ -38,6 +38,12 @@ public sealed record AppHostInfo(
     /// <summary>Resource pickers plan §6.4: the AppHost already sets its own ACR pull identity.</summary>
     public bool IdentityLocked { get; init; }
 
+    /// <summary>
+    /// The AppHost source calls <c>AddAzureContainerAppEnvironment(</c>. The package reference alone puts Container Apps
+    /// in <see cref="DeclaredTargets"/>, but the overlay needs the call to find an environment.
+    /// </summary>
+    public bool CallsAddContainerAppEnvironment { get; init; }
+
     /// <summary>The names passed to <c>AddAzureContainerAppEnvironment("...")</c>, in source order.</summary>
     public IReadOnlyList<string> ContainerAppEnvironmentNames { get; init; } = [];
 }

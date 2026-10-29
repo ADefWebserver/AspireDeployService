@@ -96,6 +96,16 @@ public class ResourceChoiceSettingsTests : IDisposable
     }
 
     [Fact]
+    public void An_existing_environment_keeps_its_capitals_but_a_new_one_must_be_lowercase()
+    {
+        Assert.Empty(Errors(d => d.ContainerAppEnvironment = new() { Mode = ResourceMode.Existing, Name = "LACOEContainerAppEnvDev", ResourceGroup = "rg-x" }));
+        Assert.Contains(Errors(d => d.ContainerAppEnvironment = new() { Mode = ResourceMode.Existing, Name = "Cae--X", ResourceGroup = "rg-x" }),
+            e => e.StartsWith("Destination:ContainerAppEnvironment:Name: ", StringComparison.Ordinal));
+        Assert.Contains(Errors(d => d.ContainerAppEnvironment = new() { Mode = ResourceMode.New, Name = "LACOEContainerAppEnvDev" }),
+            e => e.StartsWith("Destination:ContainerAppEnvironment:Name: ", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void Bad_sku_and_logs_destination_are_refused()
     {
         Assert.Contains("Destination:ContainerRegistry:Sku: Basic, Standard or Premium.",

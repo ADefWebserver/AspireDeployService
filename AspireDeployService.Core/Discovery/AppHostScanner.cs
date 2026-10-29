@@ -110,6 +110,8 @@ public static partial class AppHostScanner
                 || source.Contains("addAzureContainerRegistry(", StringComparison.Ordinal),
             IdentityLocked = source.Contains("WithAcrPullIdentity(", StringComparison.Ordinal)
                 || source.Contains("withAcrPullIdentity(", StringComparison.Ordinal),
+            CallsAddContainerAppEnvironment = source.Contains("AddAzureContainerAppEnvironment(", StringComparison.Ordinal)
+                || source.Contains("addAzureContainerAppEnvironment(", StringComparison.Ordinal),
             ContainerAppEnvironmentNames = EnvironmentName().Matches(source).Select(m => m.Groups["n"].Value).Distinct(StringComparer.Ordinal).ToList()
         };
         return new ScanResult(info, warnings, usesSubmodulesOrLfs);

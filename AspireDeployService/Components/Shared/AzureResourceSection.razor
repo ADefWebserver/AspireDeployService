@@ -61,6 +61,10 @@
                        @onchange="e => SetTyped(C?.Name, e.Value?.ToString())" />
             </div>
         }
+        @if (ListedNone)
+        {
+            <div class="form-text text-warning">No @(Noun)s found in this subscription. Pick the subscription that has one, choose Create new, or type the name and resource group.</div>
+        }
         <div class="form-text d-flex gap-2">
             @if (_items.Count > 0)
             {
@@ -195,6 +199,9 @@
     private string? ProfileResourceGroup => Destination.ResourceGroup;
     private bool NoSubscription => !Guid.TryParse(SubscriptionId, out _);
     private bool Disabled => Locked is not null || DisabledReason is not null;
+
+    /// <summary>az answered for this subscription with an empty list, so the typed boxes need a reason.</summary>
+    private bool ListedNone => !_loading && _error is null && _items.Count == 0 && _loadedFor == SubscriptionId && !NoSubscription;
 
     private ResourceChoice? C => Kind switch
     {

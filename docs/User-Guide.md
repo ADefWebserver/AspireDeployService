@@ -101,7 +101,7 @@ The **Destination** card has a section for each resource. The resource group has
 | Mode | In the profile | At deploy time |
 |---|---|---|
 | **Let Aspire create** | Nothing is stored (the default; every older profile is in this mode). | Aspire creates a registry, an environment and a Log Analytics workspace in the profile's resource group, exactly as before. |
-| **Use existing** | Name and resource group of a resource picked from the list. Any resource group in the subscription. | The app checks the resource exists, then the deploy uses it as an existing resource. Nothing is created. |
+| **Use existing** | Name and resource group of a resource picked from the list. Any resource group in the subscription. When the subscription has none, the section says so and shows boxes to type a name and group. | The app checks the resource exists, then the deploy uses it as an existing resource. Nothing is created. |
 | **Create new** | A name you type (a valid one is suggested). | The app creates it with `az` in the profile's resource group and region before `aspire deploy`, then deploys with it as existing. If it is already there it is used as is. |
 
 ![Create new registry and environment](images/03-destination-new.png)
@@ -274,6 +274,7 @@ Existing resources picked from **other** resource groups (registry, environment,
 | Could not find `const <name> = await builder.addAzureContainerAppEnvironment(...)` in the AppHost. See the guide for the lines to add yourself. | Declare the environment as `const env = await builder.addAzureContainerAppEnvironment("env");`, or add the lines yourself. |
 | The AppHost project (or a Directory.Build file) sets CustomAfterMicrosoftCommonTargets, so the overlay cannot be added. (`<file>`) | Remove that property from the named file, or add the lines yourself. |
 | The registry, environment and pull identity choices apply to Azure Container Apps only, and this AppHost does not declare AddAzureContainerAppEnvironment. Set them back to Let Aspire create. | Set the sections back to Let Aspire create, or add a Container Apps environment to the AppHost. |
+| The profile chooses its own registry, environment or pull identity, but the AppHost never calls AddAzureContainerAppEnvironment, … | The AppHost references the Container Apps package but has no environment line. Add `builder.AddAzureContainerAppEnvironment("env");` before `builder.Build()` and deploy again. |
 | These container apps cannot be deployed: (one line per app) | See the next three rows. |
 | Aspire will shorten or reject this name. | Rename the AppHost resource to a valid container app name (see the naming rules). |
 | `<app>` already runs in environment `<other>`. An app cannot move to another environment; delete it or use another resource group. | Delete the old app, or deploy to another resource group. |
