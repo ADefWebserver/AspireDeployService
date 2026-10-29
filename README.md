@@ -44,7 +44,10 @@ Your AppHost needs an Azure compute environment, for example `builder.AddAzureCo
 
 ![New profile: the Destination step after the build](docs/images/05-new-profile-destination.png)
 
-- **Subscription, region and resource group** are read from your `az login`. A resource group is either an existing one or a new name that is created on the first deploy. If `az` is not signed in, **Sign in to Azure** runs `az login` from the app.
+- **Subscription, region and resource group** are read from your `az login`. A resource group is either an existing one or a new name that is created on the first deploy. If `az` is not signed in, **Sign in to Azure** runs `az login` from the app. To deploy as a different account, click the account at the top right (or **Another account** next to the subscription) and choose **Sign in with another account**; see [Use another Azure account](docs/User-Guide.md#use-another-azure-account).
+
+  ![The account menu: Sign in with another account](docs/images/11-account-menu.png)
+
 - **Update an existing deployment** finds resource groups that already hold this AppHost's container apps (for example deployed from another machine). **Use this** fills the destination so the first deploy updates them in place.
 
   ![Update an existing deployment: Find searches the subscription for the AppHost's container apps](docs/images/09-update-existing.png)
@@ -230,6 +233,9 @@ Run this before a release. Rows marked **(Azure)** create real resources; delete
 | 35 | Sign in, then **Cancel** before finishing in the browser | The run stops, and no `az` process is left. |
 | 36 | Sign in with **Use a device code** | The code line appears in the log, and signing in on another device completes it. |
 | 37 | Uninstall or rename `az`, open New profile | The error shows with no sign-in button. |
+| 41 | Signed in: click the account at the top right, then **Sign in with another account** with a second account | The menu shows the account, subscription and tenant. After sign-in, the top bar shows the new account, and the subscription list holds both accounts' subscriptions, each naming its account. |
+| 42 | Destination step: **Another account** | The sign-in button and its note appear under the subscription; clicking the link again hides them. |
+| 43 | Pick a subscription of the account that is not the default | The warning names both accounts. **Use `<account>` for deploys** makes it the `az` default (`az account show`), the warning goes, and the top bar follows. |
 | 38 | **(Azure)** On a second machine (or after deleting `~/.aspire/deployments`), adopt the starter deployment with **Update an existing deployment** and deploy | The candidate shows all apps found and origin aspire deploy. The preview shows every app as **Updates existing**. The deploy succeeds, and the `az resource list -g <rg>` count is unchanged. |
 | 39 | **(Azure)** Adopt, then delete the group in the portal, then deploy | Refused before the confirmation with "Resource group `<rg>` does not exist and the profile does not allow creating it."; no group is created. |
 | 40 | Visit `/discover` | The NotFound page shows. Nav has no Discover tab, and Home shows three steps. |

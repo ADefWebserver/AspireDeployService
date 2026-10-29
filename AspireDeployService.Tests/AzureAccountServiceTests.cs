@@ -48,6 +48,7 @@ public class AzureAccountServiceTests : IDisposable
                 _ when args.StartsWith($"rest --method get --url https://management.azure.com/subscriptions/{Sub}/locations?api-version=2022-12-01")
                     => FakeProcessRunner.Ok("{ \"value\": " + Locations + " }"),
                 _ when args.StartsWith("provider show") => FakeProcessRunner.Ok(Provider),
+                _ when args.StartsWith("account set ") => FakeProcessRunner.Ok(""),
                 _ when args.StartsWith("group list") => FakeProcessRunner.Ok("""[ { "name": "rg-b", "location": "eastus2" }, { "name": "rg-a", "location": "westus" } ]"""),
                 _ => FakeProcessRunner.Fail(1, "ERROR: unexpected")
             });
@@ -102,5 +103,20 @@ public class AzureAccountServiceTests : IDisposable
             _service.ListResourceGroupsAsync("not-a-guid", NullRunObserver.Instance, CancellationToken.None));
         Assert.Equal(OutcomeCode.InvalidInput, ex.Code);
         Assert.Empty(_calls);
+    }
+
+    [Fact]
+    public async Task Setting_the_default_subscription_runs_account_set_and_drops_the_cache()
+    {
+        var changed = 0;
+        _service.Changed += () => changed++;
+        await _service.ListSubscriptionsAsync(NullRunObserver.Instance, CancellationToken.None);
+
+        await _service.SetDefaultSubscriptionAsync(Sub, NullRunObserver.Instance, CancellationToken.None);
+        Assert.Equal(["account", "set", "--subscription", Sub], _calls[^1].Arguments);
+        Assert.Equal(1, changed);
+
+        await _service.ListSubscriptionsAsync(NullRunObserver.Instance, CancellationToken.None);
+        Assert.Equal(2, _calls.Count(c => c.Arguments is ["account", "list", ..]));
     }
 }

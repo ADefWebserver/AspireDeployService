@@ -46,6 +46,8 @@
                 @if (_subs.Count > 0)
                 {
                     <button type="button" class="btn btn-link btn-sm p-0" @onclick="() => _typeSub = !_typeSub">@(_typeSub ? "Pick from the list" : "Type an ID instead")</button>
+                    <button type="button" class="btn btn-link btn-sm p-0" title="Sign in to Azure with a different account" aria-expanded="@_otherAccount"
+                            @onclick="() => _otherAccount = !_otherAccount"><Icon Name="log-in" Size="12" /> Another account</button>
                 }
                 <button type="button" class="btn btn-link btn-sm p-0" title="Reload subscriptions, regions and resource groups" disabled="@Busy" @onclick="RefreshAllAsync"><Icon Name="refresh" Size="12" /> Refresh</button>
             </span>
@@ -70,12 +72,29 @@
         }
         else if (!_subsLoading && _subs.Count > 0 && Guid.TryParse(D.SubscriptionId, out _) && CurrentSub is null)
         {
-            <div class="form-text text-warning">Your az login does not see this subscription.</div>
+            <div class="form-text text-warning">Your az login does not see this subscription. Sign in with an account that can, from Another account.</div>
+        }
+        else if (OtherAccountOwner is { } owner)
+        {
+            @* az deploys as its default account (az account get-access-token), whichever account sees the subscription. *@
+            <div class="form-text text-warning">
+                This subscription belongs to @owner, but deploys sign in as az's default account, @DefaultSub!.User.
+                <button type="button" class="btn btn-link btn-sm p-0 align-baseline" disabled="@_settingDefault" @onclick="MakeDefaultAsync">Use @owner for deploys</button>
+            </div>
+        }
+        @if (_defaultError is { } de)
+        {
+            <div class="form-text text-warning">@de</div>
         }
         @* Wizard plan D15: only a sign-in failure offers sign-in; "az is not installed" does not. *@
         @if (SignInNeeded)
         {
             <AzureSignInButton IdPrefix="@IdPrefix" TenantHint="@D.TenantId" SignedIn="RefreshAllAsync" />
+        }
+        else if (_otherAccount)
+        {
+            <div class="form-text">az keeps every account you sign in with; their subscriptions join this list, and the last one you sign in with becomes the default.</div>
+            <AzureSignInButton IdPrefix="@IdPrefix" Label="Sign in with another account" TenantHint="@D.TenantId" SignedIn="RefreshAllAsync" />
         }
     </div>
     <div class="ads-span-4">
@@ -318,6 +337,9 @@
     private ErrorCategory _subsCategory, _locCategory, _groupsCategory;
     private bool _adopt;
     private bool _typeSub;
+    private bool _otherAccount;
+    private bool _settingDefault;
+    private string? _defaultError;
     private bool _newGroup;
     private string? _loadedFor;
 
@@ -326,15 +348,32 @@
     private bool SignInNeeded => (_subsError is not null && _subsCategory == ErrorCategory.Permissions)
         || (_locError is not null && _locCategory == ErrorCategory.Permissions)
         || (_groupsError is not null && _groupsCategory == ErrorCategory.Permissions);
+    private AzureSubscription? DefaultSub => _subs.FirstOrDefault(s => s.IsDefault);
+
+    /// <summary>The account that sees the chosen subscription, when it is not the account az deploys as.</summary>
+    private string? OtherAccountOwner =>
+        CurrentSub is { User: { } owner } && DefaultSub is { User: { } active } && !string.Equals(owner, active, StringComparison.OrdinalIgnoreCase)
+            ? owner
+            : null;
+
     private AzureSubscription? CurrentSub => _subs.FirstOrDefault(s => string.Equals(s.Id, D.SubscriptionId, StringComparison.OrdinalIgnoreCase));
     private AzureLocation? CurrentLocation => _locations.FirstOrDefault(l => l.Name == D.Location);
     private AzureResourceGroup? CurrentGroup => _groups.FirstOrDefault(g => string.Equals(g.Name, D.ResourceGroup, StringComparison.OrdinalIgnoreCase));
     private string? Suggestion => ProfileName is { Length: > 0 } n ? "rg-" + n : null;
 
-    private IReadOnlyList<SelectItem> SubscriptionItems => _subs
-        .Select(s => new SelectItem(s.Id, s.Name, s.Id + (s.IsDefault ? " · az default" : ""), !s.IsUsable, "Tenant " + s.TenantId,
-            s.IsUsable ? null : s.State))
-        .OrderBy(i => i.Group, StringComparer.Ordinal).ToList();
+    /// <summary>With more than one account signed in, each subscription names the account that sees it.</summary>
+    private IReadOnlyList<SelectItem> SubscriptionItems
+    {
+        get
+        {
+            var accounts = _subs.Select(s => s.User).Distinct(StringComparer.OrdinalIgnoreCase).Count() > 1;
+            return _subs
+                .Select(s => new SelectItem(s.Id, s.Name,
+                    s.Id + (accounts && s.User is { } user ? " · " + user : "") + (s.IsDefault ? " · az default" : ""), !s.IsUsable, "Tenant " + s.TenantId,
+                    s.IsUsable ? null : s.State))
+                .OrderBy(i => i.Group, StringComparer.Ordinal).ToList();
+        }
+    }
 
     private IReadOnlyList<SelectItem> LocationItems => _locations
         .Select(l => new SelectItem(l.Name, l.DisplayName, l.Name, false, l.Geography ?? "Other",
@@ -353,6 +392,25 @@
     {
         await LoadSubscriptionsAsync(refresh: false);
         await LoadForSubscriptionAsync(refresh: false);
+    }
+
+    private async Task MakeDefaultAsync()
+    {
+        (_settingDefault, _defaultError) = (true, null);
+        try
+        {
+            var sub = D.SubscriptionId!;
+            await Task.Run(() => Azure.SetDefaultSubscriptionAsync(sub, NullRunObserver.Instance, CancellationToken.None));
+        }
+        catch (DeployerException ex)
+        {
+            _defaultError = ex.Message;
+        }
+        finally
+        {
+            _settingDefault = false;
+        }
+        await LoadSubscriptionsAsync(refresh: false);
     }
 
     private async Task RefreshAllAsync()

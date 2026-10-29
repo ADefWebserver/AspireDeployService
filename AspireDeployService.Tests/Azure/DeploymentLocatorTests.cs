@@ -250,6 +250,8 @@ public class DeploymentLocatorTests
         }
         public void Invalidate(string subscriptionId) { }
         public void InvalidateAll() { }
+        public event Action? Changed { add { } remove { } }
+        public Task SetDefaultSubscriptionAsync(string s, IRunObserver o, CancellationToken ct) => throw new NotSupportedException();
         public Task<IReadOnlyList<AzureSubscription>> ListSubscriptionsAsync(IRunObserver o, CancellationToken ct, bool r = false) => throw new NotSupportedException();
         public Task<IReadOnlyList<AzureLocation>> ListLocationsAsync(string s, IRunObserver o, CancellationToken ct, bool r = false) => throw new NotSupportedException();
         public Task<IReadOnlyList<AzureContainerRegistry>> ListContainerRegistriesAsync(string s, IRunObserver o, CancellationToken ct, bool r = false) => throw new NotSupportedException();
