@@ -44,9 +44,10 @@ public sealed partial class AzureSignInService(ProfileStore store, IRunContextFa
         await using var run = runs.Create(WorkKeys.For(options.WorkRoot, null, null), observer);
 
         AzResult result;
+        var warnings = new TenantWarningLog(run.Log);
         try
         {
-            result = await AzCli.RunAsync(args, run, Timeout, ct, Environment);
+            result = await AzCli.RunAsync(args, run, Timeout, ct, Environment, warnings);
         }
         catch (TimeoutException ex)
         {
@@ -59,6 +60,9 @@ public sealed partial class AzureSignInService(ProfileStore store, IRunContextFa
 
         var signedIn = Parse(result.StdOut);
         account.InvalidateAll();
+        if (warnings.SkippedTenants > 0)
+            await run.Log.InfoAsync($"az skipped {warnings.SkippedTenants} other tenant(s) of this account that need an extra sign-in step "
+                + "(MFA or consent). That is normal. To use one, sign in again with its tenant ID under Options.", ct);
         await run.Log.InfoAsync(signedIn.Account is { } name
             ? $"Signed in as {name} ({signedIn.SubscriptionCount} subscriptions)."
             : $"Signed in ({signedIn.SubscriptionCount} subscriptions).", ct);
@@ -80,6 +84,42 @@ public sealed partial class AzureSignInService(ProfileStore store, IRunContextFa
             args.Add("--use-device-code");
         args.AddRange(["--output", "json"]);
         return args;
+    }
+
+    /// <summary>
+    /// After the browser sign-in, az tries every tenant of the account and prints a WARNING (with AADSTS details) for each
+    /// one that needs MFA or consent. The sign-in still succeeds, so those lines go to the log as plain output, not in
+    /// red. Lines up to the next ERROR belong to the warning; ERROR lines keep stderr.
+    /// </summary>
+    internal sealed class TenantWarningLog(IDeploymentLogSink inner) : IDeploymentLogSink
+    {
+        private bool _inWarning;
+
+        public int SkippedTenants { get; private set; }
+
+        public Guid DeploymentId => inner.DeploymentId;
+
+        public string? CurrentStep { get => inner.CurrentStep; set => inner.CurrentStep = value; }
+
+        public ValueTask WriteAsync(string stream, string line, CancellationToken ct = default)
+        {
+            if (stream != LogStreams.StdErr)
+                return inner.WriteAsync(stream, line, ct);
+            if (line.StartsWith("ERROR", StringComparison.Ordinal))
+                _inWarning = false;
+            else if (line.StartsWith("WARNING", StringComparison.Ordinal))
+            {
+                _inWarning = true;
+                if (line.Contains("Authentication failed against tenant", StringComparison.Ordinal))
+                    SkippedTenants++;
+            }
+            return inner.WriteAsync(_inWarning ? LogStreams.StdOut : stream, line, ct);
+        }
+
+        public Task FlushAsync(CancellationToken ct = default) => inner.FlushAsync(ct);
+
+        // The run owns the inner log.
+        public ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }
 
     /// <summary>az login prints the subscriptions it can see, each with a <c>user.name</c>.</summary>

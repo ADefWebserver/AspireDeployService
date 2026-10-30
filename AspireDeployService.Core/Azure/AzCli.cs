@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using AspireDeployService.Core.Logging;
 using AspireDeployService.Core.Outcomes;
 using AspireDeployService.Core.Processes;
 using AspireDeployService.Core.Runs;
@@ -23,8 +24,9 @@ internal static class AzCli
 
     /// <summary>Throws <see cref="DeployerException"/> (MissingPrerequisite) only when az is not installed.</summary>
     /// <param name="environment">Overrides for the child environment (wizard plan §6.3); a null value removes the variable.</param>
+    /// <param name="log">Where the lines go instead of the run's own log (a filter around it); null = the run's log.</param>
     public static async Task<AzResult> RunAsync(IReadOnlyList<string> args, RunContext run, TimeSpan timeout, CancellationToken ct,
-        IReadOnlyDictionary<string, string?>? environment = null)
+        IReadOnlyDictionary<string, string?>? environment = null, IDeploymentLogSink? log = null)
     {
         ProcessResult result;
         try
@@ -36,7 +38,7 @@ internal static class AzCli
                 Timeout = timeout,
                 Environment = environment ?? new Dictionary<string, string?>()
             };
-            result = await run.Runner.RunAsync(spec, run.Log, ct);
+            result = await run.Runner.RunAsync(spec, log ?? run.Log, ct);
         }
         catch (Win32Exception ex)
         {

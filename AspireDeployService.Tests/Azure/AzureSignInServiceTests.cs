@@ -1,5 +1,6 @@
 using AspireDeployService.Core.Azure;
 using AspireDeployService.Core.Errors;
+using AspireDeployService.Core.Logging;
 using AspireDeployService.Core.Outcomes;
 using AspireDeployService.Core.Processes;
 using AspireDeployService.Core.Runs;
@@ -174,5 +175,21 @@ public class AzureSignInServiceTests : IDisposable
     {
         Assert.Equal(new AzureSignInResult(null, 0), AzureSignInService.Parse("not json"));
         Assert.Equal(new AzureSignInResult(null, 1), AzureSignInService.Parse("""[ { "id": "x" } ]"""));
+    }
+
+    [Fact]
+    public async Task Tenant_warnings_are_plain_output_but_errors_stay_red()
+    {
+        var sink = new ListLogSink();
+        var log = new AzureSignInService.TenantWarningLog(sink);
+        await log.WriteAsync(LogStreams.StdErr, "WARNING: Authentication failed against tenant d38af8c8 'blazorhelpwebsite': AADSTS50076");
+        await log.WriteAsync(LogStreams.StdErr, "Trace ID: 49ddd2d4");
+        await log.WriteAsync(LogStreams.StdErr, "WARNING: Authentication failed against tenant 11111111 'other': AADSTS50076");
+        await log.WriteAsync(LogStreams.StdErr, "ERROR: something real");
+        await log.WriteAsync(LogStreams.StdOut, "[]");
+
+        Assert.Equal(2, log.SkippedTenants);
+        Assert.Equal([LogStreams.StdOut, LogStreams.StdOut, LogStreams.StdOut, LogStreams.StdErr, LogStreams.StdOut],
+            sink.Lines.Select(l => l.Stream).ToArray());
     }
 }
