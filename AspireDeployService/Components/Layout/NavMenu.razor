@@ -7,9 +7,12 @@
 @* The horizontal top app bar (docs/mockups): brand, page tabs with icons, activity, Azure account, theme toggle. No sidebar. *@
 <header class="ads-topbar">
     @* aria-label keeps the link named when the narrow layout hides the brand text. *@
-    <a class="ads-brand" href="" aria-label="Aspire Deploy home">
+    <a class="ads-brand" href="" aria-label="Aspire Deploy home" title="@AppVersion.Full">
         <span class="ads-brand-mark"><Icon Name="logo" Size="20" StrokeWidth="1.6" /></span>
-        <span class="ads-brand-name">Aspire Deploy</span>
+        <span class="ads-brand-text">
+            <span class="ads-brand-name">Aspire Deploy</span>
+            <span class="ads-brand-version">@AppVersion.Short</span>
+        </span>
     </a>
 
     <nav class="ads-tabs" aria-label="Pages">
